@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.WebAuthDialog
 import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -69,7 +70,7 @@ fun SpotifySyncScreen(
     val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
     val playlists by repository.playlists.collectAsState()
 
-    var isConnected by remember { mutableStateOf(true) }
+    var showAuthDialog by remember { mutableStateOf(false) }
     var isSyncing by remember { mutableStateOf(false) }
     var syncCanvas by remember { mutableStateOf(true) }
     var syncLikedSongs by remember { mutableStateOf(true) }
@@ -148,12 +149,12 @@ fun SpotifySyncScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isConnected) "Spotify Cloud Connected" else "Connect Spotify",
+                                text = if (cloudManager.isSpotifyAuthenticated) "Spotify Connected" else "Connect Spotify",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = textPrimary
                             )
                             Text(
-                                text = if (isConnected) "Seamless Cloud Stream • 1-Tap Sync" else "Sign in to sync your Spotify library",
+                                text = if (cloudManager.isSpotifyAuthenticated) "Authenticated via Spotify Web" else "Sign in to sync your Spotify library",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = textSecondary
                             )
@@ -168,21 +169,21 @@ fun SpotifySyncScreen(
                     ) {
                         Button(
                             onClick = {
-                                isConnected = !isConnected
-                                Toast.makeText(
-                                    context,
-                                    if (isConnected) "Connected to Spotify account" else "Disconnected from Spotify",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                if (!cloudManager.isSpotifyAuthenticated) {
+                                    showAuthDialog = true
+                                } else {
+                                    cloudManager.signOutSpotify()
+                                    Toast.makeText(context, "Disconnected from Spotify", Toast.LENGTH_SHORT).show()
+                                }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isConnected) Color(0x33888898) else spotifyGreen
+                                containerColor = if (cloudManager.isSpotifyAuthenticated) Color(0x33888898) else spotifyGreen
                             ),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = if (isConnected) "Disconnect" else "Connect Spotify",
+                                text = if (cloudManager.isSpotifyAuthenticated) "Disconnect" else "Connect Spotify",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
@@ -271,4 +272,17 @@ fun SpotifySyncScreen(
             }
         }
     }
+
+    WebAuthDialog(
+        isOpen = showAuthDialog,
+        providerTitle = "Spotify Account Login",
+        initialUrl = "https://accounts.spotify.com/en/login?continue=https%3A%2F%2Fopen.spotify.com",
+        successDomain = "open.spotify.com",
+        onDismiss = { showAuthDialog = false },
+        onAuthCaptured = { cookies ->
+            cloudManager.saveSpotifyAuth(cookies)
+            showAuthDialog = false
+            Toast.makeText(context, "Spotify Account Connected!", Toast.LENGTH_SHORT).show()
+        }
+    )
 }

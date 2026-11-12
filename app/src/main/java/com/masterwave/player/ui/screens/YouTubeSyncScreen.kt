@@ -59,6 +59,7 @@ import com.masterwave.player.MasterWaveApp
 import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.WebAuthDialog
 import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -78,6 +79,7 @@ fun YouTubeSyncScreen(
     val playlists by repository.playlists.collectAsState()
 
     var isSyncing by remember { mutableStateOf(false) }
+    var showAuthDialog by remember { mutableStateOf(false) }
     var autoSyncLiked by remember { mutableStateOf(true) }
     var highResArtworkSync by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -184,22 +186,21 @@ fun YouTubeSyncScreen(
                     ) {
                         Button(
                             onClick = {
-                                if (!userProfile.isSignedIn) {
-                                    cloudManager.signInWithGoogle()
-                                    Toast.makeText(context, "Signed in with Google Account", Toast.LENGTH_SHORT).show()
+                                if (!cloudManager.isYtAuthenticated) {
+                                    showAuthDialog = true
                                 } else {
-                                    cloudManager.signOut()
-                                    Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
+                                    cloudManager.signOutYouTube()
+                                    Toast.makeText(context, "Signed out of YouTube Music", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (userProfile.isSignedIn) Color(0x33888898) else ytRed
+                                containerColor = if (cloudManager.isYtAuthenticated) Color(0x33888898) else ytRed
                             ),
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.weight(1f)
                         ) {
                             Text(
-                                text = if (userProfile.isSignedIn) "Disconnect" else "Sign In with Google",
+                                text = if (cloudManager.isYtAuthenticated) "Disconnect" else "Sign In with Google",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
@@ -337,4 +338,17 @@ fun YouTubeSyncScreen(
             }
         }
     }
+
+    WebAuthDialog(
+        isOpen = showAuthDialog,
+        providerTitle = "YouTube Music Sign In",
+        initialUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com",
+        successDomain = "music.youtube.com",
+        onDismiss = { showAuthDialog = false },
+        onAuthCaptured = { cookies ->
+            cloudManager.saveYouTubeAuth(cookies)
+            showAuthDialog = false
+            Toast.makeText(context, "YouTube Music Account Authenticated!", Toast.LENGTH_SHORT).show()
+        }
+    )
 }
