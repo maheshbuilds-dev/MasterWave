@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="canvas_obsidian">#08080A</color>
+    <color name="surface_charcoal">#121216</color>
+    <color name="accent_crimson">#E53935</color>
+    <color name="accent_burgundy">#880E4F</color>
+</resources>

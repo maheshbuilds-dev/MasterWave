@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MasterWave</string>
+    <string name="notification_channel_name">MasterWave Playback</string>
+    <string name="notification_channel_desc">Active audio playback notification and transport controls</string>
+</resources>
