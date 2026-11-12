@@ -1,0 +1,11 @@
+# Build and IDE
+.gradle/
+build/
+app/build/
+*.iml
+.idea/
+local.properties
+.DS_Store
+
+# Research directory (keep original repo separate)
+research/
