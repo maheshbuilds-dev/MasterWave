@@ -24,15 +24,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.masterwave.player.data.model.Track
-import com.masterwave.player.ui.theme.AccentCrimson
-import com.masterwave.player.ui.theme.SurfaceCard
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextSecondary
-import com.masterwave.player.ui.theme.TextTertiary
+import com.masterwave.player.ui.theme.DarkPrimaryCrimson
+import com.masterwave.player.ui.theme.LightPrimaryMaroon
+import com.masterwave.player.ui.theme.LightSurfaceVariant
+import com.masterwave.player.ui.theme.LightTextPrimary
+import com.masterwave.player.ui.theme.LightTextSecondary
+import com.masterwave.player.ui.theme.LightTextTertiary
 
 @Composable
 fun TrackItem(
@@ -46,17 +49,17 @@ fun TrackItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Thumbnail
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(SurfaceCard),
+                .clip(RoundedCornerShape(10.dp))
+                .background(LightSurfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             if (!track.artworkUrl.isNullOrBlank()) {
@@ -70,8 +73,8 @@ fun TrackItem(
                 Icon(
                     imageVector = Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = TextTertiary,
-                    modifier = Modifier.size(24.dp)
+                    tint = LightTextTertiary,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -84,28 +87,30 @@ fun TrackItem(
         ) {
             Text(
                 text = track.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isPlaying) AccentCrimson else TextPrimary,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                ),
+                color = if (isPlaying) LightPrimaryMaroon else LightTextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = track.artist + if (track.album.isNotBlank()) " • ${track.album}" else "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = LightTextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Duration
+        // Duration Label
         if (track.durationSeconds > 0) {
             Text(
                 text = track.durationFormatted,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextTertiary
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = LightTextTertiary,
+                modifier = Modifier.padding(horizontal = 6.dp)
             )
         }
 
@@ -118,7 +123,7 @@ fun TrackItem(
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Favorite",
-                    tint = if (isFavorite) AccentCrimson else TextTertiary,
+                    tint = if (isFavorite) DarkPrimaryCrimson else LightTextTertiary,
                     modifier = Modifier.size(20.dp)
                 )
             }

@@ -5,7 +5,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -15,55 +14,50 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
+import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlaybackService
-import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.FloatingNavigationDock
+import com.masterwave.player.ui.components.MainTab
 import com.masterwave.player.ui.components.MiniPlayerDock
+import com.masterwave.player.ui.screens.AppUpdateScreen
+import com.masterwave.player.ui.screens.AppearanceScreen
+import com.masterwave.player.ui.screens.AudioPlaybackScreen
 import com.masterwave.player.ui.screens.HomeScreen
-import com.masterwave.player.ui.screens.LibraryScreen
 import com.masterwave.player.ui.screens.LyricsScreen
 import com.masterwave.player.ui.screens.NowPlayingScreen
+import com.masterwave.player.ui.screens.PlaylistsScreen
 import com.masterwave.player.ui.screens.QueueScreen
 import com.masterwave.player.ui.screens.SearchScreen
 import com.masterwave.player.ui.screens.SettingsScreen
-import com.masterwave.player.ui.theme.AccentCrimson
-import com.masterwave.player.ui.theme.CanvasObsidian
+import com.masterwave.player.ui.screens.StatsScreen
+import com.masterwave.player.ui.screens.SupportCommunityScreen
+import com.masterwave.player.ui.theme.LightBackground
 import com.masterwave.player.ui.theme.MasterWaveTheme
-import com.masterwave.player.ui.theme.SurfaceElevated
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextTertiary
 
 class MainActivity : ComponentActivity() {
 
@@ -126,13 +120,14 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
         permissionLauncher.launch(permissions.toTypedArray())
+        repository.loadLocalTracks()
     }
 
     if (playbackService == null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(CanvasObsidian)
+                .background(LightBackground)
         )
         return
     }
@@ -144,81 +139,61 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     val positionMs by player.positionMs.collectAsState()
     val durationMs by player.durationMs.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Home, 1: Search, 2: Library, 3: Settings
+    // Navigation States
+    var currentTab by remember { mutableStateOf(MainTab.FEED) }
     var isNowPlayingExpanded by remember { mutableStateOf(false) }
     var isLyricsOpen by remember { mutableStateOf(false) }
     var isQueueOpen by remember { mutableStateOf(false) }
+    var isSearchOpen by remember { mutableStateOf(false) }
+    var isSettingsOpen by remember { mutableStateOf(false) }
+    var isAppearanceOpen by remember { mutableStateOf(false) }
+    var isAudioPlaybackOpen by remember { mutableStateOf(false) }
+    var isAppUpdateOpen by remember { mutableStateOf(false) }
+    var isSupportOpen by remember { mutableStateOf(false) }
 
-    // Handle back button for expanded views
-    BackHandler(enabled = isLyricsOpen || isQueueOpen || isNowPlayingExpanded) {
-        if (isLyricsOpen) {
-            isLyricsOpen = false
-        } else if (isQueueOpen) {
-            isQueueOpen = false
-        } else if (isNowPlayingExpanded) {
-            isNowPlayingExpanded = false
+    // Back handling for nested views
+    BackHandler(
+        enabled = isNowPlayingExpanded || isLyricsOpen || isQueueOpen ||
+                isSearchOpen || isSettingsOpen || isAppearanceOpen ||
+                isAudioPlaybackOpen || isAppUpdateOpen || isSupportOpen
+    ) {
+        when {
+            isLyricsOpen -> isLyricsOpen = false
+            isQueueOpen -> isQueueOpen = false
+            isNowPlayingExpanded -> isNowPlayingExpanded = false
+            isAppearanceOpen -> isAppearanceOpen = false
+            isAudioPlaybackOpen -> isAudioPlaybackOpen = false
+            isAppUpdateOpen -> isAppUpdateOpen = false
+            isSupportOpen -> isSupportOpen = false
+            isSettingsOpen -> isSettingsOpen = false
+            isSearchOpen -> isSearchOpen = false
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = {
-                NavigationBar(
-                    containerColor = SurfaceElevated,
-                    contentColor = TextPrimary,
-                    modifier = Modifier.navigationBarsPadding()
+                // Dock stack: MiniPlayer immediately above FloatingNavigationDock
+                Column(
+                    modifier = Modifier.navigationBarsPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                        label = { Text("Home") },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AccentCrimson,
-                            selectedTextColor = AccentCrimson,
-                            indicatorColor = Color.Transparent,
-                            unselectedIconColor = TextTertiary,
-                            unselectedTextColor = TextTertiary
+                    if (currentTrack != null) {
+                        MiniPlayerDock(
+                            track = currentTrack!!,
+                            isPlaying = isPlaying,
+                            isLoading = isLoading,
+                            positionMs = positionMs,
+                            durationMs = durationMs,
+                            onExpand = { isNowPlayingExpanded = true },
+                            onPlayPause = { player.togglePlayPause() },
+                            onNext = { player.skipToNext() }
                         )
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                        label = { Text("Search") },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AccentCrimson,
-                            selectedTextColor = AccentCrimson,
-                            indicatorColor = Color.Transparent,
-                            unselectedIconColor = TextTertiary,
-                            unselectedTextColor = TextTertiary
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        icon = { Icon(Icons.Default.LibraryMusic, contentDescription = "Library") },
-                        label = { Text("Library") },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AccentCrimson,
-                            selectedTextColor = AccentCrimson,
-                            indicatorColor = Color.Transparent,
-                            unselectedIconColor = TextTertiary,
-                            unselectedTextColor = TextTertiary
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3 },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = AccentCrimson,
-                            selectedTextColor = AccentCrimson,
-                            indicatorColor = Color.Transparent,
-                            unselectedIconColor = TextTertiary,
-                            unselectedTextColor = TextTertiary
-                        )
+                    }
+
+                    FloatingNavigationDock(
+                        currentTab = currentTab,
+                        onTabSelected = { currentTab = it }
                     )
                 }
             }
@@ -226,42 +201,110 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
             ) {
-                when (selectedTab) {
-                    0 -> HomeScreen(
-                        player = player,
-                        repository = repository,
-                        onNavigateToSearch = { selectedTab = 1 },
-                        onNavigateToLibrary = { selectedTab = 2 }
-                    )
-                    1 -> SearchScreen(
-                        player = player,
-                        repository = repository,
-                        onBack = { selectedTab = 0 }
-                    )
-                    2 -> LibraryScreen(
-                        player = player,
-                        repository = repository
-                    )
-                    3 -> SettingsScreen()
-                }
-
-                // Docked MiniPlayer above BottomNavigation
-                if (currentTrack != null) {
-                    MiniPlayerDock(
-                        track = currentTrack!!,
-                        isPlaying = isPlaying,
-                        isLoading = isLoading,
-                        positionMs = positionMs,
-                        durationMs = durationMs,
-                        onExpand = { isNowPlayingExpanded = true },
-                        onPlayPause = { player.togglePlayPause() },
-                        onNext = { player.playNext() },
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
+                // Animated Tab Switching with Spring Physics
+                AnimatedContent(
+                    targetState = currentTab,
+                    transitionSpec = {
+                        if (targetState.ordinal > initialState.ordinal) {
+                            (slideInHorizontally { width -> width / 3 } + fadeIn()) togetherWith
+                                    (slideOutHorizontally { width -> -width / 3 } + fadeOut())
+                        } else {
+                            (slideInHorizontally { width -> -width / 3 } + fadeIn()) togetherWith
+                                    (slideOutHorizontally { width -> width / 3 } + fadeOut())
+                        }
+                    },
+                    label = "tab_transition"
+                ) { tab ->
+                    when (tab) {
+                        MainTab.FEED -> HomeScreen(
+                            player = player,
+                            repository = repository,
+                            onNavigateToSearch = { isSearchOpen = true },
+                            onNavigateToSettings = { isSettingsOpen = true }
+                        )
+                        MainTab.STATS -> StatsScreen(
+                            player = player,
+                            repository = repository,
+                            onNavigateToSearch = { isSearchOpen = true },
+                            onNavigateToSettings = { isSettingsOpen = true }
+                        )
+                        MainTab.PLAYLISTS -> PlaylistsScreen(
+                            player = player,
+                            repository = repository,
+                            onPlaylistSelected = { playlist ->
+                                if (playlist.tracks.isNotEmpty()) {
+                                    player.playTrack(playlist.tracks.first(), playlist.tracks)
+                                }
+                            }
+                        )
+                    }
                 }
             }
+        }
+
+        // --- Fullscreen Search Overlay ---
+        AnimatedVisibility(
+            visible = isSearchOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            SearchScreen(
+                player = player,
+                repository = repository,
+                onBack = { isSearchOpen = false }
+            )
+        }
+
+        // --- Fullscreen Settings Overlay ---
+        AnimatedVisibility(
+            visible = isSettingsOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            SettingsScreen(
+                onBack = { isSettingsOpen = false },
+                onNavigateToAppearance = { isAppearanceOpen = true },
+                onNavigateToAudioPlayback = { isAudioPlaybackOpen = true },
+                onNavigateToAppUpdate = { isAppUpdateOpen = true },
+                onNavigateToSupport = { isSupportOpen = true }
+            )
+        }
+
+        // Sub-screen: Appearance & Visuals
+        AnimatedVisibility(
+            visible = isAppearanceOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            AppearanceScreen(onBack = { isAppearanceOpen = false })
+        }
+
+        // Sub-screen: Audio & Playback
+        AnimatedVisibility(
+            visible = isAudioPlaybackOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            AudioPlaybackScreen(onBack = { isAudioPlaybackOpen = false })
+        }
+
+        // Sub-screen: App Update
+        AnimatedVisibility(
+            visible = isAppUpdateOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            AppUpdateScreen(onBack = { isAppUpdateOpen = false })
+        }
+
+        // Sub-screen: Support & Community
+        AnimatedVisibility(
+            visible = isSupportOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            SupportCommunityScreen(onBack = { isSupportOpen = false })
         }
 
         // Fullscreen Now Playing Overlay

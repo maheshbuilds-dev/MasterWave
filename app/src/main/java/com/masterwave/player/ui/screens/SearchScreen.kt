@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,7 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Search
@@ -43,19 +44,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.masterwave.player.data.model.SearchResult
-import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
-import com.masterwave.player.ui.theme.AccentCrimson
-import com.masterwave.player.ui.theme.CanvasObsidian
-import com.masterwave.player.ui.theme.SurfaceElevated
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextSecondary
-import com.masterwave.player.ui.theme.TextTertiary
+import com.masterwave.player.ui.theme.LightBackground
+import com.masterwave.player.ui.theme.LightPrimaryMaroon
+import com.masterwave.player.ui.theme.LightSurfaceVariant
+import com.masterwave.player.ui.theme.LightTextPrimary
+import com.masterwave.player.ui.theme.LightTextSecondary
+import com.masterwave.player.ui.theme.LightTextTertiary
 import kotlinx.coroutines.launch
 
 @Composable
@@ -98,20 +100,22 @@ fun SearchScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CanvasObsidian)
+            .background(LightBackground)
+            .statusBarsPadding()
     ) {
-        // Search Input Bar
+        // Search Header Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = TextPrimary
+                    tint = LightTextPrimary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -119,29 +123,36 @@ fun SearchScreen(
                 value = query,
                 onValueChange = {
                     query = it
-                    searchResult = null
+                    if (it.isBlank()) {
+                        searchResult = null
+                    }
                 },
                 placeholder = {
-                    Text(text = "Search songs, artists, albums...", color = TextTertiary)
+                    Text(
+                        text = "Search tracks, artists, albums...",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                        color = LightTextTertiary
+                    )
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = TextTertiary
+                        tint = LightTextSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 },
                 trailingIcon = {
-                    if (query.isNotBlank()) {
+                    if (query.isNotEmpty()) {
                         IconButton(onClick = {
                             query = ""
                             searchResult = null
-                            suggestions = emptyList()
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Clear",
-                                tint = TextSecondary
+                                tint = LightTextSecondary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -150,16 +161,13 @@ fun SearchScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { performSearch(query) }),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = SurfaceElevated,
-                    unfocusedContainerColor = SurfaceElevated,
-                    disabledContainerColor = SurfaceElevated,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary,
-                    cursorColor = AccentCrimson,
+                    focusedContainerColor = LightSurfaceVariant,
+                    unfocusedContainerColor = LightSurfaceVariant,
+                    disabledContainerColor = LightSurfaceVariant,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
                 ),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .weight(1f)
                     .height(52.dp)
@@ -171,10 +179,10 @@ fun SearchScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 100.dp),
+                    .padding(bottom = 120.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = AccentCrimson)
+                CircularProgressIndicator(color = LightPrimaryMaroon)
             }
         } else if (searchResult != null) {
             val songs = searchResult!!.songs
@@ -182,32 +190,33 @@ fun SearchScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 100.dp),
+                        .padding(bottom = 120.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "No tracks found for \"${query}\"",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = TextSecondary
+                        color = LightTextSecondary
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 120.dp)
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     items(songs) { track ->
+                        val isFav = favorites.any { it.id == track.id }
                         TrackItem(
                             track = track,
                             isPlaying = currentTrack?.id == track.id && isPlaying,
-                            isFavorite = favorites.contains(track.id),
+                            isFavorite = isFav,
                             onClick = {
                                 player.playTrack(track, songs)
                             },
                             onFavoriteToggle = {
-                                repository.toggleFavorite(track.id)
+                                repository.toggleFavorite(track)
                             },
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                            modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
                 }
@@ -228,20 +237,20 @@ fun SearchScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = TextTertiary,
+                            tint = LightTextTertiary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
                             text = item,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = TextPrimary,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                            color = LightTextPrimary,
                             modifier = Modifier.weight(1f)
                         )
                         Icon(
                             imageVector = Icons.Default.NorthWest,
                             contentDescription = null,
-                            tint = TextTertiary,
+                            tint = LightTextTertiary,
                             modifier = Modifier.size(16.dp)
                         )
                     }

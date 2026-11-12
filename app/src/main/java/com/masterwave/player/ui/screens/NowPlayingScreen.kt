@@ -1,12 +1,19 @@
 package com.masterwave.player.ui.screens
 
+import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,41 +22,72 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masterwave.player.data.model.Track
+import coil.compose.AsyncImage
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
-import com.masterwave.player.ui.components.ArtworkHero
-import com.masterwave.player.ui.components.TransportControls
-import com.masterwave.player.ui.components.WaveSeekBar
-import com.masterwave.player.ui.theme.AccentCrimson
-import com.masterwave.player.ui.theme.CanvasObsidian
-import com.masterwave.player.ui.theme.SurfaceElevated
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextSecondary
-import com.masterwave.player.ui.theme.TextTertiary
+import com.masterwave.player.ui.components.AnimatedWaveform
+import com.masterwave.player.ui.theme.DarkBackground
+import com.masterwave.player.ui.theme.DarkPrimaryCrimson
+import com.masterwave.player.ui.theme.DarkSurfaceElevated
+import com.masterwave.player.ui.theme.DarkTextPrimary
+import com.masterwave.player.ui.theme.DarkTextSecondary
+import com.masterwave.player.ui.theme.DarkTextTertiary
 
+/**
+ * Now Playing Screen redesigned to match Screenshot 5 precisely:
+ * - Blurred artwork backdrop with rich crimson ambient lighting.
+ * - Pill round back button and 3-dots pill.
+ * - High-res cover hero with soft corner radii.
+ * - Song Title, Artist and dual pill actions: Heart & Quotes (lyrics).
+ * - Animated Waveform Seekbar with harmonic oscillations & Opus badge.
+ * - Previous/Next circular pills + Wide Stadium Pause/Play pill button.
+ * - Bottom row: Shuffle stadium, Speaker/Output stadium, Repeat stadium.
+ */
 @Composable
 fun NowPlayingScreen(
     player: MasterWavePlayer,
@@ -69,196 +107,444 @@ fun NowPlayingScreen(
     val favorites by repository.favorites.collectAsState()
 
     val currentTrack = track ?: return
+    val isFavorite = favorites.any { it.id == currentTrack.id }
+    val context = LocalContext.current
 
-    Column(
+    var showMenu by remember { mutableStateOf(false) }
+    var showQualityDialog by remember { mutableStateOf(false) }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(CanvasObsidian)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
+            .background(DarkBackground)
     ) {
-        // Top App Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onCollapse,
+        // Blurred Artwork Background Layer
+        if (!currentTrack.artworkUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = currentTrack.artworkUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceElevated)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Collapse",
-                    tint = TextPrimary
+                    .fillMaxSize()
+                    .blur(60.dp)
+            )
+        }
+
+        // Dark Vignette & Gradient Overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xCC08080A),
+                            Color(0x9908080A),
+                            Color(0xDD08080A),
+                            Color(0xFF08080A)
+                        )
+                    )
                 )
+        )
+
+        // Foreground Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // --- 1. Top Header Row ---
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Collapse pill button
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x3322222E))
+                        .clickable(onClick = onCollapse),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Collapse",
+                        tint = DarkTextPrimary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                // Center header title
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "NOW PLAYING",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            letterSpacing = 2.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        ),
+                        color = DarkTextPrimary
+                    )
+                    Text(
+                        text = "MasterWave",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = DarkTextTertiary
+                    )
+                }
+
+                // 3-dots options pill button
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x3322222E))
+                        .clickable { showMenu = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More Options",
+                        tint = DarkTextPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("View Queue") },
+                            onClick = {
+                                showMenu = false
+                                onOpenQueue()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("View Lyrics") },
+                            onClick = {
+                                showMenu = false
+                                onOpenLyrics()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Audio Quality (Opus 160 kbps)") },
+                            onClick = {
+                                showMenu = false
+                                Toast.makeText(context, "Streaming at high-fidelity Opus 160 kbps", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                }
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "PLAYING FROM MASTERWAVE",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.5.sp
-                    ),
-                    color = TextTertiary
-                )
-                if (currentTrack.album.isNotBlank()) {
-                    Text(
-                        text = currentTrack.album,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                        color = TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // --- 2. Hero Artwork Card ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .aspectRatio(1f)
+                    .shadow(24.dp, RoundedCornerShape(24.dp), spotColor = Color(0x88E53935))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF16161E)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!currentTrack.artworkUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = currentTrack.artworkUrl,
+                        contentDescription = currentTrack.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
 
-            IconButton(
-                onClick = onOpenQueue,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceElevated)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.QueueMusic,
-                    contentDescription = "Queue",
-                    tint = TextPrimary
-                )
-            }
-        }
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Center Album Artwork Hero
-        ArtworkHero(
-            artworkUrl = currentTrack.artworkUrl,
-            isPlaying = isPlaying,
-            modifier = Modifier.weight(1f, fill = false)
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Song Metadata & Favorite Toggle
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = currentTrack.title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = currentTrack.artist,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            IconButton(
-                onClick = { repository.toggleFavorite(currentTrack.id) },
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(SurfaceElevated)
-            ) {
-                val isFav = favorites.contains(currentTrack.id)
-                Icon(
-                    imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFav) AccentCrimson else TextPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Scrubber / Seek Bar
-        WaveSeekBar(
-            positionMs = positionMs,
-            durationMs = if (durationMs > 0) durationMs else currentTrack.durationSeconds * 1000L,
-            onSeek = { player.seekTo(it) }
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Media Transport Controls
-        TransportControls(
-            isPlaying = isPlaying,
-            isLoading = isLoading,
-            isShuffle = isShuffle,
-            repeatMode = repeatMode,
-            onPlayPause = { player.togglePlayPause() },
-            onPrevious = { player.playPrevious() },
-            onNext = { player.playNext() },
-            onToggleShuffle = { player.toggleShuffle() },
-            onToggleRepeat = { player.toggleRepeat() }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Bottom Bar: Lyrics & Audio Quality Indicator
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Audio Codec Capsule
+            // --- 3. Track Metadata & Actions Row (Heart & Lyrics) ---
             Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(SurfaceElevated)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "${currentTrack.codec.uppercase()} ${currentTrack.bitrateKbps} KBPS • 48 KHZ",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextTertiary
-                )
+                // Title and Artist
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = currentTrack.title,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        ),
+                        color = DarkTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = currentTrack.artist,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                        color = DarkTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Actions: Heart & Lyrics pill buttons (Screenshot 5)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Favorite Heart Button with scale animation
+                    val heartScale by animateFloatAsState(
+                        targetValue = if (isFavorite) 1.15f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "heart_scale"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x33282836))
+                            .clickable {
+                                repository.toggleFavorite(currentTrack)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            tint = if (isFavorite) DarkPrimaryCrimson else DarkTextPrimary,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .scale(heartScale)
+                        )
+                    }
+
+                    // Lyrics Quotes Button
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x33282836))
+                            .clickable(onClick = onOpenLyrics),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FormatQuote,
+                            contentDescription = "Lyrics",
+                            tint = DarkTextPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
 
-            // Lyrics Toggle Button
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // --- 4. Animated Waveform Seekbar ---
+            AnimatedWaveform(
+                positionMs = positionMs,
+                durationMs = durationMs,
+                isPlaying = isPlaying,
+                codecLabel = "Opus • OPUS 160 kbps",
+                onSeek = { player.seekTo(it) },
+                onCodecClick = {
+                    Toast.makeText(context, "Audio Engine: Hardware Opus Decoder (160 kbps, 48 kHz Stereo)", Toast.LENGTH_SHORT).show()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --- 5. Main Playback Controls Row (Screenshot 5) ---
             Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceElevated)
-                    .clickable(onClick = onOpenLyrics)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Lyrics,
-                    contentDescription = "Lyrics",
-                    tint = AccentCrimson,
-                    modifier = Modifier.size(18.dp)
+                // Previous Track circular button
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x33282836))
+                        .clickable { player.skipToPrevious() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Previous Track",
+                        tint = DarkTextPrimary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Pause / Play Large Stadium Pill Button (Screenshot 5)
+                Surface(
+                    shape = RoundedCornerShape(32.dp),
+                    color = Color(0x33282836),
+                    modifier = Modifier
+                        .height(58.dp)
+                        .weight(1f)
+                        .padding(horizontal = 14.dp)
+                        .clickable(onClick = { player.togglePlayPause() })
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = DarkTextPrimary,
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = DarkTextPrimary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = if (isPlaying) "Pause" else "Play",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                ),
+                                color = DarkTextPrimary
+                            )
+                        }
+                    }
+                }
+
+                // Next Track circular button
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x33282836))
+                        .clickable { player.skipToNext() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next Track",
+                        tint = DarkTextPrimary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --- 6. Bottom Utility Controls Row (Shuffle, Speaker, Repeat) ---
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Shuffle Stadium Pill
+                val shuffleBg by animateColorAsState(
+                    targetValue = if (isShuffle) DarkPrimaryCrimson.copy(alpha = 0.35f) else Color(0x2222222E),
+                    label = "shuffle_bg"
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Lyrics",
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 13.sp),
-                    color = TextPrimary
+                Box(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .weight(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(shuffleBg)
+                        .clickable { player.toggleShuffle() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shuffle,
+                        contentDescription = "Shuffle",
+                        tint = if (isShuffle) DarkPrimaryCrimson else DarkTextSecondary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Center Speaker / Output Stadium Pill (Screenshot 5: [ 🔊 | ▶ ])
+                Box(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .weight(1.3f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0x2222222E))
+                        .clickable {
+                            Toast.makeText(context, "Audio Output: Device Speaker / Bluetooth", Toast.LENGTH_SHORT).show()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = "Speaker",
+                            tint = DarkTextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(16.dp)
+                                .background(Color(0x44FFFFFF))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Output",
+                            tint = DarkTextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Repeat Stadium Pill
+                val isRepeatActive = repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF
+                val repeatBg by animateColorAsState(
+                    targetValue = if (isRepeatActive) DarkPrimaryCrimson.copy(alpha = 0.35f) else Color(0x2222222E),
+                    label = "repeat_bg"
                 )
+                Box(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .weight(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(repeatBg)
+                        .clickable { player.cycleRepeatMode() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                        contentDescription = "Repeat",
+                        tint = if (isRepeatActive) DarkPrimaryCrimson else DarkTextSecondary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
     }

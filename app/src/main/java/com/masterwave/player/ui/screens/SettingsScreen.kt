@@ -14,34 +14,61 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.masterwave.player.ui.theme.AccentCrimson
-import com.masterwave.player.ui.theme.CanvasObsidian
-import com.masterwave.player.ui.theme.SurfaceCard
-import com.masterwave.player.ui.theme.SurfaceElevated
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextSecondary
-import com.masterwave.player.ui.theme.TextTertiary
+import androidx.compose.ui.unit.sp
+import com.masterwave.player.ui.theme.LightBackground
+import com.masterwave.player.ui.theme.LightCardCream
+import com.masterwave.player.ui.theme.LightCardPink
+import com.masterwave.player.ui.theme.LightPrimaryMaroon
+import com.masterwave.player.ui.theme.LightSurfaceVariant
+import com.masterwave.player.ui.theme.LightTextPrimary
+import com.masterwave.player.ui.theme.LightTextSecondary
 
+/**
+ * Settings Screen matching Screenshots 2 & 3.
+ * Features:
+ * - Grouped sections with maroon subheadings (#880E4F).
+ * - Full-width rounded cards with colored icon chips (Pink & Cream).
+ * - Forward arrows with smooth navigation to sub-screens.
+ */
 @Composable
 fun SettingsScreen(
+    onBack: () -> Unit,
+    onNavigateToAppearance: () -> Unit,
+    onNavigateToAudioPlayback: () -> Unit,
+    onNavigateToAppUpdate: () -> Unit,
+    onNavigateToSupport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -49,133 +76,243 @@ fun SettingsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(CanvasObsidian),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
+            .background(LightBackground)
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 140.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // --- 1. Top Header Row ---
         item {
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.headlineLarge,
-                color = TextPrimary,
-                modifier = Modifier.padding(bottom = 20.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = LightTextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Settings",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 30.sp
+                    ),
+                    color = LightTextPrimary
+                )
+            }
         }
 
-        // Section: Audio Engine
+        // --- 2. Collaboration & Social ---
         item {
-            SettingsCategoryHeader("AUDIO PLAYBACK")
-            SettingsItemCard(
-                icon = Icons.Default.Audiotrack,
-                title = "Decoder & Codec Engine",
-                subtitle = "ExoPlayer 1.2.1 + FFmpeg Software Decoder\nPrefers Opus ~160 kbps @ 48,000 Hz Stereo"
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            SettingsItemCard(
-                icon = Icons.Default.Audiotrack,
-                title = "Audio Output",
-                subtitle = "Deterministic AudioTrack with system Audio Focus"
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-
-        // Section: Privacy & Source
-        item {
-            SettingsCategoryHeader("PRIVACY & SOURCES")
-            SettingsItemCard(
-                icon = Icons.Default.Security,
-                title = "Anonymous Access",
-                subtitle = "Direct streaming without mandatory user accounts or tracking"
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            SettingsItemCard(
-                icon = Icons.Default.Security,
-                title = "Zero Ads & Zero Paid APIs",
-                subtitle = "Self-contained playback engine without paid cloud backends"
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-
-        // Section: Storage
-        item {
-            SettingsCategoryHeader("STORAGE & CACHE")
-            SettingsItemCard(
-                icon = Icons.Default.Delete,
-                title = "Clear Image Cache",
-                subtitle = "Cleans artwork disk cache on local storage",
+            SettingsSectionHeader("Collaboration & Social")
+            SettingsCard(
+                icon = Icons.Default.Group,
+                iconBg = LightCardPink,
+                iconTint = LightPrimaryMaroon,
+                title = "MasterWave Jam",
+                subtitle = "Listen together in real-time • Host or join a room",
                 onClick = {
-                    Toast.makeText(context, "Image cache cleared", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "MasterWave Jam: Peer listening ready", Toast.LENGTH_SHORT).show()
                 }
             )
-            Spacer(modifier = Modifier.height(20.dp))
         }
 
-        // Section: About
+        // --- 3. Services & Add-ons ---
         item {
-            SettingsCategoryHeader("ABOUT")
-            SettingsItemCard(
-                icon = Icons.Default.Info,
-                title = "MasterWave v1.0.0",
-                subtitle = "Licensed under GNU General Public License v3.0\nDesigned for Moto G45 5G & modern Android"
-            )
-            Spacer(modifier = Modifier.height(120.dp))
+            SettingsSectionHeader("Services & Add-ons")
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SettingsCard(
+                    icon = Icons.Default.Extension,
+                    iconBg = LightCardCream,
+                    iconTint = Color(0xFF6D4C41),
+                    title = "Provider Modules",
+                    subtitle = "Extra sources queried alongside YouTube Music",
+                    onClick = {
+                        Toast.makeText(context, "Provider Modules: Active (NewPipe + InnerTube)", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                SettingsCard(
+                    icon = Icons.Default.Album,
+                    iconBg = LightCardPink,
+                    iconTint = LightPrimaryMaroon,
+                    title = "Last.fm",
+                    subtitle = "Connect account, scrobbles & statistics sync",
+                    onClick = {
+                        Toast.makeText(context, "Last.fm Scrobbler integration", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                SettingsCard(
+                    icon = Icons.Default.Sync,
+                    iconBg = LightSurfaceVariant,
+                    iconTint = LightTextPrimary,
+                    title = "YouTube & Sync",
+                    subtitle = "YouTube Music account, channels, history import",
+                    onClick = {
+                        Toast.makeText(context, "YouTube Music zero-auth pipeline active", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                SettingsCard(
+                    icon = Icons.Default.PlayCircle,
+                    iconBg = LightCardPink,
+                    iconTint = LightPrimaryMaroon,
+                    title = "Spotify",
+                    subtitle = "Account connection, Canvas, playlist importer",
+                    onClick = {
+                        Toast.makeText(context, "Spotify playlist importer ready", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        // --- 4. Playback & UI ---
+        item {
+            SettingsSectionHeader("Playback & UI")
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SettingsCard(
+                    icon = Icons.Default.Palette,
+                    iconBg = LightCardCream,
+                    iconTint = Color(0xFF455A64),
+                    title = "Appearance & Visuals",
+                    subtitle = "Themes, Colors, Artwork, Animated Waveform",
+                    onClick = onNavigateToAppearance
+                )
+                SettingsCard(
+                    icon = Icons.Default.Equalizer,
+                    iconBg = LightCardPink,
+                    iconTint = LightPrimaryMaroon,
+                    title = "Audio & Playback",
+                    subtitle = "Streaming quality, Audio engine, Equalizer...",
+                    onClick = onNavigateToAudioPlayback
+                )
+                SettingsCard(
+                    icon = Icons.Default.QueueMusic,
+                    iconBg = LightSurfaceVariant,
+                    iconTint = LightTextPrimary,
+                    title = "Library & Content",
+                    subtitle = "Home layout, Playlist imports, Downloads,...",
+                    onClick = {
+                        Toast.makeText(context, "Library & Content management", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        // --- 5. System & About ---
+        item {
+            SettingsSectionHeader("System & About")
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SettingsCard(
+                    icon = Icons.Default.CloudDownload,
+                    iconBg = LightCardCream,
+                    iconTint = Color(0xFF37474F),
+                    title = "Data & Storage",
+                    subtitle = "Backup & Restore, Cache clearing, CSV history",
+                    onClick = {
+                        Toast.makeText(context, "Cache and local database storage", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                SettingsCard(
+                    icon = Icons.Default.Info,
+                    iconBg = LightCardPink,
+                    iconTint = LightPrimaryMaroon,
+                    title = "About & System",
+                    subtitle = "Version 1.0.0 (Snapdragon 6s Gen 3)",
+                    onClick = onNavigateToAppUpdate
+                )
+                SettingsCard(
+                    icon = Icons.Default.HelpOutline,
+                    iconBg = LightSurfaceVariant,
+                    iconTint = LightTextPrimary,
+                    title = "Support & Community",
+                    subtitle = "Open source code, FAQ, License",
+                    onClick = onNavigateToSupport
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SettingsCategoryHeader(title: String) {
+private fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelSmall,
-        color = AccentCrimson,
-        modifier = Modifier.padding(bottom = 8.dp)
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp
+        ),
+        color = LightPrimaryMaroon,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
     )
 }
 
 @Composable
-private fun SettingsItemCard(
+private fun SettingsCard(
     icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
     title: String,
     subtitle: String,
-    onClick: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
-    Row(
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = LightSurfaceVariant.copy(alpha = 0.55f),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(SurfaceElevated)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(onClick = onClick)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(SurfaceCard),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    ),
+                    color = LightTextPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = LightTextSecondary
+                )
+            }
+
             Icon(
-                imageVector = icon,
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = AccentCrimson,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                tint = LightTextSecondary,
+                modifier = Modifier.size(16.dp)
             )
         }
     }

@@ -7,19 +7,30 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,18 +44,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.masterwave.player.data.model.Track
+import androidx.compose.ui.unit.sp
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
-import com.masterwave.player.ui.theme.AccentCrimson
-import com.masterwave.player.ui.theme.CanvasObsidian
-import com.masterwave.player.ui.theme.SurfaceElevated
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextSecondary
-import com.masterwave.player.ui.theme.TextTertiary
+import com.masterwave.player.ui.theme.LightBackground
+import com.masterwave.player.ui.theme.LightCardPink
+import com.masterwave.player.ui.theme.LightPrimaryMaroon
+import com.masterwave.player.ui.theme.LightSurfaceVariant
+import com.masterwave.player.ui.theme.LightTextPrimary
+import com.masterwave.player.ui.theme.LightTextSecondary
+import com.masterwave.player.ui.theme.LightTextTertiary
 import kotlinx.coroutines.launch
 
 @Composable
@@ -80,79 +93,106 @@ fun LibraryScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CanvasObsidian)
+            .background(LightBackground)
+            .statusBarsPadding()
     ) {
         // Screen Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Library",
-                style = MaterialTheme.typography.headlineLarge,
-                color = TextPrimary
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 30.sp
+                ),
+                color = LightTextPrimary
             )
 
             if (selectedTab == 0) {
-                IconButton(
-                    onClick = { scanLocal() },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(SurfaceElevated)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Rescan",
-                        tint = TextPrimary
-                    )
+                IconButton(onClick = { scanLocal() }) {
+                    if (isLoadingLocal) {
+                        CircularProgressIndicator(
+                            color = LightPrimaryMaroon,
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Scan Media",
+                            tint = LightPrimaryMaroon,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // Segmented Tabs
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Tab Selector Row
+        TabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = LightBackground,
+            contentColor = LightPrimaryMaroon,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                    color = LightPrimaryMaroon,
+                    height = 3.dp
+                )
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
         ) {
-            TabButton("Local Audio", selectedTab == 0) { selectedTab = 0 }
-            TabButton("Favorites", selectedTab == 1) { selectedTab = 1 }
-            TabButton("Recents", selectedTab == 2) { selectedTab = 2 }
+            LibraryTabItem(
+                title = "Local (${localTracks.size})",
+                icon = Icons.Default.Folder,
+                isSelected = selectedTab == 0,
+                onClick = { selectedTab = 0 }
+            )
+            LibraryTabItem(
+                title = "Favorites (${favorites.size})",
+                icon = Icons.Default.Favorite,
+                isSelected = selectedTab == 1,
+                onClick = { selectedTab = 1 }
+            )
+            LibraryTabItem(
+                title = "History (${recentTracks.size})",
+                icon = Icons.Default.History,
+                isSelected = selectedTab == 2,
+                onClick = { selectedTab = 2 }
+            )
         }
 
-        // Active List
+        // Tab Content
         when (selectedTab) {
             0 -> {
-                if (isLoadingLocal) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = AccentCrimson)
-                    }
-                } else if (localTracks.isEmpty()) {
+                // Local Tracks
+                if (localTracks.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "No audio files found on device storage",
+                            text = if (isLoadingLocal) "Scanning on-device music..." else "No local tracks found",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = TextTertiary
+                            color = LightTextTertiary
                         )
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 120.dp, top = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         items(localTracks) { track ->
+                            val isFav = favorites.any { it.id == track.id }
                             TrackItem(
                                 track = track,
                                 isPlaying = currentTrack?.id == track.id && isPlaying,
-                                isFavorite = favorites.contains(track.id),
+                                isFavorite = isFav,
                                 onClick = { player.playTrack(track, localTracks) },
-                                onFavoriteToggle = { repository.toggleFavorite(track.id) },
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                onFavoriteToggle = { repository.toggleFavorite(track) },
+                                modifier = Modifier.padding(vertical = 4.dp)
                             )
                         }
                     }
@@ -160,28 +200,27 @@ fun LibraryScreen(
             }
             1 -> {
                 // Favorites
-                val favoriteTracks = (localTracks + recentTracks).distinctBy { it.id }.filter { favorites.contains(it.id) }
-                if (favoriteTracks.isEmpty()) {
+                if (favorites.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = "No favorites yet. Tap ♡ on any track to add.",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = TextTertiary
+                            color = LightTextTertiary
                         )
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 120.dp, top = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
-                        items(favoriteTracks) { track ->
+                        items(favorites) { track ->
                             TrackItem(
                                 track = track,
                                 isPlaying = currentTrack?.id == track.id && isPlaying,
                                 isFavorite = true,
-                                onClick = { player.playTrack(track, favoriteTracks) },
-                                onFavoriteToggle = { repository.toggleFavorite(track.id) },
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                onClick = { player.playTrack(track, favorites) },
+                                onFavoriteToggle = { repository.toggleFavorite(track) },
+                                modifier = Modifier.padding(vertical = 4.dp)
                             )
                         }
                     }
@@ -194,22 +233,23 @@ fun LibraryScreen(
                         Text(
                             text = "No recently played tracks",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = TextTertiary
+                            color = LightTextTertiary
                         )
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 120.dp, top = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         items(recentTracks) { track ->
+                            val isFav = favorites.any { it.id == track.id }
                             TrackItem(
                                 track = track,
                                 isPlaying = currentTrack?.id == track.id && isPlaying,
-                                isFavorite = favorites.contains(track.id),
+                                isFavorite = isFav,
                                 onClick = { player.playTrack(track, recentTracks) },
-                                onFavoriteToggle = { repository.toggleFavorite(track.id) },
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                onFavoriteToggle = { repository.toggleFavorite(track) },
+                                modifier = Modifier.padding(vertical = 4.dp)
                             )
                         }
                     }
@@ -220,22 +260,33 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun TabButton(
+private fun LibraryTabItem(
     title: String,
+    icon: ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) AccentCrimson else SurfaceElevated)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            color = if (isSelected) TextPrimary else TextSecondary
-        )
-    }
+    Tab(
+        selected = isSelected,
+        onClick = onClick,
+        text = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (isSelected) LightPrimaryMaroon else LightTextTertiary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 13.sp
+                    ),
+                    color = if (isSelected) LightPrimaryMaroon else LightTextTertiary
+                )
+            }
+        }
+    )
 }

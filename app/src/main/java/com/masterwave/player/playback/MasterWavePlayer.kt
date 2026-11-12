@@ -197,6 +197,8 @@ class MasterWavePlayer(
         playTrack(q[nextIdx], q)
     }
 
+    fun skipToNext() = playNext()
+
     fun playPrevious() {
         if (exoPlayer.currentPosition > 3000L) {
             exoPlayer.seekTo(0L)
@@ -208,6 +210,8 @@ class MasterWavePlayer(
         val prevIdx = if (_currentIndex.value - 1 < 0) q.size - 1 else _currentIndex.value - 1
         playTrack(q[prevIdx], q)
     }
+
+    fun skipToPrevious() = playPrevious()
 
     fun toggleShuffle() {
         val newShuffle = !_isShuffle.value
@@ -224,6 +228,8 @@ class MasterWavePlayer(
         _repeatMode.value = nextMode
         exoPlayer.repeatMode = nextMode
     }
+
+    fun cycleRepeatMode() = toggleRepeat()
 
     fun release() {
         stopProgressTracker()
