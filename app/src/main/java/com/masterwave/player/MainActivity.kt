@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -127,7 +128,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(LightBackground)
+                .background(MaterialTheme.colorScheme.background)
         )
         return
     }
@@ -172,6 +173,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 // Dock stack: MiniPlayer immediately above FloatingNavigationDock
                 Column(

@@ -2,6 +2,7 @@ package com.masterwave.player.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -45,32 +47,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightCardPink
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurface
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
-import com.masterwave.player.ui.theme.LightTextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * Statistics Screen matching Screenshot 0.
- * Features:
- * - Top App bar with "Statistics", Download, Search, Profile icons.
- * - Guest chip and Headphone status pill.
- * - Last.fm scrobble sync banner.
- * - Hero Plays card with deep maroon circular arrow button.
- * - 3 Metric cards: Tracks, Artists, Albums.
- * - "List" with "Most Played" dropdown filter.
+ * Statistics Screen with:
+ * - Free Google Sign-In with user avatar & cloud sync.
+ * - Dynamic reactive accent colors.
+ * - AMOLED Dark & Light mode adaptivity.
  */
 @Composable
 fun StatsScreen(
@@ -83,7 +77,12 @@ fun StatsScreen(
     val totalPlays by repository.totalPlays.collectAsState()
     val playCounts by repository.playCounts.collectAsState()
     val recentTracks by repository.recentTracks.collectAsState()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
     val context = LocalContext.current
+
+    val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
+    val userProfile by cloudManager.userProfile.collectAsState()
 
     var selectedFilter by remember { mutableStateOf("Most Played") }
     var showFilterMenu by remember { mutableStateOf(false) }
@@ -92,12 +91,19 @@ fun StatsScreen(
     val uniqueArtists = recentTracks.map { it.artist }.distinct().size
     val uniqueAlbums = recentTracks.mapNotNull { it.album.ifBlank { null } }.distinct().size
 
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val cardContainerBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.5f)
+    val cardItemBg = if (isAmoled) Color(0xFF161620) else Color.White
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val pillBg = if (isAmoled) Color(0xFF181824) else Color(0xFFEFECEF)
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 140.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // --- 1. Top App Bar ---
@@ -115,7 +121,7 @@ fun StatsScreen(
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 32.sp
                     ),
-                    color = LightTextPrimary
+                    color = textPrimary
                 )
 
                 Row(
@@ -128,7 +134,7 @@ fun StatsScreen(
                         Icon(
                             imageVector = Icons.Default.Download,
                             contentDescription = "Downloads",
-                            tint = LightTextPrimary,
+                            tint = textPrimary,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -137,7 +143,7 @@ fun StatsScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = LightTextPrimary,
+                            tint = textPrimary,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -146,7 +152,7 @@ fun StatsScreen(
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = "Account & Settings",
-                            tint = LightTextPrimary,
+                            tint = textPrimary,
                             modifier = Modifier.size(30.dp)
                         )
                     }
@@ -154,49 +160,80 @@ fun StatsScreen(
             }
         }
 
-        // --- 2. Guest and Headphone Status Pills ---
+        // --- 2. Google Account & Headphone Status Pills ---
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Guest pill
+                // Google Account Pill
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = LightSurfaceVariant
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (userProfile.isSignedIn) accentColor.copy(alpha = if (isAmoled) 0.35f else 0.16f) else pillBg,
+                    modifier = Modifier.clickable {
+                        if (!userProfile.isSignedIn) {
+                            cloudManager.signInWithGoogle()
+                            Toast.makeText(context, "Signed in with Google Account", Toast.LENGTH_SHORT).show()
+                        } else {
+                            cloudManager.signOut()
+                            Toast.makeText(context, "Switched to Guest Mode", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 ) {
-                    Text(
-                        text = "Guest",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        ),
-                        color = LightTextPrimary,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                    ) {
+                        if (userProfile.isSignedIn) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = userProfile.displayName,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                ),
+                                color = accentColor
+                            )
+                        } else {
+                            Text(
+                                text = "Sign in with Google",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                ),
+                                color = textPrimary
+                            )
+                        }
+                    }
                 }
 
                 // Headphone status pill
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = LightSurfaceVariant
+                    shape = RoundedCornerShape(18.dp),
+                    color = pillBg
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Headphones,
                             contentDescription = "Headphones",
-                            tint = LightTextSecondary,
+                            tint = textSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "--",
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = LightTextSecondary
+                            color = textSecondary
                         )
                     }
                 }
@@ -207,7 +244,7 @@ fun StatsScreen(
         item {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = LightCardPink,
+                color = accentColor.copy(alpha = if (isAmoled) 0.25f else 0.12f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onNavigateToSettings() }
@@ -218,17 +255,17 @@ fun StatsScreen(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     ),
-                    color = LightTextPrimary,
+                    color = if (isAmoled) Color.White else textPrimary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                 )
             }
         }
 
-        // --- 4. Main Plays Card & 3 Metric Sub-Cards (Enclosed container) ---
+        // --- 4. Main Plays Card & 3 Metric Sub-Cards ---
         item {
             Surface(
                 shape = RoundedCornerShape(28.dp),
-                color = LightSurfaceVariant.copy(alpha = 0.5f),
+                color = cardContainerBg,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -238,7 +275,7 @@ fun StatsScreen(
                     // Big Hero Plays Card
                     Surface(
                         shape = RoundedCornerShape(22.dp),
-                        color = LightCardPink,
+                        color = accentColor.copy(alpha = if (isAmoled) 0.35f else 0.14f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -248,7 +285,7 @@ fun StatsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Spacer(modifier = Modifier.size(46.dp)) // balance center
+                            Spacer(modifier = Modifier.size(46.dp))
 
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
@@ -257,7 +294,7 @@ fun StatsScreen(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ),
-                                    color = LightTextPrimary
+                                    color = if (isAmoled) Color.White else textPrimary
                                 )
                                 Text(
                                     text = "Plays",
@@ -265,16 +302,16 @@ fun StatsScreen(
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 12.sp
                                     ),
-                                    color = LightTextSecondary
+                                    color = textSecondary
                                 )
                             }
 
-                            // Circular maroon arrow button (Screenshot 0)
+                            // Circular dynamic accent arrow button
                             Box(
                                 modifier = Modifier
                                     .size(46.dp)
                                     .clip(CircleShape)
-                                    .background(LightPrimaryMaroon)
+                                    .background(accentColor)
                                     .clickable {
                                         Toast.makeText(context, "Full listening breakdown", Toast.LENGTH_SHORT).show()
                                     },
@@ -295,22 +332,28 @@ fun StatsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Tracks
                         MetricCard(
                             label = "Tracks",
                             value = if (uniqueTracks > 0) "$uniqueTracks" else "—",
+                            bgColor = cardItemBg,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
                             modifier = Modifier.weight(1f)
                         )
-                        // Artists
                         MetricCard(
                             label = "Artists",
                             value = if (uniqueArtists > 0) "$uniqueArtists" else "—",
+                            bgColor = cardItemBg,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
                             modifier = Modifier.weight(1f)
                         )
-                        // Albums
                         MetricCard(
                             label = "Albums",
                             value = if (uniqueAlbums > 0) "$uniqueAlbums" else "—",
+                            bgColor = cardItemBg,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -322,7 +365,7 @@ fun StatsScreen(
         item {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = LightSurfaceVariant.copy(alpha = 0.5f),
+                color = cardContainerBg,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -340,14 +383,14 @@ fun StatsScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
                             ),
-                            color = LightTextPrimary
+                            color = textPrimary
                         )
 
-                        // Dropdown filter pill: [ 📊 Most Played ▾ ]
+                        // Dropdown filter pill
                         Box {
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
-                                color = LightSurfaceVariant,
+                                color = pillBg,
                                 modifier = Modifier.clickable { showFilterMenu = true }
                             ) {
                                 Row(
@@ -357,7 +400,7 @@ fun StatsScreen(
                                     Icon(
                                         imageVector = Icons.Default.BarChart,
                                         contentDescription = null,
-                                        tint = LightTextSecondary,
+                                        tint = textSecondary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -367,13 +410,13 @@ fun StatsScreen(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp
                                         ),
-                                        color = LightTextPrimary
+                                        color = textPrimary
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = LightTextSecondary,
+                                        tint = textSecondary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -419,7 +462,7 @@ fun StatsScreen(
                             Text(
                                 text = "No tracks yet",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                                color = LightTextTertiary,
+                                color = textSecondary,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -444,11 +487,14 @@ fun StatsScreen(
 private fun MetricCard(
     label: String,
     value: String,
+    bgColor: Color,
+    textPrimary: Color,
+    textSecondary: Color,
     modifier: Modifier = Modifier
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = LightSurface,
+        color = bgColor,
         modifier = modifier
     ) {
         Column(
@@ -461,7 +507,7 @@ private fun MetricCard(
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 ),
-                color = LightTextPrimary
+                color = textPrimary
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -470,7 +516,7 @@ private fun MetricCard(
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium
                 ),
-                color = LightTextSecondary
+                color = textSecondary
             )
         }
     }

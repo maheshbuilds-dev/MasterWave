@@ -214,7 +214,8 @@ class YouTubeMusicProvider(
                 ?.get("musicThumbnailRenderer")?.jsonObject
                 ?.get("thumbnail")?.jsonObject?.get("thumbnails")?.jsonArray
 
-            val artworkUrl = thumbRuns?.lastOrNull()?.jsonObject?.get("url")?.jsonPrimitive?.content
+            val rawArtworkUrl = thumbRuns?.lastOrNull()?.jsonObject?.get("url")?.jsonPrimitive?.content
+            val artworkUrl = upgradeToHighResArtwork(rawArtworkUrl)
 
             return Track(
                 id = videoId,
@@ -246,7 +247,7 @@ class YouTubeMusicProvider(
                         title = item.name,
                         artist = item.uploaderName ?: "Unknown Artist",
                         durationSeconds = item.duration,
-                        artworkUrl = item.thumbnails.lastOrNull()?.url,
+                        artworkUrl = upgradeToHighResArtwork(item.thumbnails.lastOrNull()?.url),
                         streamUrl = null,
                         isLocal = false
                     )
@@ -256,6 +257,21 @@ class YouTubeMusicProvider(
         } catch (e: Exception) {
             SearchResult(query = query)
         }
+    }
+
+    private fun upgradeToHighResArtwork(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+        var upgraded = url
+        if (upgraded.contains("=w") || upgraded.contains("=s")) {
+            upgraded = upgraded.replace(Regex("=w\\d+-h\\d+.*"), "=w1080-h1080-l90-rj")
+                .replace(Regex("=s\\d+.*"), "=s1080")
+        }
+        if (upgraded.contains("i.ytimg.com") || upgraded.contains("img.youtube.com")) {
+            upgraded = upgraded.replace("/default.jpg", "/maxresdefault.jpg")
+                .replace("/mqdefault.jpg", "/maxresdefault.jpg")
+                .replace("/hqdefault.jpg", "/maxresdefault.jpg")
+        }
+        return upgraded
     }
 
     suspend fun resolveStreamUrl(trackId: String): String = withContext(Dispatchers.IO) {

@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,17 +50,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightCardPink
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
+import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Fullscreen App Update section with interactive verification.
+ * Fullscreen App Update section with interactive verification,
+ * dynamic accent styling, and AMOLED Dark mode adaptivity.
  */
 @Composable
 fun AppUpdateScreen(
@@ -69,6 +66,13 @@ fun AppUpdateScreen(
     var isChecking by remember { mutableStateOf(false) }
     var lastCheckedText by remember { mutableStateOf("Up to date • Just now") }
     val scope = rememberCoroutineScope()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
+
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.5f)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
     val infiniteTransition = rememberInfiniteTransition(label = "update_rotate")
     val rotation by infiniteTransition.animateFloat(
@@ -84,7 +88,7 @@ fun AppUpdateScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -101,7 +105,7 @@ fun AppUpdateScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = LightTextPrimary,
+                        tint = textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -112,16 +116,16 @@ fun AppUpdateScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     ),
-                    color = LightTextPrimary
+                    color = textPrimary
                 )
             }
         }
 
-        // Hero Update Status Card
+        // Hero Card: Current version status
         item {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = LightCardPink,
+                color = cardBg,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -130,46 +134,44 @@ fun AppUpdateScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(72.dp)
                             .clip(CircleShape)
-                            .background(LightPrimaryMaroon),
+                            .background(accentColor.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isChecking) Icons.Default.Refresh else Icons.Default.CheckCircle,
+                            imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .then(if (isChecking) Modifier.rotate(rotation) else Modifier)
+                            tint = accentColor,
+                            modifier = Modifier.size(40.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "MasterWave is up to date",
+                        text = "MasterWave v5.2.0",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                            fontSize = 22.sp
                         ),
-                        color = LightTextPrimary
+                        color = textPrimary
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Version 1.0.0 (Build 1) • Release",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                        color = LightTextSecondary
+                        text = "Architecture: arm64-v8a • Moto G45 5G",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textSecondary
                     )
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
                         text = lastCheckedText,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = LightPrimaryMaroon
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = accentColor
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -179,64 +181,79 @@ fun AppUpdateScreen(
                             if (!isChecking) {
                                 isChecking = true
                                 scope.launch {
-                                    delay(1600)
+                                    delay(1400)
                                     isChecking = false
-                                    lastCheckedText = "Checked just now • No updates available"
+                                    lastCheckedText = "Up to date • Just now"
                                 }
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = LightPrimaryMaroon),
-                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(50.dp)
                     ) {
-                        Text(
-                            text = if (isChecking) "Checking GitHub Releases..." else "Check for Updates",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .rotate(if (isChecking) rotation else 0f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isChecking) "Checking GitHub Releases..." else "Check for Updates",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Changelog Section
+        // Section: Release Notes
         item {
             Text(
-                text = "What's New in v1.0.0",
+                text = "What's New in v5.2.0",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = LightPrimaryMaroon
+                    color = accentColor
                 )
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = LightSurfaceVariant.copy(alpha = 0.5f),
+                color = cardBg,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    ChangelogItem("✨ Full UI overhaul matching LastWave Native design system.")
-                    ChangelogItem("🌊 Animated Fluid Waveform seekbar with harmonic synthesis.")
-                    ChangelogItem("🚀 Floating Capsule Navigation Dock with spring physics.")
-                    ChangelogItem("🎵 Zero-key YouTube & Spotify playlist importers.")
-                    ChangelogItem("⚡ Hardware Opus 160 kbps hardware acceleration on Snapdragon 6s Gen 3.")
-                    ChangelogItem("🛡️ Android 16 foreground media playback resilience.")
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val notes = listOf(
+                        "✨ Liquid Glass Dock Effect with refraction & spring touch physics",
+                        "🎨 Custom Appearance with dynamic palette & HSV Color Picker",
+                        "🌑 Pure AMOLED Dark Mode (True Pitch Black #000000)",
+                        "☁️ 1-Tap Cloud Sync for YouTube Music & Spotify (zero URL typing)",
+                        "🤖 AI Mood Engine for automatic next-song intelligent decision",
+                        "📥 Silent Background Music Downloader to device storage",
+                        "🌊 High-Res Artwork & LastWave-style 3D Breathing Hero Animation"
+                    )
+                    notes.forEach { note ->
+                        Text(
+                            text = note,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                            color = textPrimary
+                        )
+                    }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun ChangelogItem(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-        color = LightTextPrimary
-    )
 }

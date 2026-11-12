@@ -190,11 +190,24 @@ class MasterWavePlayer(
         _positionMs.value = positionMs
     }
 
+    private val aiRecommender = com.masterwave.player.data.recommendation.AiMusicRecommender()
+
     fun playNext() {
         val q = _queue.value
-        if (q.isEmpty()) return
-        val nextIdx = (_currentIndex.value + 1) % q.size
-        playTrack(q[nextIdx], q)
+        val cur = _currentTrack.value
+        if (q.isNotEmpty() && _currentIndex.value >= 0 && _currentIndex.value + 1 < q.size) {
+            val nextIdx = _currentIndex.value + 1
+            playTrack(q[nextIdx], q)
+            return
+        }
+        // AI Mood Recommendation: Pick next track dynamically
+        val pool = repository.recentTracks.value + repository.favorites.value + repository.localTracks.value
+        val aiTrack = aiRecommender.selectNextTrack(cur, pool, repository.recentTracks.value)
+        if (aiTrack != null) {
+            playTrack(aiTrack)
+        } else if (q.isNotEmpty()) {
+            playTrack(q.first(), q)
+        }
     }
 
     fun skipToNext() = playNext()

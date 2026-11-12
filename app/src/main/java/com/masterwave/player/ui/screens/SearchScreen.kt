@@ -52,12 +52,7 @@ import com.masterwave.player.data.model.SearchResult
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
-import com.masterwave.player.ui.theme.LightTextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.launch
 
 @Composable
@@ -77,6 +72,14 @@ fun SearchScreen(
     val currentTrack by player.currentTrack.collectAsState()
     val isPlaying by player.isPlaying.collectAsState()
     val favorites by repository.favorites.collectAsState()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
+
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val fieldBg = if (isAmoled) Color(0xFF14141E) else Color(0xFFEFECEF)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val textTertiary = if (isAmoled) Color(0xFF707080) else Color(0xFF8E8E9A)
 
     fun performSearch(q: String) {
         if (q.isBlank()) return
@@ -100,7 +103,7 @@ fun SearchScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding()
     ) {
         // Search Header Bar
@@ -114,7 +117,7 @@ fun SearchScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = LightTextPrimary,
+                    tint = textPrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -131,14 +134,14 @@ fun SearchScreen(
                     Text(
                         text = "Search tracks, artists, albums...",
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                        color = LightTextTertiary
+                        color = textTertiary
                     )
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = LightTextSecondary,
+                        tint = textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 },
@@ -151,7 +154,7 @@ fun SearchScreen(
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Clear",
-                                tint = LightTextSecondary,
+                                tint = textSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -161,9 +164,11 @@ fun SearchScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { performSearch(query) }),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = LightSurfaceVariant,
-                    unfocusedContainerColor = LightSurfaceVariant,
-                    disabledContainerColor = LightSurfaceVariant,
+                    focusedContainerColor = fieldBg,
+                    unfocusedContainerColor = fieldBg,
+                    disabledContainerColor = fieldBg,
+                    focusedTextColor = textPrimary,
+                    unfocusedTextColor = textPrimary,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
                 ),
@@ -182,7 +187,7 @@ fun SearchScreen(
                     .padding(bottom = 120.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = LightPrimaryMaroon)
+                CircularProgressIndicator(color = accentColor)
             }
         } else if (searchResult != null) {
             val songs = searchResult!!.songs
@@ -196,7 +201,7 @@ fun SearchScreen(
                     Text(
                         text = "No tracks found for \"${query}\"",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = LightTextSecondary
+                        color = textSecondary
                     )
                 }
             } else {
@@ -237,23 +242,46 @@ fun SearchScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = LightTextTertiary,
+                            tint = textTertiary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
                             text = item,
                             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-                            color = LightTextPrimary,
+                            color = textPrimary,
                             modifier = Modifier.weight(1f)
                         )
                         Icon(
                             imageVector = Icons.Default.NorthWest,
                             contentDescription = null,
-                            tint = LightTextTertiary,
+                            tint = textTertiary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
+                }
+            }
+        } else {
+            // Idle empty state with helpful hints
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 120.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = textTertiary,
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Discover millions of songs & artists",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
+                        color = textSecondary
+                    )
                 }
             }
         }

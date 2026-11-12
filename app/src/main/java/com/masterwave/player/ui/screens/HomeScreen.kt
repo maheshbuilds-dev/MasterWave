@@ -1,7 +1,14 @@
 package com.masterwave.player.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +31,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
@@ -48,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -56,26 +65,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.masterwave.player.MasterWaveApp
+import com.masterwave.player.data.cloud.CloudAccountManager
+import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Track
+import com.masterwave.player.data.recommendation.AiMusicRecommender
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightCardPink
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurface
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
-import com.masterwave.player.ui.theme.LightTextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * Home / Feed Screen matching Screenshot 4.
- * Features:
- * - "Home" title with Download, Search and Profile avatar icons.
- * - Category capsule chips ("All", "Podcasts", "Romance", "Feel good", etc.).
- * - Discover Carousel with pink "DISCOVER" badge on cards.
- * - "Quick picks" section with subtitle and soft pink shuffle circular button.
- * - Smooth integration with floating mini player & dock.
+ * Redesigned Home Screen with:
+ * - Real-time AMOLED Dark & Light mode adaptivity.
+ * - Dynamic reactive accent colors.
+ * - AI Mood Mix carousel personalized to user listening history.
+ * - Custom animated top bar action icons.
+ * - Silent one-tap background download engine.
  */
 @Composable
 fun HomeScreen(
@@ -91,23 +96,53 @@ fun HomeScreen(
 
     val currentTrack by player.currentTrack.collectAsState()
     val isPlaying by player.isPlaying.collectAsState()
+    val recentTracks by repository.recentTracks.collectAsState()
+    val favorites by repository.favorites.collectAsState()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
     val context = LocalContext.current
 
-    val categories = listOf("All", "Podcasts", "Romance", "Feel good", "Party", "Workout", "Focus")
+    val downloadManager = remember {
+        MusicDownloadManager.getInstance(context, MasterWaveApp.instance.okHttpClient, repository)
+    }
+    val downloadedIds by downloadManager.downloadedIds.collectAsState()
+
+    val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
+    val userProfile by cloudManager.userProfile.collectAsState()
+
+    val aiRecommender = remember { AiMusicRecommender() }
+    val categories = listOf("All", "AI Mix", "Podcasts", "Romance", "Feel good", "Party", "Workout", "Focus")
+
+    // Animated glow pulse on discover badges and avatars
+    val infiniteTransition = rememberInfiniteTransition(label = "home_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
 
     LaunchedEffect(Unit) {
         trendingTracks = repository.getTrending()
         isLoadingTrending = false
     }
 
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val chipInactiveBg = if (isAmoled) Color(0xFF14141C) else Color(0xFFEFECEF)
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = 140.dp)
+        contentPadding = PaddingValues(bottom = 150.dp)
     ) {
-        // --- 1. Top Header Row (Screenshot 4) ---
+        // --- 1. Custom Top Header Bar ---
         item {
             Row(
                 modifier = Modifier
@@ -122,46 +157,86 @@ fun HomeScreen(
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 32.sp
                     ),
-                    color = LightTextPrimary
+                    color = textPrimary
                 )
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IconButton(onClick = {
-                        Toast.makeText(context, "Downloads manager", Toast.LENGTH_SHORT).show()
-                    }) {
+                    // Downloads Icon Button
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(if (isAmoled) Color(0xFF161620) else Color(0xFFEFECEF))
+                            .clickable {
+                                Toast.makeText(context, "${downloadedIds.size} tracks downloaded offline", Toast.LENGTH_SHORT).show()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Download,
                             contentDescription = "Downloads",
-                            tint = LightTextPrimary,
-                            modifier = Modifier.size(26.dp)
+                            tint = textPrimary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    IconButton(onClick = onNavigateToSearch) {
+                    // Search Icon Button
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(if (isAmoled) Color(0xFF161620) else Color(0xFFEFECEF))
+                            .clickable(onClick = onNavigateToSearch),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = LightTextPrimary,
-                            modifier = Modifier.size(26.dp)
+                            tint = textPrimary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "Settings",
-                            tint = LightTextPrimary,
-                            modifier = Modifier.size(30.dp)
-                        )
+                    // Profile / Avatar Halo Ring
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, accentColor, CircleShape)
+                            .clickable(onClick = onNavigateToSettings),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (userProfile.photoUrl != null && userProfile.isSignedIn) {
+                            AsyncImage(
+                                model = userProfile.photoUrl,
+                                contentDescription = userProfile.displayName,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.matchParentSize()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(accentColor.copy(alpha = 0.25f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = userProfile.displayName.take(1).uppercase(),
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor,
+                                    fontSize = 17.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // --- 2. Category Chips Row (Screenshot 4) ---
+        // --- 2. Category Chips Row ---
         item {
             Row(
                 modifier = Modifier
@@ -174,7 +249,7 @@ fun HomeScreen(
                     val isSelected = category == selectedCategory
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = if (isSelected) LightCardPink else LightSurfaceVariant,
+                        color = if (isSelected) accentColor.copy(alpha = if (isAmoled) 0.35f else 0.16f) else chipInactiveBg,
                         modifier = Modifier.clickable { selectedCategory = category }
                     ) {
                         Text(
@@ -183,7 +258,7 @@ fun HomeScreen(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 fontSize = 14.sp
                             ),
-                            color = if (isSelected) LightPrimaryMaroon else LightTextPrimary,
+                            color = if (isSelected) accentColor else textPrimary,
                             modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
                         )
                     }
@@ -191,7 +266,7 @@ fun HomeScreen(
             }
         }
 
-        // --- 3. Discover Carousel (Screenshot 4) ---
+        // --- 3. Discover Carousel ---
         item {
             if (isLoadingTrending) {
                 Box(
@@ -200,7 +275,7 @@ fun HomeScreen(
                         .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = LightPrimaryMaroon)
+                    CircularProgressIndicator(color = accentColor)
                 }
             } else if (trendingTracks.isNotEmpty()) {
                 LazyRow(
@@ -218,7 +293,7 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(160.dp)
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(LightSurfaceVariant)
+                                    .background(if (isAmoled) Color(0xFF14141C) else Color(0xFFEFECEF))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -229,10 +304,10 @@ fun HomeScreen(
                                     )
                                 }
 
-                                // Pink "DISCOVER" badge (Screenshot 4)
+                                // Dynamic Accent "DISCOVER" badge
                                 Surface(
                                     shape = RoundedCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
-                                    color = LightCardPink,
+                                    color = accentColor,
                                     modifier = Modifier
                                         .padding(8.dp)
                                         .clip(RoundedCornerShape(4.dp))
@@ -244,7 +319,7 @@ fun HomeScreen(
                                             fontSize = 9.sp,
                                             letterSpacing = 1.sp
                                         ),
-                                        color = LightPrimaryMaroon,
+                                        color = Color.White,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
@@ -258,14 +333,14 @@ fun HomeScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 ),
-                                color = LightTextPrimary,
+                                color = textPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = track.artist,
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = LightTextSecondary,
+                                color = textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -275,7 +350,54 @@ fun HomeScreen(
             }
         }
 
-        // --- 4. "Quick picks" Section (Screenshot 4) ---
+        // --- 4. "✨ AI Mood Mix" Section (Personalized Vibe Engine) ---
+        item {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = if (isAmoled) Color(0xFF101016) else accentColor.copy(alpha = 0.08f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(accentColor)
+                            .scale(pulseScale),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "AI Mood Engine",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = textPrimary
+                        )
+                        Text(
+                            text = "Next songs auto-align to your rhythm & emotional vibe",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = textSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 5. "Quick picks" Section ---
         item {
             Row(
                 modifier = Modifier
@@ -291,21 +413,21 @@ fun HomeScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
                         ),
-                        color = LightTextPrimary
+                        color = textPrimary
                     )
                     Text(
                         text = "Trending songs worth playing now",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = LightTextSecondary
+                        color = textSecondary
                     )
                 }
 
-                // Soft pink circular shuffle button (Screenshot 4: [ 🔀 ])
+                // Dynamic Accent circular shuffle button
                 Box(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(LightCardPink)
+                        .background(accentColor.copy(alpha = if (isAmoled) 0.35f else 0.16f))
                         .clickable {
                             if (trendingTracks.isNotEmpty()) {
                                 player.playTrack(trendingTracks.shuffled().first())
@@ -316,20 +438,28 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.Shuffle,
                         contentDescription = "Shuffle Trending",
-                        tint = LightPrimaryMaroon,
+                        tint = accentColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        // --- 5. Quick Picks Track List ---
+        // --- 6. Quick Picks Track List ---
         if (trendingTracks.isNotEmpty()) {
-            items(trendingTracks.drop(8).take(12)) { track ->
+            items(trendingTracks.drop(8).take(14)) { track ->
+                val isDownloaded = downloadedIds.contains(track.id)
                 HomeTrackRow(
                     track = track,
                     isPlaying = currentTrack?.id == track.id && isPlaying,
-                    onClick = { player.playTrack(track) }
+                    isDownloaded = isDownloaded,
+                    accentColor = accentColor,
+                    isAmoled = isAmoled,
+                    onClick = { player.playTrack(track) },
+                    onDownload = {
+                        downloadManager.downloadTrack(track)
+                        Toast.makeText(context, "Downloading \"${track.title}\"...", Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
         }
@@ -340,9 +470,15 @@ fun HomeScreen(
 private fun HomeTrackRow(
     track: Track,
     isPlaying: Boolean,
-    onClick: () -> Unit
+    isDownloaded: Boolean,
+    accentColor: Color,
+    isAmoled: Boolean,
+    onClick: () -> Unit,
+    onDownload: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
     Row(
         modifier = Modifier
@@ -351,12 +487,12 @@ private fun HomeTrackRow(
             .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Thumbnail
+        // High-Res Thumbnail
         Box(
             modifier = Modifier
                 .size(50.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(LightSurfaceVariant),
+                .background(if (isAmoled) Color(0xFF161622) else Color(0xFFEFECEF)),
             contentAlignment = Alignment.Center
         ) {
             if (!track.artworkUrl.isNullOrBlank()) {
@@ -370,7 +506,7 @@ private fun HomeTrackRow(
                 Icon(
                     imageVector = Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = LightTextSecondary,
+                    tint = textSecondary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -386,7 +522,7 @@ private fun HomeTrackRow(
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 ),
-                color = if (isPlaying) LightPrimaryMaroon else LightTextPrimary,
+                color = if (isPlaying) accentColor else textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -394,9 +530,19 @@ private fun HomeTrackRow(
             Text(
                 text = track.artist,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = LightTextSecondary,
+                color = textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        // Silent Download / Downloaded Status Icon
+        IconButton(onClick = onDownload) {
+            Icon(
+                imageVector = if (isDownloaded) Icons.Default.CheckCircle else Icons.Default.Download,
+                contentDescription = "Download",
+                tint = if (isDownloaded) accentColor else textSecondary.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
             )
         }
 
@@ -406,7 +552,7 @@ private fun HomeTrackRow(
                 Icon(
                     imageVector = Icons.Default.MoreVert,
                     contentDescription = "Options",
-                    tint = LightTextTertiary,
+                    tint = textSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -416,11 +562,14 @@ private fun HomeTrackRow(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Play Next") },
-                    onClick = { showMenu = false }
+                    text = { Text("Download Offline") },
+                    onClick = {
+                        showMenu = false
+                        onDownload()
+                    }
                 )
                 DropdownMenuItem(
-                    text = { Text("Add to Favorites") },
+                    text = { Text("Play Next") },
                     onClick = { showMenu = false }
                 )
             }

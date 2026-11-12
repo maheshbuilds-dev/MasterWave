@@ -22,17 +22,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,15 +47,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightCardPink
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
+import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * Fullscreen Support & Community section.
+ * Fullscreen Support & Community section with dynamic accents
+ * and AMOLED Dark mode adaptivity.
  */
 @Composable
 fun SupportCommunityScreen(
@@ -58,11 +59,23 @@ fun SupportCommunityScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
+
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.5f)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+
+    fun openUrl(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(intent)
+    }
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -79,7 +92,7 @@ fun SupportCommunityScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = LightTextPrimary,
+                        tint = textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -90,7 +103,7 @@ fun SupportCommunityScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     ),
-                    color = LightTextPrimary
+                    color = textPrimary
                 )
             }
         }
@@ -99,7 +112,7 @@ fun SupportCommunityScreen(
         item {
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = LightCardPink,
+                color = cardBg,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -111,14 +124,14 @@ fun SupportCommunityScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(LightPrimaryMaroon),
+                                .background(accentColor),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -126,12 +139,12 @@ fun SupportCommunityScreen(
                             Text(
                                 text = "MasterWave Player",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = LightTextPrimary
+                                color = textPrimary
                             )
                             Text(
-                                text = "100% Free • Open Architecture • Zero Ads",
+                                text = "Crafted with passion for pure sound & expressive design",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = LightPrimaryMaroon
+                                color = textSecondary
                             )
                         }
                     }
@@ -139,50 +152,61 @@ fun SupportCommunityScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "MasterWave is an open-source inspired Android music player crafted specifically for high-fidelity audio playback. Built with Kotlin, Jetpack Compose, ExoPlayer and hardware-accelerated Opus decoding.",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                        color = LightTextSecondary
+                        text = "MasterWave is an open-source, private-by-design music player engineered natively for modern Android with hardware Opus decoding, liquid glass ergonomics, and seamless cloud discovery.",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp),
+                        color = textSecondary
                     )
                 }
             }
         }
 
-        // Links & Help Items
+        // Section: Links & Resources
         item {
             Text(
-                text = "Community & Source",
+                text = "Community & Links",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    color = LightPrimaryMaroon
+                    color = accentColor
                 )
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = LightSurfaceVariant.copy(alpha = 0.5f),
+                color = cardBg,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SupportItemRow(
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SupportLinkItem(
                         icon = Icons.Default.Code,
-                        title = "GitHub Source Code",
-                        subtitle = "Inspect and contribute to the repository",
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Clash-Projects/LastWave-Native"))
-                            context.startActivity(intent)
-                        }
+                        iconBg = accentColor.copy(alpha = 0.2f),
+                        iconTint = accentColor,
+                        title = "Source Code (GitHub)",
+                        subtitle = "Contribute, report bugs, or star the project",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = { openUrl("https://github.com") }
                     )
-                    SupportItemRow(
-                        icon = Icons.Default.HelpOutline,
-                        title = "Frequently Asked Questions",
-                        subtitle = "Troubleshooting audio streams and playlists",
-                        onClick = {}
+                    SupportLinkItem(
+                        icon = Icons.Default.People,
+                        iconBg = accentColor.copy(alpha = 0.15f),
+                        iconTint = accentColor,
+                        title = "Discord Community",
+                        subtitle = "Join fellow audiophiles and chat with developers",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = { openUrl("https://discord.gg") }
                     )
-                    SupportItemRow(
-                        icon = Icons.Default.Security,
-                        title = "Privacy & Zero Telemetry",
-                        subtitle = "No accounts, no user data collection, direct audio streaming",
+                    SupportLinkItem(
+                        icon = Icons.Default.Description,
+                        iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
+                        iconTint = textPrimary,
+                        title = "Licenses & Attributions",
+                        subtitle = "ExoPlayer, NewPipe, Coil, Jetpack Compose",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
                         onClick = {}
                     )
                 }
@@ -192,10 +216,14 @@ fun SupportCommunityScreen(
 }
 
 @Composable
-private fun SupportItemRow(
+private fun SupportLinkItem(
     icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
     title: String,
     subtitle: String,
+    textPrimary: Color,
+    textSecondary: Color,
     onClick: () -> Unit
 ) {
     Row(
@@ -203,44 +231,41 @@ private fun SupportItemRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(40.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(LightCardPink),
+                .background(iconBg),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = LightPrimaryMaroon,
-                modifier = Modifier.size(22.dp)
+                tint = iconTint,
+                modifier = Modifier.size(20.dp)
             )
         }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
-                color = LightTextPrimary
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp),
+                color = textPrimary
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = LightTextSecondary
+                color = textSecondary
             )
         }
-
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+            imageVector = Icons.Default.OpenInNew,
             contentDescription = null,
-            tint = LightTextSecondary,
-            modifier = Modifier.size(18.dp)
+            tint = textSecondary,
+            modifier = Modifier.size(16.dp)
         )
     }
 }

@@ -23,14 +23,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -39,20 +38,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.masterwave.player.data.model.Track
-import com.masterwave.player.ui.theme.LightBorder
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
+import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * Floating Mini-Player Dock matching Screenshots 0, 1, 4.
- * Floats immediately above the navigation dock.
+ * Liquid Glass Mini-Player Dock.
  * Features:
- * - Rounded capsule pill with soft white elevation.
- * - Rounded album thumbnail.
- * - Bold title + subtitle.
- * - Maroon circular Play/Pause button.
- * - Light circular Skip Next button.
+ * - Refractive translucent frosted glass with specular highlight rim.
+ * - Dynamic reactive accent-colored circular Play/Pause button.
+ * - AMOLED Dark & Light adaptive styling.
+ * - Tap to expand with spring physics.
  */
 @Composable
 fun MiniPlayerDock(
@@ -68,27 +62,27 @@ fun MiniPlayerDock(
 ) {
     val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "mini_progress")
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
 
-    Surface(
-        shape = RoundedCornerShape(32.dp),
-        color = Color.White,
-        shadowElevation = 8.dp,
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 6.dp)
-            .shadow(
-                elevation = 10.dp,
+            .liquidGlass(
                 shape = RoundedCornerShape(32.dp),
-                spotColor = Color.Black.copy(alpha = 0.12f)
+                isAmoledDark = isAmoled,
+                accentGlow = accentColor.copy(alpha = 0.2f),
+                elevation = 12.dp,
+                onClick = onExpand
             )
-            .clickable(onClick = onExpand)
     ) {
         Column {
-            // Thin progress track along the top of the pill
+            // Dynamic thin progress track along the top of the glass capsule
             LinearProgressIndicator(
                 progress = { animatedProgress },
-                color = LightPrimaryMaroon,
-                trackColor = Color(0xFFF0ECEF),
+                color = accentColor,
+                trackColor = if (isAmoled) Color(0x33FFFFFF) else Color(0x22000000),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.5.dp)
@@ -97,15 +91,15 @@ fun MiniPlayerDock(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Artwork Thumbnail
+                // High-Res Artwork Thumbnail
                 Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFEFECEF)),
+                        .background(if (isAmoled) Color(0xFF1E1E28) else Color(0xFFEFECEF)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!track.artworkUrl.isNullOrBlank()) {
@@ -137,7 +131,7 @@ fun MiniPlayerDock(
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         ),
-                        color = LightTextPrimary,
+                        color = if (isAmoled) Color.White else Color(0xFF1C1B1F),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -146,7 +140,7 @@ fun MiniPlayerDock(
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 12.sp
                         ),
-                        color = LightTextSecondary,
+                        color = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -154,12 +148,12 @@ fun MiniPlayerDock(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Play / Pause circular maroon button (Screenshot 0, 1, 4)
+                // Play / Pause circular dynamic accent button
                 Box(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(LightPrimaryMaroon)
+                        .background(accentColor)
                         .clickable(onClick = onPlayPause),
                     contentAlignment = Alignment.Center
                 ) {
@@ -181,19 +175,19 @@ fun MiniPlayerDock(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Skip Next circular light button (Screenshot 0, 1, 4)
+                // Skip Next circular button
                 Box(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF0ECEF))
+                        .background(if (isAmoled) Color(0x33FFFFFF) else Color(0xFFF0ECEF))
                         .clickable(onClick = onNext),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Next Track",
-                        tint = LightTextPrimary,
+                        tint = if (isAmoled) Color.White else Color(0xFF1C1B1F),
                         modifier = Modifier.size(24.dp)
                     )
                 }

@@ -17,12 +17,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PushPin
@@ -32,8 +35,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,28 +58,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masterwave.player.MasterWaveApp
+import com.masterwave.player.data.cloud.CloudAccountManager
+import com.masterwave.player.data.cloud.CloudPlaylistPreset
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
-import com.masterwave.player.ui.theme.DarkPrimaryCrimson
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightCardPink
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurface
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
-import com.masterwave.player.ui.theme.LightTextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.launch
 
 /**
- * Playlists Screen matching Screenshot 1.
- * Features:
- * - "Playlist" header with count badge ("X Playlists • Y Tracks").
- * - Circular "+" button for Import / Create + Pill "Sort" button.
- * - Search bar with adjacent pink "✨ Generator" button.
- * - Pinned playlists: "Liked Songs 📌", "Local songs 📌".
- * - YouTube and Spotify playlist importers with zero API key dependencies!
+ * Playlists Screen featuring 1-Tap Cloud Sync for YouTube Music & Spotify
+ * (zero URL input required).
  */
 @Composable
 fun PlaylistsScreen(
@@ -88,18 +79,16 @@ fun PlaylistsScreen(
     modifier: Modifier = Modifier
 ) {
     val playlists by repository.playlists.collectAsState()
-    val favorites by repository.favorites.collectAsState()
-    val localTracks by repository.localTracks.collectAsState()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
 
     var searchQuery by remember { mutableStateOf("") }
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showImportYouTubeDialog by remember { mutableStateOf(false) }
-    var showImportSpotifyDialog by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
-    var isImporting by remember { mutableStateOf(false) }
+    var isSyncingCloud by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
 
     val totalTracks = playlists.sumOf { it.trackCount }
     val filteredPlaylists = if (searchQuery.isBlank()) {
@@ -108,12 +97,18 @@ fun PlaylistsScreen(
         playlists.filter { it.title.contains(searchQuery, ignoreCase = true) }
     }
 
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.55f)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val searchBg = if (isAmoled) Color(0xFF14141E) else Color(0xFFEFECEF)
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 140.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // --- 1. Top Header Row ---
@@ -132,7 +127,7 @@ fun PlaylistsScreen(
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 32.sp
                         ),
-                        color = LightTextPrimary
+                        color = textPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -141,7 +136,7 @@ fun PlaylistsScreen(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         ),
-                        color = LightTextSecondary
+                        color = textSecondary
                     )
                 }
 
@@ -149,19 +144,19 @@ fun PlaylistsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Circular "+" button (Screenshot 1)
+                    // Circular "+" button for creating playlist
                     Box(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(LightSurfaceVariant)
-                            .clickable { showAddDialog = true },
+                            .background(searchBg)
+                            .clickable { showCreateDialog = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Add or Import Playlist",
-                            tint = LightTextPrimary,
+                            contentDescription = "Create Playlist",
+                            tint = textPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -169,9 +164,9 @@ fun PlaylistsScreen(
                     // Sort pill button
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = LightSurfaceVariant,
+                        color = searchBg,
                         modifier = Modifier.clickable {
-                            Toast.makeText(context, "Sort: Default", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Sorted by Recently Added", Toast.LENGTH_SHORT).show()
                         }
                     ) {
                         Row(
@@ -181,7 +176,7 @@ fun PlaylistsScreen(
                             Icon(
                                 imageVector = Icons.Default.Sort,
                                 contentDescription = null,
-                                tint = LightTextPrimary,
+                                tint = textPrimary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -191,7 +186,7 @@ fun PlaylistsScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp
                                 ),
-                                color = LightTextPrimary
+                                color = textPrimary
                             )
                         }
                     }
@@ -199,7 +194,107 @@ fun PlaylistsScreen(
             }
         }
 
-        // --- 2. Search & Generator Row ---
+        // --- 2. 1-Tap Cloud Sync Carousel (Spotify & YouTube Music) ---
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CloudSync,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "1-Tap Cloud Sync (Spotify & YouTube)",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            ),
+                            color = textPrimary
+                        )
+                    }
+
+                    if (isSyncingCloud) {
+                        CircularProgressIndicator(
+                            color = accentColor,
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(cloudManager.CuratedCloudPlaylists) { preset ->
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isAmoled) Color(0xFF14141E) else accentColor.copy(alpha = 0.08f),
+                            modifier = Modifier
+                                .clickable {
+                                    if (!isSyncingCloud) {
+                                        isSyncingCloud = true
+                                        scope.launch {
+                                            val res = cloudManager.syncCloudPlaylist(preset)
+                                            isSyncingCloud = false
+                                            if (res.isSuccess) {
+                                                Toast.makeText(context, "Synced: ${preset.title}", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Sync failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(accentColor),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudDownload,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = preset.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        ),
+                                        color = textPrimary
+                                    )
+                                    Text(
+                                        text = preset.source,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                        color = accentColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 3. Search & Generator Row ---
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -214,22 +309,22 @@ fun PlaylistsScreen(
                         Text(
                             text = "Search playlists...",
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                            color = LightTextTertiary
+                            color = textSecondary
                         )
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = LightTextTertiary,
+                            tint = textSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     },
                     shape = RoundedCornerShape(20.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = LightSurfaceVariant,
-                        unfocusedContainerColor = LightSurfaceVariant,
-                        disabledContainerColor = LightSurfaceVariant,
+                        focusedContainerColor = searchBg,
+                        unfocusedContainerColor = searchBg,
+                        disabledContainerColor = searchBg,
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent
                     ),
@@ -239,14 +334,14 @@ fun PlaylistsScreen(
                         .height(50.dp)
                 )
 
-                // Generator pink pill button (Screenshot 1: [ ✨ Generator ])
+                // Generator dynamic accent pill button
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = LightCardPink,
+                    color = accentColor.copy(alpha = if (isAmoled) 0.35f else 0.16f),
                     modifier = Modifier
                         .height(50.dp)
                         .clickable {
-                            Toast.makeText(context, "Smart Playlist Generator ready", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "AI Playlist Generator ready", Toast.LENGTH_SHORT).show()
                         }
                 ) {
                     Row(
@@ -256,7 +351,7 @@ fun PlaylistsScreen(
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
-                            tint = LightPrimaryMaroon,
+                            tint = accentColor,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -266,18 +361,18 @@ fun PlaylistsScreen(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             ),
-                            color = LightPrimaryMaroon
+                            color = accentColor
                         )
                     }
                 }
             }
         }
 
-        // --- 3. Playlist Cards List ---
+        // --- 4. Playlist Cards List ---
         items(filteredPlaylists, key = { it.id }) { playlist ->
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = LightSurfaceVariant.copy(alpha = 0.55f),
+                color = cardBg,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onPlaylistSelected(playlist) }
@@ -293,13 +388,13 @@ fun PlaylistsScreen(
                         modifier = Modifier
                             .size(54.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(LightSurfaceVariant),
+                            .background(searchBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.MusicNote,
                             contentDescription = null,
-                            tint = LightTextSecondary,
+                            tint = textSecondary,
                             modifier = Modifier.size(26.dp)
                         )
                     }
@@ -315,23 +410,23 @@ fun PlaylistsScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
                                 ),
-                                color = LightTextPrimary
+                                color = textPrimary
                             )
                             if (playlist.isPinned) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Icon(
                                     imageVector = Icons.Default.PushPin,
                                     contentDescription = "Pinned",
-                                    tint = DarkPrimaryCrimson,
+                                    tint = accentColor,
                                     modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${playlist.trackCount} tracks • ${playlist.createdAt}",
+                            text = "${playlist.trackCount} tracks • ${playlist.createdAt} (${playlist.source})",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = LightTextSecondary
+                            color = textSecondary
                         )
                     }
 
@@ -342,159 +437,13 @@ fun PlaylistsScreen(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Options",
-                            tint = LightTextSecondary,
+                            tint = textSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
         }
-    }
-
-    // --- Action Dialogs for Adding & Importing Playlists ---
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text("Add / Import Playlist") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(
-                        onClick = {
-                            showAddDialog = false
-                            showImportYouTubeDialog = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = LightPrimaryMaroon),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Import from YouTube (URL / ID)")
-                    }
-                    Button(
-                        onClick = {
-                            showAddDialog = false
-                            showImportSpotifyDialog = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1DB954)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Import from Spotify (Link)")
-                    }
-                    Button(
-                        onClick = {
-                            showAddDialog = false
-                            showCreateDialog = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = LightSurfaceVariant),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Create Custom Playlist", color = LightTextPrimary)
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    // YouTube Import Dialog
-    if (showImportYouTubeDialog) {
-        var ytInput by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showImportYouTubeDialog = false },
-            title = { Text("Import YouTube Playlist") },
-            text = {
-                Column {
-                    Text("Paste YouTube playlist URL or ID (zero API keys):")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = ytInput,
-                        onValueChange = { ytInput = it },
-                        placeholder = { Text("https://www.youtube.com/playlist?list=...") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (ytInput.isNotBlank()) {
-                            isImporting = true
-                            scope.launch {
-                                val res = repository.importYouTubePlaylist(ytInput.trim())
-                                isImporting = false
-                                showImportYouTubeDialog = false
-                                if (res.isSuccess) {
-                                    Toast.makeText(context, "Imported: ${res.getOrNull()?.title}", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Import failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = LightPrimaryMaroon)
-                ) {
-                    Text("Import")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showImportYouTubeDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    // Spotify Import Dialog
-    if (showImportSpotifyDialog) {
-        var spInput by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showImportSpotifyDialog = false },
-            title = { Text("Import Spotify Playlist") },
-            text = {
-                Column {
-                    Text("Paste Spotify playlist link (zero credentials needed):")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = spInput,
-                        onValueChange = { spInput = it },
-                        placeholder = { Text("https://open.spotify.com/playlist/...") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (spInput.isNotBlank()) {
-                            isImporting = true
-                            scope.launch {
-                                val res = repository.importSpotifyPlaylist(spInput.trim())
-                                isImporting = false
-                                showImportSpotifyDialog = false
-                                if (res.isSuccess) {
-                                    Toast.makeText(context, "Imported: ${res.getOrNull()?.title}", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Import failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1DB954))
-                ) {
-                    Text("Import")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showImportSpotifyDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 
     // Create Custom Playlist Dialog
@@ -520,7 +469,7 @@ fun PlaylistsScreen(
                             showCreateDialog = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = LightPrimaryMaroon)
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                 ) {
                     Text("Create")
                 }

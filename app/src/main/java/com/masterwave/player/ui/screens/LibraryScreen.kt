@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
@@ -43,21 +44,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masterwave.player.MasterWaveApp
+import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightCardPink
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
-import com.masterwave.player.ui.theme.LightTextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.launch
 
 @Composable
@@ -66,7 +64,7 @@ fun LibraryScreen(
     repository: MusicRepository,
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Local, 1: Favorites, 2: History
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Local, 1: Favorites, 2: History, 3: Downloaded
     var isLoadingLocal by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
@@ -75,6 +73,19 @@ fun LibraryScreen(
     val favorites by repository.favorites.collectAsState()
     val currentTrack by player.currentTrack.collectAsState()
     val isPlaying by player.isPlaying.collectAsState()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
+    val context = LocalContext.current
+
+    val downloadManager = remember {
+        MusicDownloadManager.getInstance(context, MasterWaveApp.instance.okHttpClient, repository)
+    }
+    val downloadedIds by downloadManager.downloadedIds.collectAsState()
+    val downloadedTracks = localTracks.filter { downloadedIds.contains(it.id) }
+
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
     fun scanLocal() {
         isLoadingLocal = true
@@ -93,7 +104,7 @@ fun LibraryScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding()
     ) {
         // Screen Header
@@ -110,14 +121,14 @@ fun LibraryScreen(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 30.sp
                 ),
-                color = LightTextPrimary
+                color = textPrimary
             )
 
             if (selectedTab == 0) {
                 IconButton(onClick = { scanLocal() }) {
                     if (isLoadingLocal) {
                         CircularProgressIndicator(
-                            color = LightPrimaryMaroon,
+                            color = accentColor,
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
@@ -125,7 +136,7 @@ fun LibraryScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Scan Media",
-                            tint = LightPrimaryMaroon,
+                            tint = accentColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -136,12 +147,12 @@ fun LibraryScreen(
         // Tab Selector Row
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = LightBackground,
-            contentColor = LightPrimaryMaroon,
+            containerColor = bgColor,
+            contentColor = accentColor,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = LightPrimaryMaroon,
+                    color = accentColor,
                     height = 3.dp
                 )
             },
@@ -151,19 +162,33 @@ fun LibraryScreen(
                 title = "Local (${localTracks.size})",
                 icon = Icons.Default.Folder,
                 isSelected = selectedTab == 0,
+                accentColor = accentColor,
+                textSecondary = textSecondary,
                 onClick = { selectedTab = 0 }
             )
             LibraryTabItem(
                 title = "Favorites (${favorites.size})",
                 icon = Icons.Default.Favorite,
                 isSelected = selectedTab == 1,
+                accentColor = accentColor,
+                textSecondary = textSecondary,
                 onClick = { selectedTab = 1 }
             )
             LibraryTabItem(
                 title = "History (${recentTracks.size})",
                 icon = Icons.Default.History,
                 isSelected = selectedTab == 2,
+                accentColor = accentColor,
+                textSecondary = textSecondary,
                 onClick = { selectedTab = 2 }
+            )
+            LibraryTabItem(
+                title = "Saved (${downloadedTracks.size})",
+                icon = Icons.Default.Download,
+                isSelected = selectedTab == 3,
+                accentColor = accentColor,
+                textSecondary = textSecondary,
+                onClick = { selectedTab = 3 }
             )
         }
 
@@ -176,7 +201,7 @@ fun LibraryScreen(
                         Text(
                             text = if (isLoadingLocal) "Scanning on-device music..." else "No local tracks found",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = LightTextTertiary
+                            color = textSecondary
                         )
                     }
                 } else {
@@ -205,7 +230,7 @@ fun LibraryScreen(
                         Text(
                             text = "No favorites yet. Tap ♡ on any track to add.",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = LightTextTertiary
+                            color = textSecondary
                         )
                     }
                 } else {
@@ -233,7 +258,7 @@ fun LibraryScreen(
                         Text(
                             text = "No recently played tracks",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = LightTextTertiary
+                            color = textSecondary
                         )
                     }
                 } else {
@@ -255,6 +280,35 @@ fun LibraryScreen(
                     }
                 }
             }
+            3 -> {
+                // Downloaded
+                if (downloadedTracks.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "No offline tracks downloaded yet",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = textSecondary
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        items(downloadedTracks) { track ->
+                            val isFav = favorites.any { it.id == track.id }
+                            TrackItem(
+                                track = track,
+                                isPlaying = currentTrack?.id == track.id && isPlaying,
+                                isFavorite = isFav,
+                                onClick = { player.playTrack(track, downloadedTracks) },
+                                onFavoriteToggle = { repository.toggleFavorite(track) },
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -264,6 +318,8 @@ private fun LibraryTabItem(
     title: String,
     icon: ImageVector,
     isSelected: Boolean,
+    accentColor: Color,
+    textSecondary: Color,
     onClick: () -> Unit
 ) {
     Tab(
@@ -275,16 +331,16 @@ private fun LibraryTabItem(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = if (isSelected) LightPrimaryMaroon else LightTextTertiary
+                    tint = if (isSelected) accentColor else textSecondary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     ),
-                    color = if (isSelected) LightPrimaryMaroon else LightTextTertiary
+                    color = if (isSelected) accentColor else textSecondary
                 )
             }
         }

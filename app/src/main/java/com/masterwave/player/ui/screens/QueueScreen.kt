@@ -16,7 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,14 +27,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
-import com.masterwave.player.ui.theme.CanvasObsidian
-import com.masterwave.player.ui.theme.SurfaceElevated
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextSecondary
-import com.masterwave.player.ui.theme.TextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 
 @Composable
 fun QueueScreen(
@@ -44,13 +41,19 @@ fun QueueScreen(
 ) {
     val queue by player.queue.collectAsState()
     val currentIndex by player.currentIndex.collectAsState()
-    val currentTrack by player.currentTrack.collectAsState()
     val isPlaying by player.isPlaying.collectAsState()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
+
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val buttonBg = if (isAmoled) Color(0xFF161622) else Color(0xFFEFECEF)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CanvasObsidian)
+            .background(bgColor)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -67,12 +70,12 @@ fun QueueScreen(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceElevated)
+                    .background(buttonBg)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = TextPrimary
+                    tint = textPrimary
                 )
             }
 
@@ -80,12 +83,12 @@ fun QueueScreen(
                 Text(
                     text = "Current Queue",
                     style = MaterialTheme.typography.titleLarge,
-                    color = TextPrimary
+                    color = textPrimary
                 )
                 Text(
                     text = "${queue.size} tracks",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                    color = textSecondary
                 )
             }
 
@@ -101,7 +104,7 @@ fun QueueScreen(
                 Text(
                     text = "Queue is empty",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = TextTertiary
+                    color = textSecondary
                 )
             }
         } else {

@@ -48,6 +48,7 @@ import com.masterwave.player.ui.theme.DarkBorder
 import com.masterwave.player.ui.theme.DarkPrimaryCrimson
 import com.masterwave.player.ui.theme.DarkTextSecondary
 import com.masterwave.player.ui.theme.DarkTextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -67,6 +68,7 @@ fun AnimatedWaveform(
     isPlaying: Boolean,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    waveColor: Color = ThemeState.accentColor.value,
     codecLabel: String = "Opus • OPUS 160 kbps",
     onCodecClick: () -> Unit = {}
 ) {
@@ -162,7 +164,7 @@ fun AnimatedWaveform(
 
                 // Inactive track (right of thumb)
                 drawLine(
-                    color = Color(0x33E53935),
+                    color = waveColor.copy(alpha = 0.25f),
                     start = Offset(thumbX.coerceAtLeast(0f), midY),
                     end = Offset(canvasWidth, midY),
                     strokeWidth = 3.dp.toPx(),
@@ -210,9 +212,9 @@ fun AnimatedWaveform(
                         path = waveGlowPath,
                         brush = Brush.horizontalGradient(
                             listOf(
-                                Color(0x55E53935),
-                                Color(0x88FF7088),
-                                Color(0xAAFFA4A4)
+                                waveColor.copy(alpha = 0.3f),
+                                waveColor.copy(alpha = 0.6f),
+                                waveColor.copy(alpha = 0.85f)
                             ),
                             startX = 0f,
                             endX = thumbX
@@ -225,9 +227,9 @@ fun AnimatedWaveform(
                         path = wavePath,
                         brush = Brush.horizontalGradient(
                             listOf(
-                                Color(0xFFE53935),
-                                Color(0xFFFF5252),
-                                Color(0xFFFFA4A4)
+                                waveColor.copy(alpha = 0.8f),
+                                waveColor,
+                                Color.White.copy(alpha = 0.9f)
                             ),
                             startX = 0f,
                             endX = thumbX
@@ -236,24 +238,24 @@ fun AnimatedWaveform(
                     )
                 }
 
-                // Waveform Scrub Thumb (Glowing salmon pill circle)
+                // Waveform Scrub Thumb (Glowing pill circle with dynamic accent)
                 val thumbRadius = if (isDragging) 9.dp.toPx() else 7.dp.toPx()
                 // Outer glow
                 drawCircle(
-                    color = Color(0x66FF8A80),
+                    color = waveColor.copy(alpha = 0.45f),
                     radius = thumbRadius + 5.dp.toPx(),
                     center = Offset(thumbX, midY)
                 )
                 // Inner solid thumb
                 drawCircle(
-                    color = Color(0xFFFFA4A4),
+                    color = Color.White,
                     radius = thumbRadius,
                     center = Offset(thumbX, midY)
                 )
-                // Center accent
+                // Center accent dot
                 drawCircle(
-                    color = Color(0xFFE53935),
-                    radius = thumbRadius * 0.4f,
+                    color = waveColor,
+                    radius = thumbRadius * 0.45f,
                     center = Offset(thumbX, midY)
                 )
             }
@@ -287,7 +289,7 @@ fun AnimatedWaveform(
                 ) {
                     // Pulsing animated equalizer bars
                     Canvas(modifier = Modifier.size(width = 12.dp, height = 14.dp)) {
-                        val barColor = Color(0xFFFFA4A4)
+                        val barColor = waveColor
                         val h = size.height
                         val w = 2.dp.toPx()
                         // Bar 1

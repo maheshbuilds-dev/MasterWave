@@ -38,6 +38,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,20 +49,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masterwave.player.ui.theme.LightBackground
-import com.masterwave.player.ui.theme.LightCardCream
-import com.masterwave.player.ui.theme.LightCardPink
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
+import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * Settings Screen matching Screenshots 2 & 3.
- * Features:
- * - Grouped sections with maroon subheadings (#880E4F).
- * - Full-width rounded cards with colored icon chips (Pink & Cream).
- * - Forward arrows with smooth navigation to sub-screens.
+ * Settings Screen with AMOLED Dark & Light mode adaptivity
+ * and dynamic reactive accent coloring.
  */
 @Composable
 fun SettingsScreen(
@@ -72,13 +65,20 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
+
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.55f)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(LightBackground)
+            .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 140.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // --- 1. Top Header Row ---
@@ -93,7 +93,7 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = LightTextPrimary,
+                        tint = textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -104,20 +104,23 @@ fun SettingsScreen(
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 30.sp
                     ),
-                    color = LightTextPrimary
+                    color = textPrimary
                 )
             }
         }
 
         // --- 2. Collaboration & Social ---
         item {
-            SettingsSectionHeader("Collaboration & Social")
+            SettingsSectionHeader("Collaboration & Social", accentColor)
             SettingsCard(
                 icon = Icons.Default.Group,
-                iconBg = LightCardPink,
-                iconTint = LightPrimaryMaroon,
+                iconBg = accentColor.copy(alpha = 0.2f),
+                iconTint = accentColor,
                 title = "MasterWave Jam",
                 subtitle = "Listen together in real-time • Host or join a room",
+                cardBg = cardBg,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
                 onClick = {
                     Toast.makeText(context, "MasterWave Jam: Peer listening ready", Toast.LENGTH_SHORT).show()
                 }
@@ -126,46 +129,58 @@ fun SettingsScreen(
 
         // --- 3. Services & Add-ons ---
         item {
-            SettingsSectionHeader("Services & Add-ons")
+            SettingsSectionHeader("Services & Add-ons", accentColor)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SettingsCard(
                     icon = Icons.Default.Extension,
-                    iconBg = LightCardCream,
-                    iconTint = Color(0xFF6D4C41),
+                    iconBg = accentColor.copy(alpha = 0.15f),
+                    iconTint = accentColor,
                     title = "Provider Modules",
                     subtitle = "Extra sources queried alongside YouTube Music",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         Toast.makeText(context, "Provider Modules: Active (NewPipe + InnerTube)", Toast.LENGTH_SHORT).show()
                     }
                 )
                 SettingsCard(
                     icon = Icons.Default.Album,
-                    iconBg = LightCardPink,
-                    iconTint = LightPrimaryMaroon,
+                    iconBg = accentColor.copy(alpha = 0.2f),
+                    iconTint = accentColor,
                     title = "Last.fm",
                     subtitle = "Connect account, scrobbles & statistics sync",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         Toast.makeText(context, "Last.fm Scrobbler integration", Toast.LENGTH_SHORT).show()
                     }
                 )
                 SettingsCard(
                     icon = Icons.Default.Sync,
-                    iconBg = LightSurfaceVariant,
-                    iconTint = LightTextPrimary,
+                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
+                    iconTint = textPrimary,
                     title = "YouTube & Sync",
-                    subtitle = "YouTube Music account, channels, history import",
+                    subtitle = "1-Tap Cloud playlist synchronization",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
-                        Toast.makeText(context, "YouTube Music zero-auth pipeline active", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "YouTube Music 1-Tap Cloud Sync active", Toast.LENGTH_SHORT).show()
                     }
                 )
                 SettingsCard(
                     icon = Icons.Default.PlayCircle,
-                    iconBg = LightCardPink,
-                    iconTint = LightPrimaryMaroon,
+                    iconBg = Color(0xFF1DB954).copy(alpha = 0.2f),
+                    iconTint = Color(0xFF1DB954),
                     title = "Spotify",
-                    subtitle = "Account connection, Canvas, playlist importer",
+                    subtitle = "1-Tap Spotify Cloud discovery & playlists",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
-                        Toast.makeText(context, "Spotify playlist importer ready", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Spotify 1-Tap Cloud Sync ready", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
@@ -173,30 +188,39 @@ fun SettingsScreen(
 
         // --- 4. Playback & UI ---
         item {
-            SettingsSectionHeader("Playback & UI")
+            SettingsSectionHeader("Playback & UI", accentColor)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SettingsCard(
                     icon = Icons.Default.Palette,
-                    iconBg = LightCardCream,
-                    iconTint = Color(0xFF455A64),
+                    iconBg = accentColor.copy(alpha = 0.18f),
+                    iconTint = accentColor,
                     title = "Appearance & Visuals",
-                    subtitle = "Themes, Colors, Artwork, Animated Waveform",
+                    subtitle = "AMOLED Dark, Custom Palette, Color Picker",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = onNavigateToAppearance
                 )
                 SettingsCard(
                     icon = Icons.Default.Equalizer,
-                    iconBg = LightCardPink,
-                    iconTint = LightPrimaryMaroon,
+                    iconBg = accentColor.copy(alpha = 0.2f),
+                    iconTint = accentColor,
                     title = "Audio & Playback",
                     subtitle = "Streaming quality, Audio engine, Equalizer...",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = onNavigateToAudioPlayback
                 )
                 SettingsCard(
                     icon = Icons.Default.QueueMusic,
-                    iconBg = LightSurfaceVariant,
-                    iconTint = LightTextPrimary,
+                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
+                    iconTint = textPrimary,
                     title = "Library & Content",
                     subtitle = "Home layout, Playlist imports, Downloads,...",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
                         Toast.makeText(context, "Library & Content management", Toast.LENGTH_SHORT).show()
                     }
@@ -206,32 +230,41 @@ fun SettingsScreen(
 
         // --- 5. System & About ---
         item {
-            SettingsSectionHeader("System & About")
+            SettingsSectionHeader("System & About", accentColor)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SettingsCard(
                     icon = Icons.Default.CloudDownload,
-                    iconBg = LightCardCream,
-                    iconTint = Color(0xFF37474F),
+                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
+                    iconTint = textPrimary,
                     title = "Data & Storage",
                     subtitle = "Backup & Restore, Cache clearing, CSV history",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = {
-                        Toast.makeText(context, "Cache and local database storage", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Cache and offline media storage", Toast.LENGTH_SHORT).show()
                     }
                 )
                 SettingsCard(
                     icon = Icons.Default.Info,
-                    iconBg = LightCardPink,
-                    iconTint = LightPrimaryMaroon,
+                    iconBg = accentColor.copy(alpha = 0.2f),
+                    iconTint = accentColor,
                     title = "About & System",
                     subtitle = "Version 1.0.0 (Snapdragon 6s Gen 3)",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = onNavigateToAppUpdate
                 )
                 SettingsCard(
                     icon = Icons.Default.HelpOutline,
-                    iconBg = LightSurfaceVariant,
-                    iconTint = LightTextPrimary,
+                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
+                    iconTint = textPrimary,
                     title = "Support & Community",
                     subtitle = "Open source code, FAQ, License",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
                     onClick = onNavigateToSupport
                 )
             }
@@ -240,14 +273,14 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSectionHeader(title: String) {
+private fun SettingsSectionHeader(title: String, accentColor: Color) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium.copy(
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp
         ),
-        color = LightPrimaryMaroon,
+        color = accentColor,
         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
     )
 }
@@ -259,11 +292,14 @@ private fun SettingsCard(
     iconTint: Color,
     title: String,
     subtitle: String,
+    cardBg: Color,
+    textPrimary: Color,
+    textSecondary: Color,
     onClick: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = LightSurfaceVariant.copy(alpha = 0.55f),
+        color = cardBg,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
@@ -298,20 +334,20 @@ private fun SettingsCard(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     ),
-                    color = LightTextPrimary
+                    color = textPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = LightTextSecondary
+                    color = textSecondary
                 )
             }
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = LightTextSecondary,
+                tint = textSecondary,
                 modifier = Modifier.size(16.dp)
             )
         }

@@ -20,7 +20,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,12 +45,7 @@ import com.masterwave.player.data.model.LyricLine
 import com.masterwave.player.data.model.LyricsResult
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
-import com.masterwave.player.ui.theme.AccentCrimson
-import com.masterwave.player.ui.theme.CanvasObsidian
-import com.masterwave.player.ui.theme.SurfaceElevated
-import com.masterwave.player.ui.theme.TextPrimary
-import com.masterwave.player.ui.theme.TextSecondary
-import com.masterwave.player.ui.theme.TextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 
 @Composable
 fun LyricsScreen(
@@ -60,37 +56,48 @@ fun LyricsScreen(
 ) {
     val track by player.currentTrack.collectAsState()
     val positionMs by player.positionMs.collectAsState()
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
 
     var lyricsResult by remember { mutableStateOf<LyricsResult?>(null) }
-    var isLoadingLyrics by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
 
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val buttonBg = if (isAmoled) Color(0xFF161622) else Color(0xFFEFECEF)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+
     LaunchedEffect(track?.id) {
-        val curTrack = track
-        if (curTrack != null) {
-            isLoadingLyrics = true
-            lyricsResult = repository.getLyrics(curTrack)
-            isLoadingLyrics = false
+        val current = track
+        if (current == null) {
+            lyricsResult = null
+            isLoading = false
+            return@LaunchedEffect
         }
+        isLoading = true
+        lyricsResult = repository.getLyrics(current)
+        isLoading = false
     }
 
-    val currentLineIndex = remember(positionMs, lyricsResult) {
-        val lines = lyricsResult?.lines ?: emptyList()
-        val idx = lines.indexOfLast { it.timestampMs <= positionMs }
-        if (idx >= 0) idx else 0
+    val currentLineIndex = remember(lyricsResult, positionMs) {
+        val lines = lyricsResult?.lines ?: return@remember -1
+        lines.indexOfLast { it.timestampMs <= positionMs }
     }
 
     LaunchedEffect(currentLineIndex) {
-        if (lyricsResult?.isSynced == true && currentLineIndex >= 0) {
-            listState.animateScrollToItem((currentLineIndex - 2).coerceAtLeast(0))
+        if (currentLineIndex >= 0) {
+            listState.animateScrollToItem(
+                (currentLineIndex - 2).coerceAtLeast(0)
+            )
         }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CanvasObsidian)
+            .background(bgColor)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -106,87 +113,103 @@ fun LyricsScreen(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(SurfaceElevated)
+                    .background(buttonBg)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = TextPrimary
+                    tint = textPrimary
                 )
             }
 
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 12.dp)
+                    .padding(horizontal = 16.dp)
             ) {
                 Text(
                     text = track?.title ?: "Lyrics",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
+                    color = textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = track?.artist ?: "",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
 
-        if (isLoadingLyrics) {
+        if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = AccentCrimson)
-            }
-        } else if (lyricsResult == null || lyricsResult!!.lines.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No synchronized lyrics available",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = TextTertiary
-                )
+                CircularProgressIndicator(color = accentColor)
             }
         } else {
-            val lines = lyricsResult!!.lines
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 40.dp, bottom = 120.dp, start = 24.dp, end = 24.dp)
-            ) {
-                itemsIndexed(lines) { index, line ->
-                    val isActive = index == currentLineIndex && lyricsResult!!.isSynced
-                    val textColor by animateColorAsState(
-                        targetValue = if (isActive) TextPrimary else TextTertiary,
-                        label = "LyricTextColor"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (lyricsResult!!.isSynced) {
+            val res = lyricsResult
+            if (res != null && res.lines.isNotEmpty()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 32.dp),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(20.dp)
+                ) {
+                    itemsIndexed(res.lines) { index, line ->
+                        val isCurrent = index == currentLineIndex
+                        val color by animateColorAsState(
+                            targetValue = if (isCurrent) accentColor else if (isAmoled) Color(0x66FFFFFF) else Color(0x66000000),
+                            label = "lyric_color"
+                        )
+                        Text(
+                            text = line.text,
+                            style = if (isCurrent) {
+                                MaterialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 24.sp
+                                )
+                            } else {
+                                MaterialTheme.typography.titleLarge.copy(
+                                    fontSize = 20.sp
+                                )
+                            },
+                            color = color,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
                                     player.seekTo(line.timestampMs)
                                 }
-                            }
-                            .padding(vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = line.text.ifBlank { "♪" },
-                            fontSize = if (isActive) 24.sp else 18.sp,
-                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                            color = textColor,
-                            lineHeight = if (isActive) 32.sp else 24.sp
                         )
                     }
+                }
+            } else if (!res?.plainLyrics.isNullOrBlank()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp)
+                ) {
+                    item {
+                        Text(
+                            text = res?.plainLyrics ?: "",
+                            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 28.sp),
+                            color = textPrimary
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No lyrics found for this track",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = textSecondary
+                    )
                 }
             }
         }

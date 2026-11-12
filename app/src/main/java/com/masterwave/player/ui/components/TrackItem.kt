@@ -20,9 +20,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,12 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.masterwave.player.data.model.Track
-import com.masterwave.player.ui.theme.DarkPrimaryCrimson
-import com.masterwave.player.ui.theme.LightPrimaryMaroon
-import com.masterwave.player.ui.theme.LightSurfaceVariant
-import com.masterwave.player.ui.theme.LightTextPrimary
-import com.masterwave.player.ui.theme.LightTextSecondary
-import com.masterwave.player.ui.theme.LightTextTertiary
+import com.masterwave.player.ui.theme.ThemeState
 
 @Composable
 fun TrackItem(
@@ -46,6 +44,13 @@ fun TrackItem(
     onFavoriteToggle: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val accentColor by ThemeState.accentColor.collectAsState()
+    val isAmoled = ThemeState.isAmoledTheme()
+
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val thumbBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF)
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -59,7 +64,7 @@ fun TrackItem(
             modifier = Modifier
                 .size(48.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(LightSurfaceVariant),
+                .background(thumbBg),
             contentAlignment = Alignment.Center
         ) {
             if (!track.artworkUrl.isNullOrBlank()) {
@@ -73,7 +78,7 @@ fun TrackItem(
                 Icon(
                     imageVector = Icons.Default.MusicNote,
                     contentDescription = null,
-                    tint = LightTextTertiary,
+                    tint = textSecondary,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -91,30 +96,20 @@ fun TrackItem(
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 ),
-                color = if (isPlaying) LightPrimaryMaroon else LightTextPrimary,
+                color = if (isPlaying) accentColor else textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = track.artist + if (track.album.isNotBlank()) " • ${track.album}" else "",
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = LightTextSecondary,
+                color = textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        // Duration Label
-        if (track.durationSeconds > 0) {
-            Text(
-                text = track.durationFormatted,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = LightTextTertiary,
-                modifier = Modifier.padding(horizontal = 6.dp)
-            )
-        }
-
-        // Favorite Toggle
+        // Optional Favorite Button
         if (onFavoriteToggle != null) {
             IconButton(
                 onClick = onFavoriteToggle,
@@ -123,7 +118,7 @@ fun TrackItem(
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Favorite",
-                    tint = if (isFavorite) DarkPrimaryCrimson else LightTextTertiary,
+                    tint = if (isFavorite) accentColor else textSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             }

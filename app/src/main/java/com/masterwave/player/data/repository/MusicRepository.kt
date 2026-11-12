@@ -137,6 +137,10 @@ class MusicRepository(private val context: Context) {
         return result
     }
 
+    fun addCustomPlaylist(playlist: Playlist) {
+        _playlists.value = _playlists.value + playlist
+    }
+
     fun createCustomPlaylist(title: String, description: String = ""): Playlist {
         val newPl = Playlist(
             id = "user_${UUID.randomUUID()}",
