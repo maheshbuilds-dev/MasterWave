@@ -11,6 +11,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FormatQuote
@@ -75,6 +77,7 @@ import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.AnimatedWaveform
+import com.masterwave.player.ui.components.AudioPlaybackModal
 import com.masterwave.player.ui.theme.ThemeState
 
 /**
@@ -112,6 +115,8 @@ fun NowPlayingScreen(
     val accentColor by ThemeState.accentColor.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
+    var showAudioPlaybackModal by remember { mutableStateOf(false) }
+    var isCanvasActive by remember { mutableStateOf(false) }
 
     // 3D Breathing Pulse animation on artwork
     val infiniteHeroTransition = rememberInfiniteTransition(label = "hero_anim")
@@ -172,6 +177,85 @@ fun NowPlayingScreen(
                         )
                     )
             )
+
+            // --- Canvas Mode Badges (Reference Frames 10.0s / 12.5s / 17.5s) ---
+            if (isCanvasActive) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 58.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Left: • SYNCED Badge
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0x99000000),
+                        border = BorderStroke(1.dp, Color(0x33FFFFFF))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF34C759))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "SYNCED",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    fontSize = 10.sp
+                                ),
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Right: Auto pill + Close button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0x99000000),
+                            border = BorderStroke(1.dp, Color(0x33FFFFFF))
+                        ) {
+                            Text(
+                                text = "Auto",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                ),
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x99000000))
+                                .clickable { isCanvasActive = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close Canvas",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // --- 2. Foreground Content ---
@@ -258,6 +342,20 @@ fun NowPlayingScreen(
                             onClick = {
                                 showMenu = false
                                 onOpenLyrics()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (isCanvasActive) "Exit Canvas Mode" else "Canvas Mode") },
+                            onClick = {
+                                showMenu = false
+                                isCanvasActive = !isCanvasActive
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Audio & Playback") },
+                            onClick = {
+                                showMenu = false
+                                showAudioPlaybackModal = true
                             }
                         )
                         DropdownMenuItem(
@@ -498,7 +596,7 @@ fun NowPlayingScreen(
                         .clip(RoundedCornerShape(24.dp))
                         .background(Color(0x221E1E2A))
                         .clickable {
-                            Toast.makeText(context, "Audio Output: Device Speaker / Bluetooth", Toast.LENGTH_SHORT).show()
+                            showAudioPlaybackModal = true
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -557,5 +655,12 @@ fun NowPlayingScreen(
                 }
             }
         }
+
+        // --- 7. In-App Audio & Playback Modal (Reference Frame 15.0s) ---
+        AudioPlaybackModal(
+            player = player,
+            isOpen = showAudioPlaybackModal,
+            onDismiss = { showAudioPlaybackModal = false }
+        )
     }
 }
