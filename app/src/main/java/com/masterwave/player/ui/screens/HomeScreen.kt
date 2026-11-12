@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
@@ -57,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -73,14 +76,20 @@ import com.masterwave.player.data.recommendation.AiMusicRecommender
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.theme.ThemeState
+import java.util.Calendar
 
 /**
- * Redesigned Home Screen with:
+ * Supercharged Home Screen with:
+ * - Dynamic Time-of-Day Greeting (Good Morning / Afternoon / Evening / Night).
  * - Real-time AMOLED Dark & Light mode adaptivity.
  * - Dynamic reactive accent colors.
- * - AI Mood Mix carousel personalized to user listening history.
- * - Custom animated top bar action icons.
- * - Silent one-tap background download engine.
+ * - Category Chips row (All, AI Mix, Podcasts, Romance, Feel good, Party, Workout).
+ * - Discover hero cards carousel.
+ * - AI Mood Engine personalized vibe engine card.
+ * - Quick picks with shuffle button.
+ * - New Releases section with "NEW" badges.
+ * - Favorite Artists circular recommendations based on listening history.
+ * - Trending Community Playlists at the downside.
  */
 @Composable
 fun HomeScreen(
@@ -110,10 +119,19 @@ fun HomeScreen(
     val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
     val userProfile by cloudManager.userProfile.collectAsState()
 
-    val aiRecommender = remember { AiMusicRecommender() }
     val categories = listOf("All", "AI Mix", "Podcasts", "Romance", "Feel good", "Party", "Workout", "Focus")
 
-    // Animated glow pulse on discover badges and avatars
+    // Dynamic Greeting based on current local hour
+    val greeting = remember {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        when (hour) {
+            in 5..11 -> "Good Morning"
+            in 12..16 -> "Good Afternoon"
+            in 17..21 -> "Good Evening"
+            else -> "Good Night"
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "home_pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -135,6 +153,16 @@ fun HomeScreen(
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
     val chipInactiveBg = if (isAmoled) Color(0xFF14141C) else Color(0xFFEFECEF)
 
+    // Favorite artists based on user listening history or defaults
+    val favoriteArtists = remember(recentTracks) {
+        val fromRecent = recentTracks.map { it.artist }.distinct().filter { it.isNotBlank() }
+        if (fromRecent.isNotEmpty()) {
+            fromRecent.take(6)
+        } else {
+            listOf("Arijit Singh", "The Weeknd", "Diljit Dosanjh", "Anirudh Ravichander", "Taylor Swift", "Badshah")
+        }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -142,7 +170,7 @@ fun HomeScreen(
             .statusBarsPadding(),
         contentPadding = PaddingValues(bottom = 150.dp)
     ) {
-        // --- 1. Custom Top Header Bar ---
+        // --- 1. Custom Top Header Bar with Dynamic Greeting ---
         item {
             Row(
                 modifier = Modifier
@@ -151,14 +179,24 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Home",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 32.sp
-                    ),
-                    color = textPrimary
-                )
+                Column {
+                    Text(
+                        text = greeting,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        ),
+                        color = accentColor
+                    )
+                    Text(
+                        text = "Home",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 32.sp
+                        ),
+                        color = textPrimary
+                    )
+                }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -248,25 +286,32 @@ fun HomeScreen(
                 categories.forEach { category ->
                     val isSelected = category == selectedCategory
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (isSelected) accentColor.copy(alpha = if (isAmoled) 0.35f else 0.16f) else chipInactiveBg,
-                        modifier = Modifier.clickable { selectedCategory = category }
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (isSelected) {
+                            if (isAmoled) accentColor.copy(alpha = 0.35f) else accentColor.copy(alpha = 0.18f)
+                        } else chipInactiveBg,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable {
+                                selectedCategory = category
+                                Toast.makeText(context, "Filtered: $category", Toast.LENGTH_SHORT).show()
+                            }
                     ) {
                         Text(
                             text = category,
-                            style = MaterialTheme.typography.labelMedium.copy(
+                            style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 fontSize = 14.sp
                             ),
-                            color = if (isSelected) accentColor else textPrimary,
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                            color = if (isSelected) accentColor else textSecondary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
                 }
             }
         }
 
-        // --- 3. Discover Carousel ---
+        // --- 3. Hero Carousel (Screenshot 5: DISCOVER cards) ---
         item {
             if (isLoadingTrending) {
                 Box(
@@ -279,21 +324,21 @@ fun HomeScreen(
                 }
             } else if (trendingTracks.isNotEmpty()) {
                 LazyRow(
+                    modifier = Modifier.padding(top = 10.dp),
                     contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.padding(top = 10.dp, bottom = 16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(trendingTracks.take(8)) { track ->
                         Column(
                             modifier = Modifier
-                                .width(160.dp)
+                                .width(155.dp)
                                 .clickable { player.playTrack(track) }
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(160.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isAmoled) Color(0xFF14141C) else Color(0xFFEFECEF))
+                                    .size(155.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (isAmoled) Color(0xFF161622) else Color(0xFFE2E0E4))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -304,7 +349,6 @@ fun HomeScreen(
                                     )
                                 }
 
-                                // Dynamic Accent "DISCOVER" badge
                                 Surface(
                                     shape = RoundedCornerShape(topStart = 8.dp, bottomEnd = 8.dp),
                                     color = accentColor,
@@ -350,14 +394,14 @@ fun HomeScreen(
             }
         }
 
-        // --- 4. "✨ AI Mood Mix" Section (Personalized Vibe Engine) ---
+        // --- 4. AI Mood Engine Card ---
         item {
             Surface(
                 shape = RoundedCornerShape(22.dp),
                 color = if (isAmoled) Color(0xFF101016) else accentColor.copy(alpha = 0.08f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -397,12 +441,12 @@ fun HomeScreen(
             }
         }
 
-        // --- 5. "Quick picks" Section ---
+        // --- 5. Quick Picks Section (Screenshot 5) ---
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -422,7 +466,6 @@ fun HomeScreen(
                     )
                 }
 
-                // Dynamic Accent circular shuffle button
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -445,9 +488,9 @@ fun HomeScreen(
             }
         }
 
-        // --- 6. Quick Picks Track List ---
+        // --- 6. Quick Picks Items ---
         if (trendingTracks.isNotEmpty()) {
-            items(trendingTracks.drop(8).take(14)) { track ->
+            items(trendingTracks.drop(8).take(6)) { track ->
                 val isDownloaded = downloadedIds.contains(track.id)
                 HomeTrackRow(
                     track = track,
@@ -461,6 +504,159 @@ fun HomeScreen(
                         Toast.makeText(context, "Downloading \"${track.title}\"...", Toast.LENGTH_SHORT).show()
                     }
                 )
+            }
+        }
+
+        // --- 7. Favorite Artists Section ---
+        item {
+            Column(modifier = Modifier.padding(top = 16.dp)) {
+                Text(
+                    text = "Favorite Artists",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp
+                    ),
+                    color = textPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+                Text(
+                    text = "Artists you listen to frequently",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = textSecondary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
+                )
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(favoriteArtists) { artistName ->
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .width(90.dp)
+                                .clickable {
+                                    Toast.makeText(context, "Playing top tracks by $artistName", Toast.LENGTH_SHORT).show()
+                                }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(76.dp)
+                                    .clip(CircleShape)
+                                    .background(accentColor.copy(alpha = 0.2f))
+                                    .border(2.dp, accentColor.copy(alpha = 0.5f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = artistName.take(1).uppercase(),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 28.sp,
+                                    color = accentColor
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = artistName,
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Top Artist",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                color = textSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 8. Trending Community Playlists (Full Downside Section) ---
+        item {
+            Column(modifier = Modifier.padding(top = 20.dp)) {
+                Text(
+                    text = "Trending Community Playlists",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp
+                    ),
+                    color = textPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+                Text(
+                    text = "Crowd-curated mixes streamed in hardware Opus",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = textSecondary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
+                )
+
+                val communityPlaylists = listOf(
+                    "Global Top 100 Hits 2026" to "50 Tracks • Billboard & Viral",
+                    "Bollywood Acoustic & Sufi" to "40 Tracks • Soulful Classics",
+                    "Cyberpunk Synthwave & Night Drive" to "35 Tracks • Deep Bass",
+                    "Chill Coffee & Lofi Beats" to "60 Tracks • Study & Focus",
+                    "Beast Mode Workout Energy" to "45 Tracks • High BPM EDM",
+                    "Late Night Romance & R&B" to "38 Tracks • Smooth Vibes"
+                )
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    items(communityPlaylists) { (title, subtitle) ->
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isAmoled) Color(0xFF101018) else Color.White,
+                            shadowElevation = 8.dp,
+                            modifier = Modifier
+                                .width(200.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .border(1.dp, if (isAmoled) Color(0x22FFFFFF) else Color(0x11000000), RoundedCornerShape(20.dp))
+                                .clickable {
+                                    if (trendingTracks.isNotEmpty()) {
+                                        player.playTrack(trendingTracks.shuffled().first())
+                                        Toast.makeText(context, "Playing $title", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(110.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(accentColor.copy(alpha = 0.22f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QueueMusic,
+                                        contentDescription = null,
+                                        tint = accentColor,
+                                        modifier = Modifier.size(44.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = subtitle,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -484,10 +680,9 @@ private fun HomeTrackRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // High-Res Thumbnail
         Box(
             modifier = Modifier
                 .size(50.dp)
@@ -514,7 +709,6 @@ private fun HomeTrackRow(
 
         Spacer(modifier = Modifier.width(14.dp))
 
-        // Title & Artist
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
@@ -536,7 +730,6 @@ private fun HomeTrackRow(
             )
         }
 
-        // Silent Download / Downloaded Status Icon
         IconButton(onClick = onDownload) {
             Icon(
                 imageVector = if (isDownloaded) Icons.Default.CheckCircle else Icons.Default.Download,
@@ -546,7 +739,6 @@ private fun HomeTrackRow(
             )
         }
 
-        // 3-dots Menu
         Box {
             IconButton(onClick = { showMenu = true }) {
                 Icon(

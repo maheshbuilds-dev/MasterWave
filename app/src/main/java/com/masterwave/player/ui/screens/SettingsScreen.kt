@@ -62,6 +62,8 @@ fun SettingsScreen(
     onNavigateToAudioPlayback: () -> Unit,
     onNavigateToAppUpdate: () -> Unit,
     onNavigateToSupport: () -> Unit,
+    onNavigateToYouTubeSync: () -> Unit = {},
+    onNavigateToSpotifySync: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -159,29 +161,25 @@ fun SettingsScreen(
                 )
                 SettingsCard(
                     icon = Icons.Default.Sync,
-                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
-                    iconTint = textPrimary,
+                    iconBg = Color(0xFFFF0000).copy(alpha = 0.18f),
+                    iconTint = Color(0xFFFF0000),
                     title = "YouTube & Sync",
-                    subtitle = "1-Tap Cloud playlist synchronization",
+                    subtitle = "Account connection, channels, history & cloud sync",
                     cardBg = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = {
-                        Toast.makeText(context, "YouTube Music 1-Tap Cloud Sync active", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = onNavigateToYouTubeSync
                 )
                 SettingsCard(
                     icon = Icons.Default.PlayCircle,
                     iconBg = Color(0xFF1DB954).copy(alpha = 0.2f),
                     iconTint = Color(0xFF1DB954),
                     title = "Spotify",
-                    subtitle = "1-Tap Spotify Cloud discovery & playlists",
+                    subtitle = "Account connection, Canvas, playlist imports",
                     cardBg = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = {
-                        Toast.makeText(context, "Spotify 1-Tap Cloud Sync ready", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = onNavigateToSpotifySync
                 )
             }
         }

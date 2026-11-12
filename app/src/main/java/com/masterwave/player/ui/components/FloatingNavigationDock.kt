@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -44,12 +49,11 @@ enum class MainTab(val title: String, val icon: ImageVector) {
 }
 
 /**
- * Liquid Glass Floating Navigation Dock.
- * Features:
- * - Liquid glass refraction with specular highlight rim.
- * - Dynamic reactive accent tinting from ThemeState.
- * - Spring physics expansion for active tab pill.
- * - Seamless support for AMOLED Dark & Light modes.
+ * Pixel-perfect Liquid Glass Floating Navigation Dock:
+ * - Compact centered stadium pill (width ~260dp, height ~52dp) matching Screenshot 5 exactly.
+ * - Frosted glass refraction with specular white border.
+ * - Soft colored capsule indicator on active tab.
+ * - Spring touch physics.
  */
 @Composable
 fun FloatingNavigationDock(
@@ -57,9 +61,25 @@ fun FloatingNavigationDock(
     onTabSelected: (MainTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val themeMode by ThemeState.themeMode.collectAsState()
     val accentColor by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
+
+    // Glass fill colors matching screenshot
+    val glassBg = if (isAmoled) {
+        Color(0xD9101018) // Frosted deep obsidian
+    } else {
+        Color(0xE6FFFFFF) // Frosted crisp white glass
+    }
+
+    val glassBorder = if (isAmoled) {
+        Brush.verticalGradient(
+            listOf(Color(0x55FFFFFF), Color(0x1AFFFFFF), Color(0x33FFFFFF))
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(Color(0xE6FFFFFF), Color(0x88FFFFFF), Color(0xCCFFFFFF))
+        )
+    }
 
     Box(
         modifier = modifier
@@ -67,27 +87,35 @@ fun FloatingNavigationDock(
             .padding(bottom = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Box(
+        // Floating compact capsule pill (centered, not full-width!)
+        Surface(
+            shape = CircleShape,
+            color = glassBg,
+            shadowElevation = if (isAmoled) 16.dp else 12.dp,
             modifier = Modifier
-                .height(64.dp)
-                .liquidGlass(
+                .shadow(
+                    elevation = 14.dp,
                     shape = CircleShape,
-                    isAmoledDark = isAmoled,
-                    accentGlow = accentColor.copy(alpha = 0.25f),
-                    elevation = 14.dp
+                    spotColor = if (isAmoled) Color.Black.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.12f)
                 )
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
+                .clip(CircleShape)
+                .border(width = 1.2.dp, brush = glassBorder, shape = CircleShape)
         ) {
             Row(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 MainTab.values().forEach { tab ->
                     val isSelected = tab == currentTab
 
                     val containerColor by animateColorAsState(
-                        targetValue = if (isSelected) accentColor.copy(alpha = if (isAmoled) 0.3f else 0.16f) else Color.Transparent,
+                        targetValue = if (isSelected) {
+                            if (isAmoled) accentColor.copy(alpha = 0.32f) else accentColor.copy(alpha = 0.16f)
+                        } else {
+                            Color.Transparent
+                        },
                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                         label = "pill_bg"
                     )
@@ -96,25 +124,22 @@ fun FloatingNavigationDock(
                         targetValue = if (isSelected) {
                             if (isAmoled) Color.White else accentColor
                         } else {
-                            if (isAmoled) Color(0xFF9090A0) else Color(0xFF555560)
+                            if (isAmoled) Color(0xFF888898) else Color(0xFF6E6E7A)
                         },
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        label = "pill_fg"
+                        label = "pill_content"
                     )
-
-                    val interactionSource = remember { MutableInteractionSource() }
 
                     Row(
                         modifier = Modifier
-                            .height(48.dp)
+                            .height(40.dp)
                             .clip(CircleShape)
                             .background(containerColor)
                             .clickable(
-                                interactionSource = interactionSource,
+                                interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = { onTabSelected(tab) }
                             )
-                            .padding(horizontal = if (isSelected) 18.dp else 14.dp),
+                            .padding(horizontal = if (isSelected) 18.dp else 14.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -122,18 +147,17 @@ fun FloatingNavigationDock(
                             imageVector = tab.icon,
                             contentDescription = tab.title,
                             tint = contentColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
-
                         if (isSelected) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = tab.title,
-                                color = contentColor,
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
+                                    fontSize = 13.5.sp
+                                ),
+                                color = contentColor
                             )
                         }
                     }

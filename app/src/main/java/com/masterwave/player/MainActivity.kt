@@ -55,8 +55,10 @@ import com.masterwave.player.ui.screens.PlaylistsScreen
 import com.masterwave.player.ui.screens.QueueScreen
 import com.masterwave.player.ui.screens.SearchScreen
 import com.masterwave.player.ui.screens.SettingsScreen
+import com.masterwave.player.ui.screens.SpotifySyncScreen
 import com.masterwave.player.ui.screens.StatsScreen
 import com.masterwave.player.ui.screens.SupportCommunityScreen
+import com.masterwave.player.ui.screens.YouTubeSyncScreen
 import com.masterwave.player.ui.theme.LightBackground
 import com.masterwave.player.ui.theme.MasterWaveTheme
 
@@ -151,12 +153,15 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     var isAudioPlaybackOpen by remember { mutableStateOf(false) }
     var isAppUpdateOpen by remember { mutableStateOf(false) }
     var isSupportOpen by remember { mutableStateOf(false) }
+    var isYouTubeSyncOpen by remember { mutableStateOf(false) }
+    var isSpotifySyncOpen by remember { mutableStateOf(false) }
 
     // Back handling for nested views
     BackHandler(
         enabled = isNowPlayingExpanded || isLyricsOpen || isQueueOpen ||
                 isSearchOpen || isSettingsOpen || isAppearanceOpen ||
-                isAudioPlaybackOpen || isAppUpdateOpen || isSupportOpen
+                isAudioPlaybackOpen || isAppUpdateOpen || isSupportOpen ||
+                isYouTubeSyncOpen || isSpotifySyncOpen
     ) {
         when {
             isLyricsOpen -> isLyricsOpen = false
@@ -166,6 +171,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             isAudioPlaybackOpen -> isAudioPlaybackOpen = false
             isAppUpdateOpen -> isAppUpdateOpen = false
             isSupportOpen -> isSupportOpen = false
+            isYouTubeSyncOpen -> isYouTubeSyncOpen = false
+            isSpotifySyncOpen -> isSpotifySyncOpen = false
             isSettingsOpen -> isSettingsOpen = false
             isSearchOpen -> isSearchOpen = false
         }
@@ -269,7 +276,35 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 onNavigateToAppearance = { isAppearanceOpen = true },
                 onNavigateToAudioPlayback = { isAudioPlaybackOpen = true },
                 onNavigateToAppUpdate = { isAppUpdateOpen = true },
-                onNavigateToSupport = { isSupportOpen = true }
+                onNavigateToSupport = { isSupportOpen = true },
+                onNavigateToYouTubeSync = { isYouTubeSyncOpen = true },
+                onNavigateToSpotifySync = { isSpotifySyncOpen = true }
+            )
+        }
+
+        // Sub-screen: YouTube & Sync
+        AnimatedVisibility(
+            visible = isYouTubeSyncOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            YouTubeSyncScreen(
+                player = player,
+                repository = repository,
+                onBack = { isYouTubeSyncOpen = false }
+            )
+        }
+
+        // Sub-screen: Spotify & Sync
+        AnimatedVisibility(
+            visible = isSpotifySyncOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            SpotifySyncScreen(
+                player = player,
+                repository = repository,
+                onBack = { isSpotifySyncOpen = false }
             )
         }
 

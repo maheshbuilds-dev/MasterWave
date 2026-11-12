@@ -133,6 +133,14 @@ class CloudAccountManager(
         }
     }
 
+    suspend fun syncAllPresetPlaylists(): List<Playlist> = withContext(Dispatchers.IO) {
+        val synced = mutableListOf<Playlist>()
+        CuratedCloudPlaylists.forEach { preset ->
+            syncCloudPlaylist(preset).getOrNull()?.let { synced.add(it) }
+        }
+        synced
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: CloudAccountManager? = null
