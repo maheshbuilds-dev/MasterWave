@@ -48,9 +48,12 @@ import com.masterwave.player.ui.components.MiniPlayerDock
 import com.masterwave.player.ui.screens.AppUpdateScreen
 import com.masterwave.player.ui.screens.AppearanceScreen
 import com.masterwave.player.ui.screens.AudioPlaybackScreen
+import com.masterwave.player.ui.screens.ConnectionDiagnosticsScreen
 import com.masterwave.player.ui.screens.HomeScreen
 import com.masterwave.player.ui.screens.LyricsScreen
+import com.masterwave.player.ui.screens.MoodGenresScreen
 import com.masterwave.player.ui.screens.NowPlayingScreen
+import com.masterwave.player.ui.screens.PlaylistDetailScreen
 import com.masterwave.player.ui.screens.PlaylistsScreen
 import com.masterwave.player.ui.screens.QueueScreen
 import com.masterwave.player.ui.screens.SearchScreen
@@ -155,15 +158,22 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     var isSupportOpen by remember { mutableStateOf(false) }
     var isYouTubeSyncOpen by remember { mutableStateOf(false) }
     var isSpotifySyncOpen by remember { mutableStateOf(false) }
+    var isMoodGenresOpen by remember { mutableStateOf(false) }
+    var isDiagnosticsOpen by remember { mutableStateOf(false) }
+    var selectedPlaylistForDetail by remember { mutableStateOf<Playlist?>(null) }
 
     // Back handling for nested views
     BackHandler(
         enabled = isNowPlayingExpanded || isLyricsOpen || isQueueOpen ||
                 isSearchOpen || isSettingsOpen || isAppearanceOpen ||
                 isAudioPlaybackOpen || isAppUpdateOpen || isSupportOpen ||
-                isYouTubeSyncOpen || isSpotifySyncOpen
+                isYouTubeSyncOpen || isSpotifySyncOpen || isMoodGenresOpen ||
+                isDiagnosticsOpen || selectedPlaylistForDetail != null
     ) {
         when {
+            selectedPlaylistForDetail != null -> selectedPlaylistForDetail = null
+            isDiagnosticsOpen -> isDiagnosticsOpen = false
+            isMoodGenresOpen -> isMoodGenresOpen = false
             isLyricsOpen -> isLyricsOpen = false
             isQueueOpen -> isQueueOpen = false
             isNowPlayingExpanded -> isNowPlayingExpanded = false
@@ -230,7 +240,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                             player = player,
                             repository = repository,
                             onNavigateToSearch = { isSearchOpen = true },
-                            onNavigateToSettings = { isSettingsOpen = true }
+                            onNavigateToSettings = { isSettingsOpen = true },
+                            onNavigateToMoodGenres = { isMoodGenresOpen = true }
                         )
                         MainTab.STATS -> StatsScreen(
                             player = player,
@@ -242,9 +253,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                             player = player,
                             repository = repository,
                             onPlaylistSelected = { playlist ->
-                                if (playlist.tracks.isNotEmpty()) {
-                                    player.playTrack(playlist.tracks.first(), playlist.tracks)
-                                }
+                                selectedPlaylistForDetail = playlist
                             }
                         )
                     }
@@ -278,7 +287,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 onNavigateToAppUpdate = { isAppUpdateOpen = true },
                 onNavigateToSupport = { isSupportOpen = true },
                 onNavigateToYouTubeSync = { isYouTubeSyncOpen = true },
-                onNavigateToSpotifySync = { isSpotifySyncOpen = true }
+                onNavigateToSpotifySync = { isSpotifySyncOpen = true },
+                onNavigateToDiagnostics = { isDiagnosticsOpen = true }
             )
         }
 
@@ -342,6 +352,48 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
             SupportCommunityScreen(onBack = { isSupportOpen = false })
+        }
+
+        // Sub-screen: Mood & Genres
+        AnimatedVisibility(
+            visible = isMoodGenresOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            MoodGenresScreen(
+                player = player,
+                repository = repository,
+                onBack = { isMoodGenresOpen = false }
+            )
+        }
+
+        // Sub-screen: Playlist Detail
+        AnimatedVisibility(
+            visible = selectedPlaylistForDetail != null,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            selectedPlaylistForDetail?.let { pl ->
+                PlaylistDetailScreen(
+                    playlist = pl,
+                    player = player,
+                    repository = repository,
+                    onBack = { selectedPlaylistForDetail = null }
+                )
+            }
+        }
+
+        // Sub-screen: Connection Diagnostics
+        AnimatedVisibility(
+            visible = isDiagnosticsOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            ConnectionDiagnosticsScreen(
+                player = player,
+                repository = repository,
+                onBack = { isDiagnosticsOpen = false }
+            )
         }
 
         // Fullscreen Now Playing Overlay

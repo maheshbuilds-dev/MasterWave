@@ -13,6 +13,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,6 +62,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -135,56 +137,97 @@ fun NowPlayingScreen(
             .fillMaxSize()
             .background(Color(0xFF000000))
     ) {
-        // --- 1. Full-Bleed Artwork with 3D Breathing & Gradient Fade ---
+        // --- 1. Ambient Background Layer (Full Bleed Blur & Ambient Glow) ---
+        if (!currentTrack.artworkUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = currentTrack.artworkUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(radius = 36.dp)
+                    .scale(1.2f)
+            )
+        }
+
+        // Full-screen ambient atmospheric scrim
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.58f)
-        ) {
-            if (!currentTrack.artworkUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = currentTrack.artworkUrl,
-                    contentDescription = currentTrack.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .scale(heroBreathingScale)
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.0f to Color(0x66000000),
+                            0.25f to accentColor.copy(alpha = 0.15f),
+                            0.55f to Color(0xAA000000),
+                            0.75f to Color(0xFF000000),
+                            1.0f to Color(0xFF000000)
+                        )
+                    )
                 )
-            } else {
+        )
+
+        // --- 2. Sharp Artwork Layer (Normal Mode: Full-Bleed Top Fade; Canvas Mode: Rounded Floating Card) ---
+        if (!isCanvasActive) {
+            // Normal Mode: High-res artwork with 3D breathing pulse & seamless gradient dissolve
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.65f)
+            ) {
+                if (!currentTrack.artworkUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = currentTrack.artworkUrl,
+                        contentDescription = currentTrack.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .scale(heroBreathingScale)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(accentColor.copy(alpha = 0.6f), Color(0xFF0A0A0E))
+                                )
+                            )
+                    )
+                }
+
+                // Seamless fade mask: Reaches 100% black well before the bottom edge of this container
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                listOf(accentColor.copy(alpha = 0.5f), Color(0xFF0A0A0E))
+                                colorStops = arrayOf(
+                                    0.0f to Color(0x33000000),
+                                    0.28f to Color.Transparent,
+                                    0.52f to Color(0x66000000),
+                                    0.78f to Color(0xDD000000),
+                                    0.96f to Color(0xFF000000),
+                                    1.0f to Color(0xFF000000)
+                                )
                             )
                         )
                 )
             }
-
-            // Smooth vertical gradient fading seamlessly into AMOLED black
-            Box(
+        } else {
+            // Canvas Mode (Reference Frames 10.0s, 12.5s, 17.5s): Floating rounded card
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color(0x33000000),
-                                0.45f to Color(0x10000000),
-                                0.75f to Color(0xAA000000),
-                                1.0f to Color(0xFF000000)
-                            )
-                        )
-                    )
-            )
-
-            // --- Canvas Mode Badges (Reference Frames 10.0s / 12.5s / 17.5s) ---
-            if (isCanvasActive) {
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = 64.dp, start = 20.dp, end = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Top Canvas Badges: • SYNCED on left, Auto + Close on right
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 58.dp),
+                        .padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -253,6 +296,30 @@ fun NowPlayingScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                         }
+                    }
+                }
+
+                // Floating Album Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(310.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(22.dp))
+                ) {
+                    if (!currentTrack.artworkUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = currentTrack.artworkUrl,
+                            contentDescription = currentTrack.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF1E1E28))
+                        )
                     }
                 }
             }

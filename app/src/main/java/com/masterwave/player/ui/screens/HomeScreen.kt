@@ -97,6 +97,7 @@ fun HomeScreen(
     repository: MusicRepository,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToMoodGenres: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var trendingTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
@@ -402,6 +403,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .clickable(onClick = onNavigateToMoodGenres)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -426,13 +428,31 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Moods & Genres Discovery",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = textPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = accentColor.copy(alpha = 0.25f)
+                            ) {
+                                Text(
+                                    text = "16 MOODS",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    ),
+                                    color = accentColor,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "AI Mood Engine",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = textPrimary
-                        )
-                        Text(
-                            text = "Next songs auto-align to your rhythm & emotional vibe",
+                            text = "Explore Indian regional soundscapes & emotional vibes",
                             style = MaterialTheme.typography.bodySmall,
                             color = textSecondary
                         )
@@ -507,7 +527,89 @@ fun HomeScreen(
             }
         }
 
-        // --- 7. Favorite Artists Section ---
+        // --- 7. "Because you listened to..." / Similar to Top Artist Section ---
+        item {
+            val topArtist = favoriteArtists.firstOrNull() ?: "KR\$NA"
+            val similarTracks = remember(trendingTracks, topArtist) {
+                trendingTracks.filter { it.artist.contains(topArtist, ignoreCase = true) || it.title.contains(topArtist, ignoreCase = true) }
+                    .ifEmpty { trendingTracks.shuffled().take(6) }
+            }
+
+            Column(modifier = Modifier.padding(top = 16.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Because you listened to $topArtist",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            ),
+                            color = textPrimary
+                        )
+                        Text(
+                            text = "Similar vibe and recommended tracks",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = textSecondary
+                        )
+                    }
+                }
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    items(similarTracks) { track ->
+                        Column(
+                            modifier = Modifier
+                                .width(140.dp)
+                                .clickable { player.playTrack(track) }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(140.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(if (isAmoled) Color(0xFF161622) else Color(0xFFE2E0E4))
+                            ) {
+                                if (!track.artworkUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = track.artworkUrl,
+                                        contentDescription = track.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = track.title,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp
+                                ),
+                                color = textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = track.artist,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 8. Favorite Artists Section ---
         item {
             Column(modifier = Modifier.padding(top = 16.dp)) {
                 Text(

@@ -64,6 +64,7 @@ fun SettingsScreen(
     onNavigateToSupport: () -> Unit,
     onNavigateToYouTubeSync: () -> Unit = {},
     onNavigateToSpotifySync: () -> Unit = {},
+    onNavigateToDiagnostics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -180,6 +181,17 @@ fun SettingsScreen(
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
                     onClick = onNavigateToSpotifySync
+                )
+                SettingsCard(
+                    icon = Icons.Default.Equalizer,
+                    iconBg = Color(0xFF007AFF).copy(alpha = 0.2f),
+                    iconTint = Color(0xFF007AFF),
+                    title = "Connection Diagnostics",
+                    subtitle = "Live token state, latency pings, hardware audio",
+                    cardBg = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = onNavigateToDiagnostics
                 )
             }
         }

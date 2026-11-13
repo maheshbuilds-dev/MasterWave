@@ -88,7 +88,11 @@ class MusicRepository(private val context: Context) {
     private fun updateLikedPlaylistCount(count: Int) {
         _playlists.value = _playlists.value.map { pl ->
             if (pl.id == "liked_songs") {
-                pl.copy(trackCount = count)
+                pl.copy(
+                    trackCount = count,
+                    tracks = _favorites.value,
+                    artworkUrl = _favorites.value.firstOrNull()?.artworkUrl
+                )
             } else {
                 pl
             }
