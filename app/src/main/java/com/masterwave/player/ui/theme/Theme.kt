@@ -78,15 +78,13 @@ fun MasterWaveTheme(
 
     val isDark = when (themeMode) {
         ThemeMode.LIGHT -> false
-        ThemeMode.DARK, ThemeMode.AMOLED -> true
-        ThemeMode.SYSTEM -> systemInDark
+        ThemeMode.DARK, ThemeMode.AMOLED, ThemeMode.SYSTEM -> true
     }
 
     val colorScheme = when (themeMode) {
         ThemeMode.LIGHT -> createLightColorScheme(accentColor)
         ThemeMode.DARK -> createDarkColorScheme(accentColor)
-        ThemeMode.AMOLED -> createAmoledDarkColorScheme(accentColor)
-        ThemeMode.SYSTEM -> if (systemInDark) createDarkColorScheme(accentColor) else createLightColorScheme(accentColor)
+        ThemeMode.AMOLED, ThemeMode.SYSTEM -> createAmoledDarkColorScheme(accentColor)
     }
 
     val view = LocalView.current
@@ -94,10 +92,9 @@ fun MasterWaveTheme(
         SideEffect {
             val window = (view.context as Activity).window
             val bgColor = (when (themeMode) {
-                ThemeMode.AMOLED -> AmoledBackground
+                ThemeMode.AMOLED, ThemeMode.SYSTEM -> AmoledBackground
                 ThemeMode.DARK -> DarkBackground
                 ThemeMode.LIGHT -> LightBackground
-                ThemeMode.SYSTEM -> if (systemInDark) DarkBackground else LightBackground
             }).toArgb()
             window.statusBarColor = bgColor
             window.navigationBarColor = bgColor

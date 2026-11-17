@@ -121,61 +121,61 @@ fun SettingsScreen(
             }
         }
 
-        // --- 3. Playback & UI ---
-        item {
-            SettingsSectionHeader("Playback & UI", accentColor)
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SettingsCard(
-                    icon = Icons.Default.Palette,
-                    iconBg = accentColor.copy(alpha = 0.18f),
-                    iconTint = accentColor,
-                    title = "Appearance & Visuals",
-                    subtitle = "AMOLED Dark, Liquid Glass Dock, Accent Colors",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToAppearance
-                )
-                SettingsCard(
-                    icon = Icons.Default.Equalizer,
-                    iconBg = accentColor.copy(alpha = 0.2f),
-                    iconTint = accentColor,
-                    title = "Audio & Playback",
-                    subtitle = "Streaming quality, Audio engine, Equalizer...",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToAudioPlayback
-                )
+            // --- 2. Playback & UI ---
+            item {
+                SettingsSectionHeader("Playback & UI", textSecondary)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SettingsCard(
+                        icon = Icons.Default.Palette,
+                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
+                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        title = "Appearance & Visuals",
+                        subtitle = "AMOLED Dark, Liquid Glass Dock, Accent Colors",
+                        cardBg = cardBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = onNavigateToAppearance
+                    )
+                    SettingsCard(
+                        icon = Icons.Default.Equalizer,
+                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
+                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        title = "Audio & Playback",
+                        subtitle = "Streaming quality, Audio engine, Equalizer...",
+                        cardBg = cardBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = onNavigateToAudioPlayback
+                    )
+                }
             }
-        }
 
-        // --- 4. System & Backup ---
-        item {
-            SettingsSectionHeader("System & Data", accentColor)
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SettingsCard(
-                    icon = Icons.Default.SettingsBackupRestore,
-                    iconBg = accentColor.copy(alpha = 0.18f),
-                    iconTint = accentColor,
-                    title = "Backup & Restore",
-                    subtitle = "Export or restore settings, themes, and playlists",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToBackupRestore
-                )
-                SettingsCard(
-                    icon = Icons.Default.Info,
-                    iconBg = accentColor.copy(alpha = 0.2f),
-                    iconTint = accentColor,
-                    title = "About & System",
-                    subtitle = "Version 5.2.0 • Snapdragon 6s Gen 3",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToAppUpdate
-                )
+            // --- 3. System & Backup ---
+            item {
+                SettingsSectionHeader("System & Data", textSecondary)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SettingsCard(
+                        icon = Icons.Default.SettingsBackupRestore,
+                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
+                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        title = "Backup & Restore",
+                        subtitle = "Export or restore settings, themes, and playlists",
+                        cardBg = cardBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = onNavigateToBackupRestore
+                    )
+                    SettingsCard(
+                        icon = Icons.Default.Info,
+                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
+                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        title = "About & System",
+                        subtitle = "MasterWave 2.0 • Snapdragon 6s Gen 3",
+                        cardBg = cardBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = onNavigateToAppUpdate
+                    )
                 SettingsCard(
                     icon = Icons.Default.HelpOutline,
                     iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
@@ -256,12 +256,13 @@ fun SettingsScreen(
 @Composable
 private fun SettingsSectionHeader(title: String, accentColor: Color) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall.copy(
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelMedium.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 13.5.sp
+            fontSize = 11.5.sp,
+            letterSpacing = 1.2.sp
         ),
-        color = accentColor,
+        color = com.masterwave.player.ui.theme.DarkTextSecondary,
         modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
     )
 }

@@ -21,7 +21,7 @@ enum class ThemeMode {
 }
 
 object ThemeState {
-    private const val PREFS_NAME = "masterwave_theme_prefs"
+    private const val PREFS_NAME = "masterwave_theme_prefs_v2"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_ACCENT_COLOR = "accent_color"
     private const val KEY_DYNAMIC_COLOR = "dynamic_color_enabled"
@@ -32,33 +32,45 @@ object ThemeState {
         MasterWaveApp.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // Default accent: Primary Green (#165B33 / #34C759) or Crimson/Maroon
+    // Default accent: MasterWave Turquoise (#00D4B2)
     val Presets = listOf(
-        Color(0xFF165B33) to "Emerald Forest",
-        Color(0xFF34C759) to "Neon Lime",
-        Color(0xFFE53935) to "Crimson Flame",
-        Color(0xFF880E4F) to "Royal Maroon",
-        Color(0xFFF06292) to "Cyberpunk Rose",
-        Color(0xFF7C4DFF) to "Electric Violet",
-        Color(0xFF2979FF) to "Sapphire Blue",
-        Color(0xFFFF9100) to "Amber Sunset"
+        Color(0xFF00D4B2) to "MasterWave Turquoise",
+        Color(0xFF00B4D8) to "Electric Cyan",
+        Color(0xFF10B981) to "Emerald Pulse",
+        Color(0xFF6366F1) to "Deep Indigo",
+        Color(0xFF8B5CF6) to "Electric Violet",
+        Color(0xFFF43F5E) to "Crimson Flame",
+        Color(0xFFF59E0B) to "Amber Gold"
     )
 
     private val _themeMode = MutableStateFlow(
         try {
-            val saved = prefs.getString(KEY_THEME_MODE, ThemeMode.LIGHT.name) ?: ThemeMode.LIGHT.name
-            // Handle backwards compatibility with AMOLED_DARK
-            if (saved == "AMOLED_DARK") ThemeMode.AMOLED else ThemeMode.valueOf(saved)
+            val saved = prefs.getString(KEY_THEME_MODE, ThemeMode.AMOLED.name)
+            when (saved) {
+                "AMOLED", "AMOLED_DARK" -> ThemeMode.AMOLED
+                "DARK" -> ThemeMode.DARK
+                "LIGHT" -> ThemeMode.AMOLED // Auto-upgrade legacy light mode to AMOLED Dark for MasterWave 2.0
+                "SYSTEM" -> ThemeMode.AMOLED
+                else -> ThemeMode.AMOLED
+            }
         } catch (_: Exception) {
-            ThemeMode.LIGHT
+            ThemeMode.AMOLED
         }
     )
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     private val _accentColor = MutableStateFlow(
-        Color(prefs.getInt(KEY_ACCENT_COLOR, Color(0xFF165B33).toArgb()))
+        Color(prefs.getInt(KEY_ACCENT_COLOR, Color(0xFF00D4B2).toArgb()))
     )
     val accentColor: StateFlow<Color> = _accentColor.asStateFlow()
+
+    // Isolated artwork color for Now Playing ambient backdrop (does NOT mutate global app headers)
+    private val _artworkColor = MutableStateFlow<Color?>(null)
+    val artworkColor: StateFlow<Color?> = _artworkColor.asStateFlow()
+
+    fun setArtworkColor(color: Color?) {
+        _artworkColor.value = color
+    }
 
     private val _dynamicColorEnabled = MutableStateFlow(
         prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
@@ -107,17 +119,18 @@ object ThemeState {
     @Composable
     fun isDarkTheme(): Boolean {
         val mode by themeMode.collectAsState()
-        val systemDark = isSystemInDarkTheme()
         return when (mode) {
             ThemeMode.LIGHT -> false
-            ThemeMode.DARK, ThemeMode.AMOLED -> true
-            ThemeMode.SYSTEM -> systemDark
+            ThemeMode.DARK, ThemeMode.AMOLED, ThemeMode.SYSTEM -> true
         }
     }
 
     @Composable
     fun isAmoledTheme(): Boolean {
         val mode by themeMode.collectAsState()
-        return mode == ThemeMode.AMOLED
+        return when (mode) {
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK, ThemeMode.AMOLED, ThemeMode.SYSTEM -> true
+        }
     }
 }

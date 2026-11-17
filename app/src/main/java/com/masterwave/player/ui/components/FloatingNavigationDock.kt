@@ -66,16 +66,8 @@ fun FloatingNavigationDock(
     val accentColor by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
-    // Dynamic Color Morphing Accent based on Active Tab
-    val morphAccent by animateColorAsState(
-        targetValue = when (currentTab) {
-            MainTab.FEED -> accentColor
-            MainTab.STATS -> Color(0xFF2979FF)
-            MainTab.PLAYLISTS -> Color(0xFFD946EF)
-        },
-        animationSpec = spring(stiffness = Spring.StiffnessLow),
-        label = "dock_morph_accent"
-    )
+    val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
+    val morphAccent = brandTurquoise
 
 
     Box(

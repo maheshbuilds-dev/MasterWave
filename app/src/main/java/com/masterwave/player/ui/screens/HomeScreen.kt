@@ -141,6 +141,7 @@ fun HomeScreen(
     val isAmoled = ThemeState.isAmoledTheme()
     val favorites by repository.favorites.collectAsState()
     val localTracks by repository.localTracks.collectAsState()
+    val recentTracks by repository.recentTracks.collectAsState()
 
     val downloadManager = remember {
         MusicDownloadManager.getInstance(context, repository.okHttpClient, repository)
@@ -189,6 +190,28 @@ fun HomeScreen(
             trendingTracks = res
             quickPickTracks = if (res.size >= 16) res.take(16) else (res + res).take(16)
             isLoadingTrending = false
+        }
+    }
+
+    var madeForYouTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var dailyMixTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var becauseYouListenedHeader by remember { mutableStateOf("Because You Listened") }
+    var becauseYouListenedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var rediscoverTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+
+    LaunchedEffect(currentTrack?.id, favorites.size) {
+        scope.launch {
+            try {
+                madeForYouTracks = repository.recommendationManager.getMadeForYou(limit = 10)
+                dailyMixTracks = repository.recommendationManager.getDailyMix(limit = 10)
+                val seed = currentTrack ?: favorites.firstOrNull() ?: repository.recentTracks.value.firstOrNull()
+                if (seed != null) {
+                    val (header, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 8)
+                    becauseYouListenedHeader = header
+                    becauseYouListenedTracks = recs
+                }
+                rediscoverTracks = repository.recommendationManager.getRediscoverTracks(limit = 8)
+            } catch (_: Exception) {}
         }
     }
 
@@ -763,17 +786,13 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFFE91E63), Color(0xFFFF5252))
-                                        )
-                                    ),
+                                    .background(com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Favorite,
                                     contentDescription = "Liked Songs",
-                                    tint = Color.White,
+                                    tint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -817,17 +836,13 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clip(CircleShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFF00E676), Color(0xFF00B0FF))
-                                        )
-                                    ),
+                                    .background(com.masterwave.player.ui.theme.MasterWaveCyan.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Download,
                                     contentDescription = "Downloads",
-                                    tint = Color.White,
+                                    tint = com.masterwave.player.ui.theme.MasterWaveCyan,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -852,7 +867,92 @@ fun HomeScreen(
                 }
             }
 
-            // --- 2.1 My genres horizontal chips (LastWave Page 1) ---
+            // --- 2.1 Continue Listening (Recent History) ---
+            if (recentTracks.isNotEmpty()) {
+                item {
+                    RecommendationShelf(
+                        title = "Continue Listening",
+                        subtitle = "Jump back into what you were playing",
+                        tracks = recentTracks.take(10),
+                        badge = "RECENT",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        chipInactiveBg = chipInactiveBg,
+                        onTrackClick = { player.playTrack(it, recentTracks) }
+                    )
+                }
+            }
+
+            // --- 2.2 Made For You (Local Hybrid Recommendation Engine) ---
+            if (madeForYouTracks.isNotEmpty()) {
+                item {
+                    RecommendationShelf(
+                        title = "Made For You",
+                        subtitle = "Tuned to your listening habits & taste profile",
+                        tracks = madeForYouTracks,
+                        badge = "✦ PERSONALIZED",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        chipInactiveBg = chipInactiveBg,
+                        onTrackClick = { player.playTrack(it, madeForYouTracks) }
+                    )
+                }
+            }
+
+            // --- 2.3 Daily Mix ---
+            if (dailyMixTracks.isNotEmpty()) {
+                item {
+                    RecommendationShelf(
+                        title = "Daily Mix",
+                        subtitle = "Your top favorites mixed with related tracks",
+                        tracks = dailyMixTracks,
+                        badge = "DAILY",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        chipInactiveBg = chipInactiveBg,
+                        onTrackClick = { player.playTrack(it, dailyMixTracks) }
+                    )
+                }
+            }
+
+            // --- 2.4 Because You Listened To ---
+            if (becauseYouListenedTracks.isNotEmpty()) {
+                item {
+                    RecommendationShelf(
+                        title = becauseYouListenedHeader,
+                        subtitle = "Music influenced by your recent exploration",
+                        tracks = becauseYouListenedTracks,
+                        badge = "ARTIST RADAR",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        chipInactiveBg = chipInactiveBg,
+                        onTrackClick = { player.playTrack(it, becauseYouListenedTracks) }
+                    )
+                }
+            }
+
+            // --- 2.5 Rediscover ---
+            if (rediscoverTracks.isNotEmpty()) {
+                item {
+                    RecommendationShelf(
+                        title = "Rediscover",
+                        subtitle = "Past favorites you haven't played recently",
+                        tracks = rediscoverTracks,
+                        badge = "TIMELESS",
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        chipInactiveBg = chipInactiveBg,
+                        onTrackClick = { player.playTrack(it, rediscoverTracks) }
+                    )
+                }
+            }
+
+            // --- 2.6 My genres horizontal chips (LastWave Page 1) ---
             item {
                 Spacer(modifier = Modifier.height(18.dp))
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -869,11 +969,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 val myGenres = listOf("Pop", "Rock", "Hip Hop", "Indie", "Electronic", "R&B", "Bollywood", "Punjabi", "Soul")
-                val genreColors = listOf(
-                    Color(0xFFFF4081), Color(0xFF7C4DFF), Color(0xFFFF9100),
-                    Color(0xFF00E676), Color(0xFF00B0FF), Color(0xFFFFD600),
-                    Color(0xFFE040FB), Color(0xFF69F0AE)
-                )
+                val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
 
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
@@ -881,7 +977,7 @@ fun HomeScreen(
                 ) {
                     items(myGenres.indices.toList()) { index ->
                         val genre = myGenres[index]
-                        val dotColor = genreColors[index % genreColors.size]
+                        val dotColor = brandTurquoise
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = cardBg,
@@ -1499,7 +1595,7 @@ fun HomeScreen(
                                     .size(76.dp)
                                     .clip(CircleShape)
                                     .background(accentColor.copy(alpha = 0.2f))
-                                    .border(2.dp, Brush.linearGradient(listOf(accentColor, Color(0xFF9C27B0))), CircleShape),
+                                    .border(1.5.dp, com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.6f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 AsyncImage(
@@ -1912,12 +2008,12 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(7.dp)
                                             .clip(CircleShape)
-                                            .background(accentColor)
+                                            .background(com.masterwave.player.ui.theme.MasterWaveTurquoise)
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "HI-RES AUDIO ENGINE • OPUS",
+                                    text = "PRECISION AUDIO ENGINE • 48 kHz",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 9.5.sp,
                                         fontWeight = FontWeight.SemiBold,
@@ -1978,10 +2074,9 @@ fun HomeScreen(
                                             2.dp,
                                             Brush.sweepGradient(
                                                 listOf(
-                                                    accentColor,
-                                                    Color(0xFF7C4DFF),
-                                                    Color(0xFF00E5FF),
-                                                    accentColor
+                                                    com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                                                    com.masterwave.player.ui.theme.MasterWaveCyan,
+                                                    com.masterwave.player.ui.theme.MasterWaveTurquoise
                                                 )
                                             ),
                                             CircleShape
@@ -2063,4 +2158,121 @@ fun HomeScreen(
 
 fun getArtistPhotoUrl(artistName: String): String {
     return com.masterwave.player.data.recommendation.ArtistPhotoProvider.getPhotoUrl(artistName)
+}
+
+@Composable
+private fun RecommendationShelf(
+    title: String,
+    subtitle: String,
+    tracks: List<Track>,
+    badge: String? = null,
+    textPrimary: Color,
+    textSecondary: Color,
+    accentColor: Color,
+    chipInactiveBg: Color,
+    onTrackClick: (Track) -> Unit
+) {
+    if (tracks.isEmpty()) return
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 22.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = title,
+                        style = ExpressiveSectionHeader.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = textPrimary
+                    )
+                    if (badge != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = accentColor.copy(alpha = 0.18f)
+                        ) {
+                            Text(
+                                text = badge,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp,
+                                    letterSpacing = 0.8.sp
+                                ),
+                                color = accentColor,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                if (subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = textSecondary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(tracks) { track ->
+                Column(
+                    modifier = Modifier
+                        .width(138.dp)
+                        .clickable { onTrackClick(track) }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(138.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(chipInactiveBg)
+                    ) {
+                        if (!track.artworkUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = track.artworkUrl,
+                                contentDescription = track.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = textSecondary,
+                                modifier = Modifier.size(36.dp).align(Alignment.Center)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = track.title,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp
+                        ),
+                        color = textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = track.artist,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                        color = textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
 }

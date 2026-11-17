@@ -131,9 +131,12 @@ fun PlaylistsScreen(
     }
     val filteredPlaylists = sortedPlaylists
 
+    val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
+    val brandCyan = com.masterwave.player.ui.theme.MasterWaveCyan
+
     val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
-    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFEFECEF).copy(alpha = 0.6f)
-    val searchBg = if (isAmoled) Color(0xFF161622) else Color(0xFFE2E0E4)
+    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFFFFFFF)
+    val searchBg = if (isAmoled) Color(0xFF161622) else Color(0xFFEFECEF)
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
@@ -156,12 +159,13 @@ fun PlaylistsScreen(
             ) {
                 Column {
                     Text(
-                        text = "Library",
+                        text = "LIBRARY",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 11.5.sp,
+                            letterSpacing = 1.2.sp
                         ),
-                        color = accentColor
+                        color = brandTurquoise
                     )
                     Text(
                         text = "Playlists",
@@ -190,7 +194,7 @@ fun PlaylistsScreen(
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = "Generator",
-                                tint = accentColor,
+                                tint = brandTurquoise,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -222,7 +226,7 @@ fun PlaylistsScreen(
             }
         }
 
-        // --- 1.5 Category Filters & Sorting Row (Section 13) ---
+        // --- 1.5 Category Filters & Sorting Row ---
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // Category Filters
@@ -235,7 +239,7 @@ fun PlaylistsScreen(
                         Surface(
                             shape = RoundedCornerShape(18.dp),
                             color = if (isSelected) {
-                                if (isAmoled) accentColor.copy(alpha = 0.35f) else Color(0xFFD7F5DD)
+                                brandTurquoise.copy(alpha = 0.22f)
                             } else searchBg,
                             modifier = Modifier.bouncyClickable {
                                 activeLibraryFilter = filter
@@ -248,9 +252,7 @@ fun PlaylistsScreen(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp
                                 ),
-                                color = if (isSelected) {
-                                    if (isAmoled) Color.White else Color(0xFF1B5E20)
-                                } else textSecondary,
+                                color = if (isSelected) brandTurquoise else textSecondary,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                             )
                         }
@@ -277,7 +279,7 @@ fun PlaylistsScreen(
                                 Icon(
                                     imageVector = Icons.Default.Sort,
                                     contentDescription = "Sort",
-                                    tint = accentColor,
+                                    tint = brandTurquoise,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -339,7 +341,7 @@ fun PlaylistsScreen(
                             .fillMaxSize()
                             .background(
                                 Brush.linearGradient(
-                                    listOf(Color(0xFFE91E63).copy(alpha = 0.18f), Color.Transparent)
+                                    listOf(brandTurquoise.copy(alpha = 0.14f), Color.Transparent)
                                 )
                             )
                             .padding(14.dp)
@@ -352,13 +354,13 @@ fun PlaylistsScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFE91E63)),
+                                    .background(brandTurquoise.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Favorite,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = brandTurquoise,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -396,7 +398,7 @@ fun PlaylistsScreen(
                             .fillMaxSize()
                             .background(
                                 Brush.linearGradient(
-                                    listOf(accentColor.copy(alpha = 0.22f), Color.Transparent)
+                                    listOf(brandCyan.copy(alpha = 0.14f), Color.Transparent)
                                 )
                             )
                             .padding(14.dp)
@@ -409,13 +411,13 @@ fun PlaylistsScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(accentColor),
+                                    .background(brandCyan.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.CloudDownload,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = brandCyan,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -441,7 +443,7 @@ fun PlaylistsScreen(
             }
         }
 
-        // --- 2.5 Generator Action Banner (LastWave Page 5 & 7) ---
+        // --- 2.5 Generator Action Banner ---
         item {
             Surface(
                 shape = RoundedCornerShape(22.dp),
@@ -455,7 +457,7 @@ fun PlaylistsScreen(
                         .fillMaxSize()
                         .background(
                             Brush.linearGradient(
-                                listOf(Color(0xFF7C4DFF).copy(alpha = 0.22f), Color(0xFF00E676).copy(alpha = 0.08f))
+                                listOf(brandTurquoise.copy(alpha = 0.12f), brandCyan.copy(alpha = 0.06f))
                             )
                         )
                         .padding(16.dp)
@@ -468,13 +470,13 @@ fun PlaylistsScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFF7C4DFF)),
+                                .background(brandTurquoise.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = brandTurquoise,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -500,14 +502,14 @@ fun PlaylistsScreen(
 
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFF7C4DFF).copy(alpha = 0.18f),
+                            color = brandTurquoise.copy(alpha = 0.18f),
                             modifier = Modifier.size(34.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = "Open Generator",
-                                    tint = Color(0xFF7C4DFF),
+                                    tint = brandTurquoise,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -529,7 +531,7 @@ fun PlaylistsScreen(
                         Icon(
                             imageVector = Icons.Default.CloudSync,
                             contentDescription = null,
-                            tint = accentColor,
+                            tint = brandTurquoise,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -545,7 +547,7 @@ fun PlaylistsScreen(
 
                     if (isSyncingCloud) {
                         CircularProgressIndicator(
-                            color = accentColor,
+                            color = brandTurquoise,
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp
                         )
@@ -559,7 +561,7 @@ fun PlaylistsScreen(
                     item {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isAmoled) Color(0xFF14141E) else accentColor.copy(alpha = 0.08f),
+                            color = cardBg,
                             modifier = Modifier.clickable {
                                 if (!isSyncingCloud) {
                                     isSyncingCloud = true
@@ -583,13 +585,13 @@ fun PlaylistsScreen(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFFF0000)),
+                                        .background(brandTurquoise.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CloudDownload,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = brandTurquoise,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -613,7 +615,7 @@ fun PlaylistsScreen(
                     item {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isAmoled) Color(0xFF14141E) else accentColor.copy(alpha = 0.08f),
+                            color = cardBg,
                             modifier = Modifier.clickable {
                                 Toast.makeText(context, "Open Settings > YouTube & Sync to import link", Toast.LENGTH_SHORT).show()
                             }
@@ -626,13 +628,13 @@ fun PlaylistsScreen(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF2196F3)),
+                                        .background(brandCyan.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CloudSync,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = brandCyan,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -656,7 +658,7 @@ fun PlaylistsScreen(
                     item {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = if (isAmoled) Color(0xFF14141E) else accentColor.copy(alpha = 0.08f),
+                            color = cardBg,
                             modifier = Modifier.clickable {
                                 Toast.makeText(context, "Spotify account sync active in Settings", Toast.LENGTH_SHORT).show()
                             }
@@ -669,13 +671,13 @@ fun PlaylistsScreen(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF1DB954)),
+                                        .background(brandTurquoise.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CloudDownload,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = brandTurquoise,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }

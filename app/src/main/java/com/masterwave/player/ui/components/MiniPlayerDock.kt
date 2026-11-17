@@ -80,7 +80,7 @@ fun MiniPlayerDock(
 ) {
     val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "mini_progress")
-    val accentColor by ThemeState.accentColor.collectAsState()
+    val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
     val isAmoled = ThemeState.isAmoledTheme()
 
     val textPrimary = if (isAmoled) Color.White else Color(0xFF14171E)
@@ -153,8 +153,8 @@ fun MiniPlayerDock(
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
-                                        accentColor.copy(alpha = 0.6f),
-                                        accentColor,
+                                        brandTurquoise.copy(alpha = 0.6f),
+                                        brandTurquoise,
                                         Color.White.copy(alpha = 0.9f)
                                     )
                                 )
@@ -243,21 +243,21 @@ fun MiniPlayerDock(
                                             .width(2.5.dp)
                                             .height(bar1Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(accentColor)
+                                            .background(brandTurquoise)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar2Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(accentColor)
+                                            .background(brandTurquoise)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar3Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(accentColor)
+                                            .background(brandTurquoise)
                                     )
                                 }
                             }
@@ -282,7 +282,7 @@ fun MiniPlayerDock(
                             .glassySurface(
                                 shape = CircleShape,
                                 style = GlassyStyle.PROMINENT,
-                                tintColor = accentColor,
+                                tintColor = brandTurquoise,
                                 elevation = 4.dp,
                                 onClick = onPlayPause
                             ),

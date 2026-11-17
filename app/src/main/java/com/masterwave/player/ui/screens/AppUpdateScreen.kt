@@ -243,7 +243,7 @@ fun AppUpdateScreen(
                         "☁️ 1-Tap Cloud Sync for YouTube Music & Spotify (zero URL typing)",
                         "🤖 AI Mood Engine for automatic next-song intelligent decision",
                         "📥 Silent Background Music Downloader to device storage",
-                        "🌊 High-Res Artwork & LastWave-style 3D Breathing Hero Animation"
+                        "🌊 High-Res Artwork & MasterWave 3D Breathing Hero Animation"
                     )
                     notes.forEach { note ->
                         Text(

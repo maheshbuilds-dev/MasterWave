@@ -89,7 +89,7 @@ fun AudioPlaybackModal(
 
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
-    val greenAccent = Color(0xFF34C759)
+    val greenAccent = com.masterwave.player.ui.theme.MasterWaveTurquoise
 
     Box(
         modifier = modifier

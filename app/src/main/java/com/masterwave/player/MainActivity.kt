@@ -188,13 +188,13 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     val positionMs by player.positionMs.collectAsState()
     val durationMs by player.durationMs.collectAsState()
 
-    // Dynamic Artwork Color Extraction - Adapts app and player theme on EVERY song change!
+    // Dynamic Artwork Color Extraction - Isolated to Now Playing ambient backdrop
     LaunchedEffect(currentTrack?.id, currentTrack?.artworkUrl) {
         if (currentTrack != null) {
             val extracted = com.masterwave.player.ui.theme.ArtworkColorExtractor.extractVibrantColor(context, currentTrack?.artworkUrl)
-            if (extracted != null) {
-                com.masterwave.player.ui.theme.ThemeState.setAccentColor(extracted)
-            }
+            com.masterwave.player.ui.theme.ThemeState.setArtworkColor(extracted)
+        } else {
+            com.masterwave.player.ui.theme.ThemeState.setArtworkColor(null)
         }
     }
 
@@ -516,6 +516,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         ) {
             QueueScreen(
                 player = player,
+                repository = repository,
                 onBack = { isQueueOpen = false }
             )
         }

@@ -135,6 +135,7 @@ class MasterWavePlayer(
                 }
                 Player.STATE_ENDED -> {
                     _isLoading.value = false
+                    _currentTrack.value?.let { repository.recommendationManager.eventTracker.onTrackEndedNaturally(it) }
                     playNext()
                 }
                 Player.STATE_IDLE -> {
@@ -154,10 +155,12 @@ class MasterWavePlayer(
         progressJob?.cancel()
         progressJob = scope.launch {
             while (isActive) {
-                _positionMs.value = exoPlayer.currentPosition.coerceAtLeast(0L)
+                val curPos = exoPlayer.currentPosition.coerceAtLeast(0L)
+                _positionMs.value = curPos
                 val curDuration = exoPlayer.duration
                 if (curDuration > 0) {
                     _durationMs.value = curDuration
+                    repository.recommendationManager.eventTracker.onProgressUpdate(curPos, curDuration)
                 }
                 delay(250L) // 4Hz update for silky smooth seekbar
             }
@@ -192,6 +195,7 @@ class MasterWavePlayer(
             _queue.value = newQueue
             _currentIndex.value = newQueue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
             repository.recordRecentTrack(track)
+            repository.recommendationManager.eventTracker.onTrackStarted(track)
 
             try {
                 val streamUrl = repository.resolveStreamUrl(track)
@@ -246,24 +250,42 @@ class MasterWavePlayer(
     fun playNext() {
         val q = _queue.value
         val cur = _currentTrack.value
+        cur?.let { repository.recommendationManager.eventTracker.onTrackSkipped(it) }
+
         if (q.isNotEmpty() && _currentIndex.value >= 0 && _currentIndex.value + 1 < q.size) {
             val nextIdx = _currentIndex.value + 1
             playTrack(q[nextIdx], q)
             return
         }
-        // AI Mood Recommendation: Pick next track dynamically
-        val pool = repository.recentTracks.value + repository.favorites.value + repository.localTracks.value
-        val aiTrack = aiRecommender.selectNextTrack(cur, pool, repository.recentTracks.value)
-        if (aiTrack != null) {
-            playTrack(aiTrack)
-        } else if (q.isNotEmpty()) {
-            playTrack(q.first(), q)
+
+        // Smart Dynamic Continuation powered by Recommendation Engine:
+        scope.launch {
+            if (cur != null) {
+                val smartRecs = repository.recommendationManager.getQueueRecommendations(cur, limit = 5)
+                if (smartRecs.isNotEmpty()) {
+                    val extendedQueue = q + smartRecs
+                    _queue.value = extendedQueue
+                    playTrack(smartRecs.first(), extendedQueue)
+                    return@launch
+                }
+            }
+            // Fallback to pool
+            val pool = repository.recentTracks.value + repository.favorites.value + repository.localTracks.value
+            val aiTrack = aiRecommender.selectNextTrack(cur, pool, repository.recentTracks.value)
+            if (aiTrack != null) {
+                playTrack(aiTrack)
+            } else if (q.isNotEmpty()) {
+                playTrack(q.first(), q)
+            }
         }
     }
 
     fun skipToNext() = playNext()
 
     fun playPrevious() {
+        val cur = _currentTrack.value
+        cur?.let { repository.recommendationManager.eventTracker.onTrackSkipped(it) }
+
         if (exoPlayer.currentPosition > 3000L) {
             exoPlayer.seekTo(0L)
             _positionMs.value = 0L

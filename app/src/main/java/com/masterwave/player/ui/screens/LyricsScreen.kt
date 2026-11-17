@@ -205,7 +205,7 @@ fun LyricsScreen(
             )
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFFE040FB).copy(alpha = 0.30f), Color.Transparent),
+                    colors = listOf(com.masterwave.player.ui.theme.MasterWaveCyan.copy(alpha = 0.25f), Color.Transparent),
                     center = Offset(blob2X, blob2Y),
                     radius = w * 0.70f
                 ),
@@ -472,7 +472,7 @@ fun LyricsScreen(
                                         lineHeight = ((if (isCurrent) 38f else 30f) * textSizeMultiplier).sp,
                                         shadow = if (isCurrent) {
                                             Shadow(
-                                                color = accentColor.copy(alpha = 0.9f),
+                                                color = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.85f),
                                                 blurRadius = 24f
                                             )
                                         } else null
@@ -582,7 +582,7 @@ fun LyricsScreen(
                     positionMs = positionMs,
                     durationMs = safeDurationMs,
                     isPlaying = isPlaying,
-                    waveColor = accentColor,
+                    waveColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
                     onSeek = { player.seekTo(it) }
                 )
 

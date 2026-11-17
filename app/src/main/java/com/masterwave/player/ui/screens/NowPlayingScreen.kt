@@ -35,6 +35,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -50,6 +52,8 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -129,6 +133,9 @@ fun NowPlayingScreen(
     val isFavorite = favorites.any { it.id == currentTrack.id }
     val context = LocalContext.current
     val accentColor by ThemeState.accentColor.collectAsState()
+    val artworkColor by ThemeState.artworkColor.collectAsState()
+    val dynamicColorEnabled by ThemeState.dynamicColorEnabled.collectAsState()
+    val effectiveGlowColor = if (dynamicColorEnabled && artworkColor != null) artworkColor!! else accentColor
 
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
@@ -177,70 +184,33 @@ fun NowPlayingScreen(
                 onClick = {}
             )
     ) {
-        // --- 1. Ambient Background Layer (Full-Bleed Gaussian Blur & Fluid Aurora) ---
-        if (artModel != null) {
-            AsyncImage(
-                model = artModel,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(radius = 54.dp)
-                    .scale(1.35f)
-                    .graphicsLayer { alpha = 0.55f }
-            )
-        }
-
-        // Dynamic Fluid Aurora Canvas (moves organically with music)
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-
-            val blob1X = w * (0.35f + 0.16f * cos(auroraPhase.toDouble()).toFloat())
-            val blob1Y = h * (0.50f + 0.12f * sin(auroraPhase.toDouble()).toFloat())
-
-            val blob2X = w * (0.68f + 0.18f * sin((auroraPhase * 1.2f).toDouble()).toFloat())
-            val blob2Y = h * (0.65f + 0.10f * cos((auroraPhase * 1.1f).toDouble()).toFloat())
-
-            // Blob 1: Vibrant Extracted Accent
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(accentColor.copy(alpha = 0.40f), Color.Transparent),
-                    center = Offset(blob1X, blob1Y),
-                    radius = w * 0.85f
-                ),
-                radius = w * 0.85f,
-                center = Offset(blob1X, blob1Y)
-            )
-
-            // Blob 2: Deep Harmonic Indigo
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF6366F1).copy(alpha = 0.25f), Color.Transparent),
-                    center = Offset(blob2X, blob2Y),
-                    radius = w * 0.75f
-                ),
-                radius = w * 0.75f,
-                center = Offset(blob2X, blob2Y)
-            )
-        }
-
-        // Atmospheric Scrim overlay guaranteeing WCAG 4.5:1 text contrast
+        // --- 1. Clean Studio Ambient Background Layer (Apple Music / Tidal Aesthetic) ---
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color(0x80000000),
-                            0.20f to Color(0x3007080D),
-                            0.50f to Color(0x6007080D),
-                            0.75f to Color(0xD007080D),
-                            1.0f to Color(0xFA07080D)
-                        )
-                    )
-                )
+                .background(Color(0xFF090A0F))
         )
+
+        // Subtle ambient radial glow behind album art
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val glowCenter = Offset(w * 0.5f, h * 0.38f)
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        effectiveGlowColor.copy(alpha = 0.28f),
+                        effectiveGlowColor.copy(alpha = 0.08f),
+                        Color.Transparent
+                    ),
+                    center = glowCenter,
+                    radius = w * 0.75f
+                ),
+                radius = w * 0.75f,
+                center = glowCenter
+            )
+        }
 
         // --- 2. Main Structured Content ---
         Column(
@@ -361,6 +331,35 @@ fun NowPlayingScreen(
                                 Toast.makeText(context, "Downloading track offline...", Toast.LENGTH_SHORT).show()
                             }
                         )
+                        DropdownMenuItem(
+                            text = { Text("More Like This", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = accentColor) },
+                            onClick = {
+                                showMenu = false
+                                repository.recommendationManager.onMoreLikeThis(currentTrack)
+                                Toast.makeText(context, "Learning your taste: More like ${currentTrack.artist}!", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Don't Recommend Artist", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFFF43F5E)) },
+                            onClick = {
+                                showMenu = false
+                                repository.recommendationManager.onDontRecommendArtist(currentTrack.artist)
+                                Toast.makeText(context, "We won't recommend ${currentTrack.artist} again", Toast.LENGTH_SHORT).show()
+                                player.skipToNext()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Hide This Track", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = Color(0xFFF43F5E)) },
+                            onClick = {
+                                showMenu = false
+                                repository.recommendationManager.onHideTrack(currentTrack)
+                                Toast.makeText(context, "Track hidden", Toast.LENGTH_SHORT).show()
+                                player.skipToNext()
+                            }
+                        )
                     }
                 }
             }
@@ -379,7 +378,7 @@ fun NowPlayingScreen(
                     .shadow(
                         elevation = 24.dp,
                         shape = RoundedCornerShape(24.dp),
-                        spotColor = accentColor.copy(alpha = 0.55f),
+                        spotColor = effectiveGlowColor.copy(alpha = 0.55f),
                         ambientColor = Color.Black.copy(alpha = 0.6f)
                     )
                     .clip(RoundedCornerShape(24.dp))
@@ -508,8 +507,8 @@ fun NowPlayingScreen(
                 positionMs = positionMs,
                 durationMs = durationMs,
                 isPlaying = isPlaying,
-                waveColor = accentColor,
-                codecLabel = "• OPUS • 132 kbps",
+                waveColor = effectiveGlowColor,
+                codecLabel = "Opus 160 kbps • 48 kHz",
                 onSeek = { player.seekTo(it) },
                 onCodecClick = { showAudioPlaybackModal = true }
             )

@@ -7,27 +7,34 @@ import androidx.compose.ui.graphics.Color
 // Sonic Craft Architecture: Deep Obsidian, Tactile Glass & High-Contrast Audio Tones
 // ==========================================
 
+// --- MasterWave Core Brand Identity Tokens ---
+val MasterWaveTurquoise = Color(0xFF00D4B2)      // Signature MasterWave vibrant turquoise
+val MasterWaveCyan = Color(0xFF00B4D8)           // Electric cyan secondary accent
+val MasterWaveTurquoiseDark = Color(0xFF00A88F)
+val MasterWaveTurquoiseGlow = Color(0x6600D4B2)
+val MasterWaveTurquoiseTint = Color(0x2000D4B2)  // Translucent chip / pill highlight
+
 // --- Light Theme Tokens ---
 val LightBackground = Color(0xFFF8F9FA) // Clean studio ivory background
-val LightPrimaryGreen = Color(0xFF059669) // Modern refined emerald
-val LightSoftTint = Color(0xFFD1FAE5) // Soft tint
-val LightSurface = Color(0xFFFFFFFF) // Crisp surface
-val LightSurfaceVariant = Color(0xFFF1F3F6) // Subtle card neutral
-val LightBorder = Color(0xFFE2E4E9) // Subtle border
+val LightPrimaryGreen = MasterWaveTurquoise // Refined brand primary
+val LightSoftTint = Color(0xFFE0F7F4)   // Soft turquoise tint
+val LightSurface = Color(0xFFFFFFFF)     // Crisp card surface
+val LightSurfaceVariant = Color(0xFFF1F3F6) // Subtle neutral card
+val LightBorder = Color(0xFFE2E4E9)     // Subtle border
 val LightTextPrimary = Color(0xFF11141A) // Deep charcoal
 val LightTextSecondary = Color(0xFF5B6170) // Muted slate
 val LightTextTertiary = Color(0xFF8A90A0)
 
 // --- Dark Theme Tokens ---
-val DarkBackground = Color(0xFF0A0B10) // Rich obsidian dark background
-val DarkSurface = Color(0xFF12141C) // Layered dark surface
+val DarkBackground = Color(0xFF090A0F)  // Rich obsidian dark background
+val DarkSurface = Color(0xFF11131A)     // Layered dark surface
 val DarkSurfaceElevated = Color(0xFF181B26) // Elevated card surface
-val DarkSurfaceVariant = Color(0xFF202432)
-val DarkBorder = Color(0xFF282C3D)
+val DarkSurfaceVariant = Color(0xFF1E2230)
+val DarkBorder = Color(0xFF262A3B)
 val DarkTextPrimary = Color(0xFFF5F6FA) // Warm crisp white
 val DarkTextSecondary = Color(0xFF989EAF) // High-contrast muted grey
 val DarkTextTertiary = Color(0xFF6B7184)
-val DarkPrimaryGreen = Color(0xFF10B981) // Vibrant emerald green
+val DarkPrimaryGreen = MasterWaveTurquoise // Signature vibrant turquoise
 
 // --- AMOLED Theme Tokens ---
 val AmoledBackground = Color(0xFF000000) // Pure Pitch Black

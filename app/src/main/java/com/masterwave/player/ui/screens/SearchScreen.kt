@@ -642,7 +642,7 @@ fun SearchScreen(
                                             .size(72.dp)
                                             .clip(CircleShape)
                                             .background(accentColor.copy(alpha = 0.15f))
-                                            .border(1.5.dp, Brush.linearGradient(listOf(accentColor, Color(0xFF9C27B0))), CircleShape),
+                                            .border(1.5.dp, com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.6f), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         AsyncImage(

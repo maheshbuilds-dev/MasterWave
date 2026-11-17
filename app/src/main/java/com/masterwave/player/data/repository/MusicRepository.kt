@@ -10,6 +10,7 @@ import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.provider.LocalMusicProvider
 import com.masterwave.player.data.provider.PlaylistImporter
 import com.masterwave.player.data.provider.YouTubeMusicProvider
+import com.masterwave.player.data.recommendation.engine.RecommendationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,9 @@ class MusicRepository(private val context: Context) {
     private val localProvider = LocalMusicProvider(context)
     private val lyricsProvider = LrclibLyricsProvider(MasterWaveApp.instance.okHttpClient)
     private val playlistImporter = PlaylistImporter(MasterWaveApp.instance.okHttpClient)
+    val recommendationManager: RecommendationManager by lazy {
+        RecommendationManager.getInstance(context, ytProvider, this)
+    }
 
     // Favorites
     private val _favorites = MutableStateFlow<List<Track>>(emptyList())
@@ -86,8 +90,11 @@ class MusicRepository(private val context: Context) {
         val existingIndex = current.indexOfFirst { it.id == track.id }
         if (existingIndex >= 0) {
             current.removeAt(existingIndex)
+            recommendationManager.onUserUnlikedTrack(track)
         } else {
-            current.add(0, track.copy(isFavorite = true))
+            val fav = track.copy(isFavorite = true)
+            current.add(0, fav)
+            recommendationManager.onUserLikedTrack(fav)
         }
         _favorites.value = current
         updateLikedPlaylistCount(current.size)
@@ -97,7 +104,9 @@ class MusicRepository(private val context: Context) {
     fun addToFavorites(track: Track) {
         if (!isFavorite(track.id)) {
             val current = _favorites.value.toMutableList()
-            current.add(0, track.copy(isFavorite = true))
+            val fav = track.copy(isFavorite = true)
+            current.add(0, fav)
+            recommendationManager.onUserLikedTrack(fav)
             _favorites.value = current
             updateLikedPlaylistCount(current.size)
             saveCachedFavorites()

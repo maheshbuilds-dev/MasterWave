@@ -150,7 +150,7 @@ fun AppearanceScreen(
             ) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf(
-                        ThemeMode.LIGHT to "Light Mode (Apple Music / LastWave #F6F5F3)",
+                        ThemeMode.LIGHT to "Light Mode (Studio Pure #F8F9FA)",
                         ThemeMode.DARK to "Dark Mode (Layered Charcoal #0D0F0E)",
                         ThemeMode.AMOLED to "AMOLED Dark Mode (True Pitch Black #000000)",
                         ThemeMode.SYSTEM to "System Default"

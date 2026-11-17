@@ -139,7 +139,10 @@ fun LikedSongsScreen(
                     .clip(RoundedCornerShape(22.dp))
                     .background(
                         Brush.linearGradient(
-                            listOf(Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF3F51B5))
+                            listOf(
+                                com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                                com.masterwave.player.ui.theme.MasterWaveCyan
+                            )
                         )
                     )
                     .padding(20.dp)
@@ -296,13 +299,13 @@ fun LikedSongsScreen(
                             modifier = Modifier
                                 .size(74.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE91E63).copy(alpha = 0.15f)),
+                                .background(com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = null,
-                                tint = Color(0xFFE91E63),
+                                tint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
                                 modifier = Modifier.size(38.dp)
                             )
                         }
@@ -398,7 +401,7 @@ fun LikedSongsScreen(
                                 Icon(
                                     imageVector = Icons.Default.Favorite,
                                     contentDescription = "Unlike",
-                                    tint = Color(0xFFE91E63),
+                                    tint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
