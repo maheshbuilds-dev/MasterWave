@@ -46,6 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -61,13 +65,16 @@ import com.masterwave.player.ui.theme.ThemeState
 import java.io.File
 
 /**
- * MASTERWAVE SONIC MINI-PLAYER DOCK
- * Engineered with:
- * - Fluid refractive acrylic glass dock with specular top rim
- * - Animated continuous playback progress line
- * - Live dynamic 3-bar audio visualizer when playing
- * - Swipe-left gesture to skip to next track
- * - Tactile 48dp spring button for playback toggle
+ * APPLE MUSIC-INSPIRED FLOATING LIQUID GLASS MINI-PLAYER
+ * Belongs to the same optical material family as the Dock:
+ * - Floating compact capsule resting above the navigation dock.
+ * - Layered translucency with curved specular reflex sheen.
+ * - Embedded optical laser groove progress line.
+ * - Micro-beveled album artwork squircle.
+ * - Live 3-bar animated audio visualizer.
+ * - Prominent circular Liquid Glass play/pause jewel button.
+ * - Tactile next-track glass control.
+ * - Smooth swipe-to-skip gesture with expansion on tap.
  */
 @Composable
 fun MiniPlayerDock(
@@ -92,8 +99,8 @@ fun MiniPlayerDock(
         label = "mini_accent"
     )
 
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF14171E)
-    val textSecondary = if (isAmoled) Color(0xFFA0A5B8) else Color(0xFF6B7285)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF141722)
+    val textSecondary = if (isAmoled) Color(0xFFA2A7B8) else Color(0xFF5A6072)
 
     // Live audio wave equalizer animation
     val infiniteTransition = rememberInfiniteTransition(label = "mini_eq")
@@ -134,37 +141,39 @@ fun MiniPlayerDock(
             },
         contentAlignment = Alignment.Center
     ) {
+        // Floating Optical Capsule
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .glassySurface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(26.dp),
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.dp,
+                    borderWidth = 1.2.dp,
                     elevation = 12.dp,
+                    accentGlow = animatedAccent.copy(alpha = 0.16f),
                     hasSheen = true,
                     onClick = onExpand
                 )
         ) {
             Column {
-                // Top rim glowing playback progress line
+                // Top rim optical laser groove progress line
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(2.dp)
-                        .background(if (isAmoled) Color(0x15FFFFFF) else Color(0x10000000))
+                        .height(2.5.dp)
+                        .background(if (isAmoled) Color(0x18FFFFFF) else Color(0x12000000))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(animatedProgress)
-                            .height(2.dp)
+                            .height(2.5.dp)
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
-                                        animatedAccent.copy(alpha = 0.6f),
+                                        animatedAccent.copy(alpha = 0.55f),
                                         animatedAccent,
-                                        Color.White.copy(alpha = 0.9f)
+                                        Color.White.copy(alpha = 0.95f)
                                     )
                                 )
                             )
@@ -177,7 +186,7 @@ fun MiniPlayerDock(
                         .padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Artwork Thumbnail with specular rim
+                    // Artwork Thumbnail with directional micro-bevel rim
                     val artworkModel = remember(track.artworkUrl) {
                         val u = track.artworkUrl
                         when {
@@ -194,8 +203,13 @@ fun MiniPlayerDock(
                             .size(48.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .border(
-                                width = 0.8.dp,
-                                color = if (isAmoled) Color(0x30FFFFFF) else Color(0x15000000),
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.60f),
+                                        Color.White.copy(alpha = 0.15f)
+                                    )
+                                ),
                                 shape = RoundedCornerShape(14.dp)
                             )
                             .background(if (isAmoled) Color(0xFF1E202B) else Color(0xFFE9ECF2))
@@ -284,17 +298,52 @@ fun MiniPlayerDock(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Play / Pause Prominent Glassy Button
+                    // Play / Pause Circular Liquid Glass Jewel Button
                     Box(
                         modifier = Modifier
                             .size(46.dp)
-                            .glassySurface(
+                            .shadow(
+                                elevation = 6.dp,
                                 shape = CircleShape,
-                                style = GlassyStyle.PROMINENT,
-                                tintColor = animatedAccent,
-                                elevation = 4.dp,
-                                onClick = onPlayPause
-                            ),
+                                spotColor = animatedAccent.copy(alpha = 0.45f),
+                                ambientColor = Color.Black.copy(alpha = 0.20f)
+                            )
+                            .clip(CircleShape)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        animatedAccent.copy(alpha = 0.92f),
+                                        animatedAccent.copy(alpha = 0.72f)
+                                    )
+                                )
+                            )
+                            .drawWithContent {
+                                drawContent()
+                                // Top specular sheen
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.45f),
+                                            Color.White.copy(alpha = 0.10f),
+                                            Color.Transparent
+                                        ),
+                                        startY = 0f,
+                                        endY = size.height * 0.45f
+                                    ),
+                                    size = Size(size.width, size.height * 0.45f)
+                                )
+                            }
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.80f),
+                                        Color.White.copy(alpha = 0.25f)
+                                    )
+                                ),
+                                shape = CircleShape
+                            )
+                            .bouncyClickable(scaleDown = 0.92f, onClick = onPlayPause),
                         contentAlignment = Alignment.Center
                     ) {
                         if (isLoading) {
@@ -315,10 +364,10 @@ fun MiniPlayerDock(
 
                     Spacer(modifier = Modifier.width(6.dp))
 
-                    // Next Track Frosted Glass Slab Button
+                    // Next Track Clear Glass Slab Button
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(40.dp)
                             .glassySurface(
                                 shape = CircleShape,
                                 style = GlassyStyle.SLAB,

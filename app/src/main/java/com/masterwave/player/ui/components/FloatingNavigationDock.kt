@@ -33,7 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -56,13 +59,15 @@ enum class MainTab(val title: String, val icon: ImageVector) {
 }
 
 /**
- * Apple Music-Inspired Floating Liquid Glass Navigation Dock:
- * - Ultra-refined frosted acrylic glass shelf with specular rim reflection.
- * - Dynamic contextual accent pill: automatically inherits current album artwork tone,
- *   or follows curated theme studio preset (Ocean, Berry, Forest, Sunset, Monochrome).
- * - Tactile spring-physics selection pill without permanent static green.
- * - Minimal, uncluttered navigation: Home, Search, Library.
- * - Safe area navigation padding & compact footprint.
+ * APPLE MUSIC-INSPIRED HERO FLOATING LIQUID GLASS NAVIGATION DOCK
+ * Engineered according to Apple HIG & WWDC25 Liquid Glass specifications:
+ * - Genuine optical glass body with layered translucency.
+ * - Curved overhead specular reflex arc catching ambient light.
+ * - Directional dual-bevel rim (1.dp) with crisp top specular light entry.
+ * - Restrained dynamic artwork chromatic caustic underglow.
+ * - Interactive Liquid Glass lens pill for the active tab (no flat opaque solid fills).
+ * - High-contrast, tactile glass controls for unselected tabs.
+ * - Compact, floating ergonomic proportions.
  */
 @Composable
 fun FloatingNavigationDock(
@@ -85,14 +90,16 @@ fun FloatingNavigationDock(
             .padding(bottom = 8.dp),
         contentAlignment = Alignment.Center
     ) {
+        // Hero Liquid Glass Shelf Container
         Box(
             modifier = Modifier
                 .glassySurface(
                     shape = CircleShape,
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.dp,
+                    borderWidth = 1.2.dp,
                     elevation = 14.dp,
+                    accentGlow = animatedAccent.copy(alpha = 0.18f),
                     hasSheen = true
                 )
         ) {
@@ -109,47 +116,97 @@ fun FloatingNavigationDock(
                         targetValue = if (isSelected) {
                             Color.White
                         } else {
-                            if (isAmoled) Color(0xFFA0A0B0) else Color(0xFF6E6E78)
+                            if (isAmoled) Color.White.copy(alpha = 0.78f) else Color(0xFF222532)
                         },
                         label = "pill_content"
                     )
 
-                    val pillModifier = if (isSelected) {
-                        Modifier
-                            .height(42.dp)
-                            .glassySurface(
-                                shape = CircleShape,
-                                style = GlassyStyle.PROMINENT,
-                                tintColor = animatedAccent,
-                                elevation = 4.dp
-                            )
+                    // Individual interactive glass tab control
+                    if (isSelected) {
+                        // Selected State: Liquid Glass Lens Pill
+                        Box(
+                            modifier = Modifier
+                                .height(44.dp)
+                                .shadow(
+                                    elevation = 6.dp,
+                                    shape = CircleShape,
+                                    spotColor = animatedAccent.copy(alpha = 0.45f),
+                                    ambientColor = Color.Black.copy(alpha = 0.20f)
+                                )
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            animatedAccent.copy(alpha = 0.90f),
+                                            animatedAccent.copy(alpha = 0.72f)
+                                        )
+                                    )
+                                )
+                                .drawWithContent {
+                                    drawContent()
+                                    // Top specular sheen on active pill
+                                    drawRect(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.45f),
+                                                Color.White.copy(alpha = 0.10f),
+                                                Color.Transparent
+                                            ),
+                                            startY = 0f,
+                                            endY = size.height * 0.45f
+                                        ),
+                                        size = Size(size.width, size.height * 0.45f)
+                                    )
+                                }
+                                .border(
+                                    width = 1.dp,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.80f),
+                                            Color.White.copy(alpha = 0.25f)
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                )
+                                .bouncyClickable(scaleDown = 0.94f, onClick = { onTabSelected(tab) })
+                                .padding(horizontal = 18.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = tab.title,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = tab.title,
+                                    fontFamily = DisplayFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     } else {
-                        Modifier
-                            .height(42.dp)
-                            .clip(CircleShape)
-                    }
-
-                    Row(
-                        modifier = pillModifier
-                            .bouncyClickable(scaleDown = 0.92f, onClick = { onTabSelected(tab) })
-                            .padding(horizontal = if (isSelected) 18.dp else 14.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.title,
-                            tint = contentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        if (isSelected) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = tab.title,
-                                fontFamily = DisplayFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.5.sp,
-                                color = contentColor
+                        // Unselected State: High-contrast, tactile clear-glass control
+                        Box(
+                            modifier = Modifier
+                                .height(44.dp)
+                                .clip(CircleShape)
+                                .bouncyClickable(scaleDown = 0.92f, onClick = { onTabSelected(tab) })
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.title,
+                                tint = contentColor,
+                                modifier = Modifier.size(21.dp)
                             )
                         }
                     }
