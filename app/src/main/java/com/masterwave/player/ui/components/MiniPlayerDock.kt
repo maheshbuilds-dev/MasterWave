@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,7 +34,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -48,7 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -66,15 +63,15 @@ import java.io.File
 
 /**
  * APPLE MUSIC-INSPIRED FLOATING LIQUID GLASS MINI-PLAYER
- * Belongs to the same optical material family as the Dock:
- * - Floating compact capsule resting above the navigation dock.
- * - Layered translucency with curved specular reflex sheen.
- * - Embedded optical laser groove progress line.
+ * Phase 6 Refinements:
+ * - Separate, distinct glass object that complements the dock with an 8dp air gap.
+ * - Calibrated density preventing underlying artwork and text from bleeding through.
+ * - Embedded 2dp optical laser groove progress line.
  * - Micro-beveled album artwork squircle.
  * - Live 3-bar animated audio visualizer.
- * - Prominent circular Liquid Glass play/pause jewel button.
+ * - Circular Liquid Glass play/pause jewel button with dynamic accent lens.
  * - Tactile next-track glass control.
- * - Smooth swipe-to-skip gesture with expansion on tap.
+ * - Horizontal swipe-to-skip gesture and full tap expansion into Now Playing.
  */
 @Composable
 fun MiniPlayerDock(
@@ -105,17 +102,17 @@ fun MiniPlayerDock(
     // Live audio wave equalizer animation
     val infiniteTransition = rememberInfiniteTransition(label = "mini_eq")
     val bar1Height by infiniteTransition.animateFloat(
-        initialValue = 4f, targetValue = 14f,
+        initialValue = 4f, targetValue = 13f,
         animationSpec = infiniteRepeatable(tween(420, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq1"
     )
     val bar2Height by infiniteTransition.animateFloat(
-        initialValue = 12f, targetValue = 5f,
+        initialValue = 11f, targetValue = 5f,
         animationSpec = infiniteRepeatable(tween(350, easing = LinearEasing), RepeatMode.Reverse),
         label = "eq2"
     )
     val bar3Height by infiniteTransition.animateFloat(
-        initialValue = 6f, targetValue = 15f,
+        initialValue = 6f, targetValue = 14f,
         animationSpec = infiniteRepeatable(tween(490, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "eq3"
     )
@@ -125,7 +122,7 @@ fun MiniPlayerDock(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .padding(horizontal = 14.dp)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragStart = { totalDrag = 0f },
@@ -146,12 +143,12 @@ fun MiniPlayerDock(
             modifier = Modifier
                 .fillMaxWidth()
                 .glassySurface(
-                    shape = RoundedCornerShape(26.dp),
+                    shape = RoundedCornerShape(24.dp),
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.2.dp,
-                    elevation = 12.dp,
-                    accentGlow = animatedAccent.copy(alpha = 0.16f),
+                    borderWidth = 1.dp,
+                    elevation = 10.dp,
+                    accentGlow = animatedAccent.copy(alpha = 0.15f),
                     hasSheen = true,
                     onClick = onExpand
                 )
@@ -161,19 +158,19 @@ fun MiniPlayerDock(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(2.5.dp)
-                        .background(if (isAmoled) Color(0x18FFFFFF) else Color(0x12000000))
+                        .height(2.dp)
+                        .background(if (isAmoled) Color(0x18FFFFFF) else Color(0x10000000))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(animatedProgress)
-                            .height(2.5.dp)
+                            .height(2.dp)
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
-                                        animatedAccent.copy(alpha = 0.55f),
+                                        animatedAccent.copy(alpha = 0.50f),
                                         animatedAccent,
-                                        Color.White.copy(alpha = 0.95f)
+                                        Color.White.copy(alpha = 0.90f)
                                     )
                                 )
                             )
@@ -200,17 +197,17 @@ fun MiniPlayerDock(
 
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(14.dp))
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(13.dp))
                             .border(
                                 width = 1.dp,
                                 brush = Brush.verticalGradient(
                                     listOf(
-                                        Color.White.copy(alpha = 0.60f),
+                                        Color.White.copy(alpha = 0.55f),
                                         Color.White.copy(alpha = 0.15f)
                                     )
                                 ),
-                                shape = RoundedCornerShape(14.dp)
+                                shape = RoundedCornerShape(13.dp)
                             )
                             .background(if (isAmoled) Color(0xFF1E202B) else Color(0xFFE9ECF2))
                             .clickable(onClick = onExpand),
@@ -228,12 +225,12 @@ fun MiniPlayerDock(
                                 imageVector = Icons.Default.MusicNote,
                                 contentDescription = null,
                                 tint = textSecondary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     // Title, Artist, & Live Animated Visualizer
                     Column(
@@ -245,7 +242,7 @@ fun MiniPlayerDock(
                             text = track.title,
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.5.sp,
+                            fontSize = 14.sp,
                             letterSpacing = (-0.2).sp,
                             color = textPrimary,
                             maxLines = 1,
@@ -258,7 +255,7 @@ fun MiniPlayerDock(
                                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                                     verticalAlignment = Alignment.Bottom,
                                     modifier = Modifier
-                                        .height(14.dp)
+                                        .height(13.dp)
                                         .padding(end = 6.dp)
                                 ) {
                                     Box(
@@ -288,7 +285,7 @@ fun MiniPlayerDock(
                                 text = track.artist,
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Normal,
-                                fontSize = 12.5.sp,
+                                fontSize = 12.sp,
                                 color = textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -301,44 +298,43 @@ fun MiniPlayerDock(
                     // Play / Pause Circular Liquid Glass Jewel Button
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(44.dp)
                             .shadow(
-                                elevation = 6.dp,
+                                elevation = 4.dp,
                                 shape = CircleShape,
-                                spotColor = animatedAccent.copy(alpha = 0.45f),
-                                ambientColor = Color.Black.copy(alpha = 0.20f)
+                                spotColor = animatedAccent.copy(alpha = 0.40f),
+                                ambientColor = Color.Black.copy(alpha = 0.15f)
                             )
                             .clip(CircleShape)
                             .background(
                                 Brush.verticalGradient(
                                     listOf(
-                                        animatedAccent.copy(alpha = 0.92f),
+                                        animatedAccent.copy(alpha = 0.90f),
                                         animatedAccent.copy(alpha = 0.72f)
                                     )
                                 )
                             )
                             .drawWithContent {
                                 drawContent()
-                                // Top specular sheen
+                                // Subtle top specular sheen
                                 drawRect(
                                     brush = Brush.verticalGradient(
                                         listOf(
-                                            Color.White.copy(alpha = 0.45f),
-                                            Color.White.copy(alpha = 0.10f),
+                                            Color.White.copy(alpha = 0.40f),
                                             Color.Transparent
                                         ),
                                         startY = 0f,
-                                        endY = size.height * 0.45f
+                                        endY = size.height * 0.40f
                                     ),
-                                    size = Size(size.width, size.height * 0.45f)
+                                    size = Size(size.width, size.height * 0.40f)
                                 )
                             }
                             .border(
                                 width = 1.dp,
                                 brush = Brush.verticalGradient(
                                     listOf(
-                                        Color.White.copy(alpha = 0.80f),
-                                        Color.White.copy(alpha = 0.25f)
+                                        Color.White.copy(alpha = 0.75f),
+                                        Color.White.copy(alpha = 0.20f)
                                     )
                                 ),
                                 shape = CircleShape
@@ -349,7 +345,7 @@ fun MiniPlayerDock(
                         if (isLoading) {
                             CircularProgressIndicator(
                                 color = Color.White,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp
                             )
                         } else {
@@ -357,7 +353,7 @@ fun MiniPlayerDock(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isPlaying) "Pause" else "Play",
                                 tint = Color.White,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -367,7 +363,7 @@ fun MiniPlayerDock(
                     // Next Track Clear Glass Slab Button
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .glassySurface(
                                 shape = CircleShape,
                                 style = GlassyStyle.SLAB,
@@ -381,7 +377,7 @@ fun MiniPlayerDock(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next Track",
                             tint = textPrimary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

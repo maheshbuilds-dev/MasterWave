@@ -1,6 +1,5 @@
 package com.masterwave.player.ui.components
 
-import android.os.Build
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -48,14 +47,13 @@ import com.masterwave.player.ui.theme.GlassyViolet
 import com.masterwave.player.ui.theme.NothingTechMono
 
 // ==========================================
-// TRUE APPLE-INSPIRED LIQUID GLASS ENGINE
+// REFINED APPLE-GRADE LIQUID GLASS ENGINE
 // Reference: Apple HIG Materials & WWDC25 Adopting Liquid Glass
-// Layers:
-// - LAYER A: Optical Base (Context-Aware Translucency & Artwork Chromatic Infusion)
-// - LAYER B: Specular Reflex Arc (Curved Radial Overhead Light Pool)
-// - LAYER C: Directional Dual-Bevel Edge (Crisp Incident Highlight & Inset Rim)
-// - LAYER D: Volumetric Elevation & Caustic Underglow
-// - LAYER E: Responsive Tactile Spring Compression
+// - Calibrated density: No uncontrolled bleed-through or plastic transparency.
+// - Restrained specular curvature: Soft radial light pool, no harsh stripes.
+// - Fine optical dual-bevel edges: 1dp directional rim with top light entry.
+// - Subtle artwork chromatic infusion.
+// - Tactile spring compression on interaction.
 // ==========================================
 
 enum class GlassyStyle {
@@ -78,13 +76,11 @@ enum class GlassyBadgeTone {
 
 /**
  * Universal Apple-Grade Liquid Glass Surface Modifier.
- * Replaces flat translucent white rectangles with true physical optical materials:
- * 1. Multi-stop translucent refractive base that lets content glide beneath.
- * 2. Directional specular arc highlight simulating curved physical lens reflection.
- * 3. Directional dual-bevel rim (crisp top light entry, subtle ground bounce).
- * 4. Inset optical reflection contour giving volumetric thickness.
- * 5. Dynamic artwork-reactive chromatic infusion.
- * 6. Responsive spring physics on touch.
+ * - Layer A: Calibrated optical base fill preventing content scramble underneath.
+ * - Layer B: Soft overhead specular sheen arc.
+ * - Layer C: 1dp directional dual-bevel rim (crisp top specular, subtle ground bounce).
+ * - Layer D: Restrained ambient occlusion elevation.
+ * - Layer E: Tactile spring compression on touch.
  */
 @Composable
 fun Modifier.glassySurface(
@@ -93,7 +89,7 @@ fun Modifier.glassySurface(
     isDark: Boolean = true,
     tintColor: Color? = null,
     borderWidth: Dp = 1.dp,
-    elevation: Dp = if (style == GlassyStyle.DOCK) 14.dp else 8.dp,
+    elevation: Dp = if (style == GlassyStyle.DOCK) 10.dp else 6.dp,
     accentGlow: Color = Color.Transparent,
     hasSheen: Boolean = true,
     onClick: (() -> Unit)? = null
@@ -103,52 +99,52 @@ fun Modifier.glassySurface(
 
     // Tactile spring slab compression physics
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && onClick != null) 0.94f else 1f,
+        targetValue = if (isPressed && onClick != null) 0.95f else 1f,
         animationSpec = spring(
-            dampingRatio = 0.78f,
-            stiffness = 450f
+            dampingRatio = 0.80f,
+            stiffness = 500f
         ),
         label = "liquid_glass_scale"
     )
 
-    // LAYER A: Optical Base Fill (Context-Aware Translucency & Artwork Chromatic Infusion)
+    // LAYER A: Optical Base Fill (Calibrated density to prevent uncontrolled bleed)
     val glassFillBrush = remember(style, isDark, tintColor) {
         when (style) {
             GlassyStyle.DOCK -> {
-                val accent = tintColor ?: Color.Transparent
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x4C262C3E), // Translucent cool quartz top
-                            Color(0x33141724), // Sheer dark refraction body
-                            Color(0x400C0D16)  // Grounded obsidian absorption
+                            Color(0xDF171A27), // 87% density: rich smoky quartz
+                            Color(0xD2121420), // 82% density: translucent core
+                            Color(0xDA0E1018)  // 85% density: grounded base
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x9EFFFFFF), // Crystal clear liquid quartz top
-                            Color(0x6BF1F4FA), // Translucent liquid body
-                            Color(0x7CE2E8F4)  // Ground light bounce
+                            Color(0xF2FFFFFF), // 95% density: crisp liquid crystal
+                            Color(0xE4F4F6FB), // 89% density: translucent quartz body
+                            Color(0xEBEDF1F8)  // 92% density: ground light bounce
                         )
                     )
                 }
             }
             GlassyStyle.HEADER -> {
+                // High protective density: completely isolates status bar and category chips
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xEB11131E), // High density over status bar for perfect contrast
-                            Color(0xD90E1018), // Smooth mid-bleed
-                            Color(0xC00B0C14)  // Soft bottom feather
+                            Color(0xF610121C), // 96% density over status bar
+                            Color(0xF00D0F18), // 94% density
+                            Color(0xEA0A0B12)  // 92% density at curved bottom edge
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF4FAF9F7), // Protective top density
-                            Color(0xECF3F1EC), // Clean mid surface
-                            Color(0xE0EBE8E2)  // Soft bottom transition
+                            Color(0xF8FAF9F7), // 97% density over status bar
+                            Color(0xF4F2F0EB), // 95% density
+                            Color(0xEEEDE9E3)  // 93% density at curved bottom edge
                         )
                     )
                 }
@@ -157,9 +153,9 @@ fun Modifier.glassySurface(
                 val base = tintColor ?: GlassyProminentBlue
                 Brush.linearGradient(
                     colors = listOf(
-                        base.copy(alpha = 0.90f),
-                        base.copy(alpha = 0.78f),
-                        base.copy(alpha = 0.65f)
+                        base.copy(alpha = 0.88f),
+                        base.copy(alpha = 0.75f),
+                        base.copy(alpha = 0.62f)
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
@@ -169,17 +165,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x3DFFFFFF),
-                            Color(0x18FFFFFF),
-                            Color(0x24FFFFFF)
+                            Color(0x38FFFFFF),
+                            Color(0x15FFFFFF),
+                            Color(0x22FFFFFF)
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x90FFFFFF),
-                            Color(0x55FFFFFF),
-                            Color(0x75FFFFFF)
+                            Color(0x88FFFFFF),
+                            Color(0x48FFFFFF),
+                            Color(0x65FFFFFF)
                         )
                     )
                 }
@@ -188,17 +184,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x38222638),
-                            Color(0x22131520),
-                            Color(0x300D0E16)
+                            Color(0xE0151826),
+                            Color(0xD010121C),
+                            Color(0xD80D0E16)
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x98FFFFFF),
-                            Color(0x6DF6F5F8),
-                            Color(0x80EDEFF6)
+                            Color(0xF4FFFFFF),
+                            Color(0xECF6F5F8),
+                            Color(0xE4EDEFF6)
                         )
                     )
                 }
@@ -206,16 +202,16 @@ fun Modifier.glassySurface(
         }
     }
 
-    // LAYER C: Directional Dual-Bevel Edge Highlight (Crisp top-left entry, subtle bottom bounce)
+    // LAYER C: Directional Dual-Bevel Edge Highlight (1dp fine stroke)
     val specularBorderBrush = remember(style, isDark) {
         when (style) {
             GlassyStyle.PROMINENT -> {
                 Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.85f), // Brilliant top-left light entry
-                        Color.White.copy(alpha = 0.40f),
-                        Color.White.copy(alpha = 0.15f),
-                        Color.White.copy(alpha = 0.45f)  // Ground light bounce
+                        Color.White.copy(alpha = 0.80f), // Brilliant top-left light entry
+                        Color.White.copy(alpha = 0.35f),
+                        Color.White.copy(alpha = 0.12f),
+                        Color.White.copy(alpha = 0.40f)  // Ground light bounce
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
@@ -224,9 +220,9 @@ fun Modifier.glassySurface(
             GlassyStyle.HEADER -> {
                 Brush.verticalGradient(
                     colors = listOf(
-                        if (isDark) Color(0x55FFFFFF) else Color(0x90FFFFFF), // Crisp top light
-                        if (isDark) Color(0x15FFFFFF) else Color(0x18000000),
-                        if (isDark) Color(0x35FFFFFF) else Color(0x12000000)  // Bottom refraction line
+                        if (isDark) Color(0x35FFFFFF) else Color(0x70FFFFFF), // Subtle top light
+                        if (isDark) Color(0x10FFFFFF) else Color(0x12000000),
+                        if (isDark) Color(0x25FFFFFF) else Color(0x0E000000)  // Bottom edge definition
                     )
                 )
             }
@@ -234,10 +230,10 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xB8FFFFFF), // Peak entry specular highlight (top-left)
-                            Color(0x40FFFFFF), // Edge attenuation
-                            Color(0x18FFFFFF), // Floor alpha
-                            Color(0x45FFFFFF)  // Softer counter-highlight (bottom-right)
+                            Color(0x75FFFFFF), // Peak entry specular highlight (top-left)
+                            Color(0x28FFFFFF), // Edge attenuation
+                            Color(0x10FFFFFF), // Floor alpha
+                            Color(0x30FFFFFF)  // Softer counter-highlight (bottom-right)
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
@@ -245,10 +241,10 @@ fun Modifier.glassySurface(
                 } else {
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xDEFFFFFF), // Crisp diamond rim
-                            Color(0x30000000),
-                            Color(0x12000000),
-                            Color(0x55FFFFFF)
+                            Color(0xB5FFFFFF), // Crisp diamond rim
+                            Color(0x20000000),
+                            Color(0x0E000000),
+                            Color(0x40FFFFFF)
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
@@ -268,27 +264,27 @@ fun Modifier.glassySurface(
             elevation = elevation,
             shape = shape,
             spotColor = if (accentGlow != Color.Transparent) {
-                accentGlow.copy(alpha = 0.35f)
+                accentGlow.copy(alpha = 0.25f)
             } else {
-                Color.Black.copy(alpha = if (isDark) 0.55f else 0.12f)
+                Color.Black.copy(alpha = if (isDark) 0.40f else 0.08f)
             },
-            ambientColor = Color.Black.copy(alpha = if (isDark) 0.35f else 0.04f)
+            ambientColor = Color.Black.copy(alpha = if (isDark) 0.25f else 0.03f)
         )
         .clip(shape)
         .background(glassFillBrush)
-        // LAYER B: Specular Reflex Arc (Curved Radial Overhead Light Pool)
+        // LAYER B: Specular Reflex Arc (Restrained overhead radial highlight)
         .then(
-            if (hasSheen && (style == GlassyStyle.DOCK || style == GlassyStyle.PROMINENT || style == GlassyStyle.SLAB || style == GlassyStyle.SURFACE)) {
+            if (hasSheen && (style == GlassyStyle.DOCK || style == GlassyStyle.PROMINENT || style == GlassyStyle.SLAB)) {
                 Modifier.drawWithContent {
                     drawContent()
 
-                    // 1. Curved Radial Overhead Specular Pool (Light entering from upper-center)
-                    val poolRadius = size.width * 0.70f
+                    // Soft radial overhead specular highlight pool
+                    val poolRadius = size.width * 0.65f
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.28f else 0.42f),
-                                Color.White.copy(alpha = if (isDark) 0.08f else 0.14f),
+                                Color.White.copy(alpha = if (isDark) 0.18f else 0.30f),
+                                Color.White.copy(alpha = if (isDark) 0.05f else 0.10f),
                                 Color.Transparent
                             ),
                             center = Offset(size.width * 0.38f, 0f),
@@ -298,35 +294,17 @@ fun Modifier.glassySurface(
                         center = Offset(size.width * 0.38f, 0f)
                     )
 
-                    // 2. Soft horizontal specular flare across top 24% of surface
+                    // Subtle top-rim light reflex across top 22%
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.16f else 0.26f),
-                                Color.White.copy(alpha = if (isDark) 0.04f else 0.08f),
+                                Color.White.copy(alpha = if (isDark) 0.12f else 0.20f),
                                 Color.Transparent
                             ),
                             startY = 0f,
-                            endY = size.height * 0.28f
+                            endY = size.height * 0.22f
                         ),
-                        size = Size(size.width, size.height * 0.28f)
-                    )
-
-                    // 3. Inset optical refraction stroke (0.75dp inside perimeter)
-                    val insetBorderColor = if (isDark) Color(0x30FFFFFF) else Color(0x55FFFFFF)
-                    drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                insetBorderColor,
-                                Color.Transparent
-                            ),
-                            startY = 0f,
-                            endY = size.height * 0.60f
-                        ),
-                        topLeft = Offset(1.2f, 1.2f),
-                        size = Size(size.width - 2.4f, size.height - 2.4f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(24f, 24f),
-                        style = Stroke(width = 0.8f)
+                        size = Size(size.width, size.height * 0.22f)
                     )
                 }
             } else Modifier
@@ -359,7 +337,7 @@ fun Modifier.glassySlab(
     isDark = isDark,
     tintColor = tintColor,
     borderWidth = 1.dp,
-    elevation = if (prominent) 8.dp else 4.dp,
+    elevation = if (prominent) 6.dp else 3.dp,
     onClick = onClick
 )
 
@@ -441,7 +419,7 @@ fun GlassyButton(
                 style = if (prominent) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
                 isDark = isDark,
                 tintColor = tintColor,
-                elevation = if (prominent) 8.dp else 4.dp,
+                elevation = if (prominent) 6.dp else 3.dp,
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center
@@ -463,13 +441,13 @@ fun Modifier.liquidGlass(
     shape: Shape = RoundedCornerShape(32.dp),
     isAmoledDark: Boolean = false,
     accentGlow: Color = Color.Transparent,
-    elevation: Dp = 12.dp,
+    elevation: Dp = 10.dp,
     onClick: (() -> Unit)? = null
 ): Modifier = glassySurface(
     shape = shape,
     style = GlassyStyle.DOCK,
     isDark = isAmoledDark,
-    borderWidth = 1.2.dp,
+    borderWidth = 1.dp,
     elevation = elevation,
     accentGlow = accentGlow,
     onClick = onClick
@@ -477,7 +455,7 @@ fun Modifier.liquidGlass(
 
 @Composable
 fun Modifier.bouncyClickable(
-    scaleDown: Float = 0.94f,
+    scaleDown: Float = 0.95f,
     onClick: () -> Unit
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
@@ -485,8 +463,8 @@ fun Modifier.bouncyClickable(
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
         animationSpec = spring(
-            dampingRatio = 0.78f,
-            stiffness = 450f
+            dampingRatio = 0.80f,
+            stiffness = 500f
         ),
         label = "bouncy_scale"
     )

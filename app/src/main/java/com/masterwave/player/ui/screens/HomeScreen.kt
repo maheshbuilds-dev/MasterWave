@@ -451,6 +451,17 @@ fun HomeScreen(
         }
     }
 
+    val continueListeningList = remember(recentTracks, madeForYouTracks, dailyMixTracks) {
+        if (recentTracks.size >= 4) {
+            recentTracks.take(10)
+        } else {
+            val additional = (madeForYouTracks + dailyMixTracks).filter { cand ->
+                recentTracks.none { r -> r.id == cand.id }
+            }
+            (recentTracks + additional).take(10)
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -459,16 +470,16 @@ fun HomeScreen(
         // --- Scrolling Feed Content with plenty of clearance above dock ---
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 188.dp, bottom = 240.dp)
+            contentPadding = PaddingValues(top = 176.dp, bottom = 220.dp)
         ) {
             // --- 1. Greeting & Uppercase Date (LastWave Page 1) ---
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     Text(
                         text = greeting,
                         style = NothingHeadlineLarge.copy(
-                            fontSize = 28.sp,
+                            fontSize = 26.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = (-0.5).sp
                         ),
@@ -505,11 +516,11 @@ fun HomeScreen(
 
                     HorizontalPager(
                         state = pagerState,
-                        contentPadding = PaddingValues(horizontal = 24.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
                         pageSpacing = 12.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(265.dp)
+                            .height(235.dp)
                     ) { page ->
                         val card = discoverCards[page]
                         val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
@@ -863,19 +874,19 @@ fun HomeScreen(
                 }
             }
 
-            // --- 2.1 Continue Listening (Recent History) ---
-            if (recentTracks.isNotEmpty()) {
+            // --- 2.1 Continue Listening (Recent History & Multi-Track Jump Back In) ---
+            if (continueListeningList.isNotEmpty()) {
                 item {
                     RecommendationShelf(
                         title = "Continue Listening",
                         subtitle = "Jump back into what you were playing",
-                        tracks = recentTracks.take(10),
+                        tracks = continueListeningList,
                         badge = "RECENT",
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
                         accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
                         chipInactiveBg = chipInactiveBg,
-                        onTrackClick = { player.playTrack(it, recentTracks) }
+                        onTrackClick = { player.playTrack(it, continueListeningList) }
                     )
                 }
             }
@@ -2020,8 +2031,8 @@ fun HomeScreen(
             }
         }
 
-        // --- Floating Curved Header matching Glassy UI Shelf Architecture ---
-        val headerShape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+        // --- Floating Curved Header with Protective Optical Density ---
+        val headerShape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
 
         Box(
             modifier = Modifier
@@ -2036,8 +2047,8 @@ fun HomeScreen(
                         style = GlassyStyle.HEADER,
                         isDark = isAmoled,
                         borderWidth = 1.dp,
-                        elevation = 8.dp,
-                        hasSheen = true
+                        elevation = 6.dp,
+                        hasSheen = false
                     )
             ) {
                 Box(
@@ -2297,19 +2308,21 @@ private fun RecommendationShelf(
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(tracks) { track ->
                 Column(
                     modifier = Modifier
-                        .width(138.dp)
+                        .width(136.dp)
                         .clickable { onTrackClick(track) }
                 ) {
-                    Box(
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = chipInactiveBg,
+                        shadowElevation = 2.dp,
                         modifier = Modifier
-                            .size(138.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(chipInactiveBg)
+                            .size(136.dp)
+                            .clip(RoundedCornerShape(16.dp))
                     ) {
                         if (!track.artworkUrl.isNullOrBlank()) {
                             AsyncImage(
@@ -2319,12 +2332,17 @@ private fun RecommendationShelf(
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                tint = textSecondary,
-                                modifier = Modifier.size(36.dp).align(Alignment.Center)
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    tint = textSecondary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(6.dp))

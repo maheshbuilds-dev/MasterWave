@@ -319,12 +319,12 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 6.dp),
+                .padding(bottom = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (currentTrack != null) {
                     MiniPlayerDock(

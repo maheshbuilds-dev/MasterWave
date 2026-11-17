@@ -17,14 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -59,15 +56,13 @@ enum class MainTab(val title: String, val icon: ImageVector) {
 }
 
 /**
- * APPLE MUSIC-INSPIRED HERO FLOATING LIQUID GLASS NAVIGATION DOCK
- * Engineered according to Apple HIG & WWDC25 Liquid Glass specifications:
- * - Genuine optical glass body with layered translucency.
- * - Curved overhead specular reflex arc catching ambient light.
- * - Directional dual-bevel rim (1.dp) with crisp top specular light entry.
- * - Restrained dynamic artwork chromatic caustic underglow.
- * - Interactive Liquid Glass lens pill for the active tab (no flat opaque solid fills).
- * - High-contrast, tactile glass controls for unselected tabs.
- * - Compact, floating ergonomic proportions.
+ * APPLE MUSIC-INSPIRED HERO FLOATING LIQUID GLASS DOCK
+ * Phase 5 Refinements:
+ * - Compact floating shape (height = 54dp).
+ * - Avoids solid opaque colored pills; uses an authentic translucent glass lens.
+ * - Dynamic artwork-adaptive reflection with restrained caustic underglow.
+ * - Excellent icon contrast across light and dark modes.
+ * - Zero internal bottom padding that could cause overlap with parent or mini-player.
  */
 @Composable
 fun FloatingNavigationDock(
@@ -85,91 +80,81 @@ fun FloatingNavigationDock(
     )
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 8.dp),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
     ) {
-        // Hero Liquid Glass Shelf Container
+        // Floating Optical Glass Capsule
         Box(
             modifier = Modifier
                 .glassySurface(
                     shape = CircleShape,
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.2.dp,
-                    elevation = 14.dp,
-                    accentGlow = animatedAccent.copy(alpha = 0.18f),
+                    borderWidth = 1.dp,
+                    elevation = 10.dp,
+                    accentGlow = animatedAccent.copy(alpha = 0.15f),
                     hasSheen = true
                 )
         ) {
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 6.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 MainTab.entries.forEach { tab ->
                     val isSelected = tab == currentTab
 
-                    val contentColor by animateColorAsState(
-                        targetValue = if (isSelected) {
-                            Color.White
-                        } else {
-                            if (isAmoled) Color.White.copy(alpha = 0.78f) else Color(0xFF222532)
-                        },
-                        label = "pill_content"
-                    )
+                    val unselectedColor = if (isAmoled) Color.White.copy(alpha = 0.75f) else Color(0xFF252936)
+                    val activeContentColor = if (isAmoled) Color.White else Color(0xFF10121A)
 
-                    // Individual interactive glass tab control
                     if (isSelected) {
-                        // Selected State: Liquid Glass Lens Pill
+                        // Active State: Refined Translucent Liquid Glass Lens Pill (No solid opaque buttons)
                         Box(
                             modifier = Modifier
-                                .height(44.dp)
+                                .height(42.dp)
                                 .shadow(
-                                    elevation = 6.dp,
+                                    elevation = 4.dp,
                                     shape = CircleShape,
-                                    spotColor = animatedAccent.copy(alpha = 0.45f),
-                                    ambientColor = Color.Black.copy(alpha = 0.20f)
+                                    spotColor = animatedAccent.copy(alpha = 0.35f),
+                                    ambientColor = Color.Black.copy(alpha = 0.15f)
                                 )
                                 .clip(CircleShape)
                                 .background(
                                     Brush.verticalGradient(
                                         colors = listOf(
-                                            animatedAccent.copy(alpha = 0.90f),
-                                            animatedAccent.copy(alpha = 0.72f)
+                                            animatedAccent.copy(alpha = if (isAmoled) 0.35f else 0.22f),
+                                            animatedAccent.copy(alpha = if (isAmoled) 0.20f else 0.12f)
                                         )
                                     )
                                 )
                                 .drawWithContent {
                                     drawContent()
-                                    // Top specular sheen on active pill
+                                    // Subtle top specular highlight on active lens
                                     drawRect(
                                         brush = Brush.verticalGradient(
                                             colors = listOf(
-                                                Color.White.copy(alpha = 0.45f),
-                                                Color.White.copy(alpha = 0.10f),
+                                                Color.White.copy(alpha = 0.35f),
                                                 Color.Transparent
                                             ),
                                             startY = 0f,
-                                            endY = size.height * 0.45f
+                                            endY = size.height * 0.40f
                                         ),
-                                        size = Size(size.width, size.height * 0.45f)
+                                        size = Size(size.width, size.height * 0.40f)
                                     )
                                 }
                                 .border(
                                     width = 1.dp,
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
-                                            Color.White.copy(alpha = 0.80f),
-                                            Color.White.copy(alpha = 0.25f)
+                                            animatedAccent.copy(alpha = 0.70f),
+                                            animatedAccent.copy(alpha = 0.25f)
                                         )
                                     ),
                                     shape = CircleShape
                                 )
-                                .bouncyClickable(scaleDown = 0.94f, onClick = { onTabSelected(tab) })
-                                .padding(horizontal = 18.dp, vertical = 8.dp),
+                                .bouncyClickable(scaleDown = 0.95f, onClick = { onTabSelected(tab) })
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
@@ -179,7 +164,7 @@ fun FloatingNavigationDock(
                                 Icon(
                                     imageVector = tab.icon,
                                     contentDescription = tab.title,
-                                    tint = Color.White,
+                                    tint = if (isAmoled) animatedAccent else activeContentColor,
                                     modifier = Modifier.size(19.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -187,8 +172,8 @@ fun FloatingNavigationDock(
                                     text = tab.title,
                                     fontFamily = DisplayFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp,
-                                    color = Color.White
+                                    fontSize = 13.sp,
+                                    color = if (isAmoled) Color.White else activeContentColor
                                 )
                             }
                         }
@@ -196,7 +181,7 @@ fun FloatingNavigationDock(
                         // Unselected State: High-contrast, tactile clear-glass control
                         Box(
                             modifier = Modifier
-                                .height(44.dp)
+                                .height(42.dp)
                                 .clip(CircleShape)
                                 .bouncyClickable(scaleDown = 0.92f, onClick = { onTabSelected(tab) })
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -205,8 +190,8 @@ fun FloatingNavigationDock(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = tab.title,
-                                tint = contentColor,
-                                modifier = Modifier.size(21.dp)
+                                tint = unselectedColor,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
