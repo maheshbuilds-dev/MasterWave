@@ -313,39 +313,6 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             }
         }
 
-        // Floating Dock & MiniPlayer Stack pinned to bottom
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (currentTrack != null) {
-                    MiniPlayerDock(
-                        track = currentTrack!!,
-                        isPlaying = isPlaying,
-                        isLoading = isLoading,
-                        positionMs = positionMs,
-                        durationMs = durationMs,
-                        onExpand = { isNowPlayingExpanded = true },
-                        onPlayPause = { player.togglePlayPause() },
-                        onNext = { player.skipToNext() }
-                    )
-                }
-
-                FloatingNavigationDock(
-                    currentTab = currentTab,
-                    onTabSelected = { currentTab = it }
-                )
-            }
-        }
-
         // --- Fullscreen Search Overlay ---
         AnimatedVisibility(
             visible = isSearchOpen,
@@ -603,6 +570,52 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                     repository = repository,
                     onBack = { selectedAlbumForDetail = null }
                 )
+            }
+        }
+
+        // --- Unified Floating Bottom Layer (MiniPlayer & Dock) ---
+        // Stays on top of all screens; hidden when full-screen NowPlaying/Lyrics/Queue is active
+        val isOverlayOpen = isNowPlayingExpanded || isLyricsOpen || isQueueOpen
+        val isSecondaryScreenOpen = isSettingsOpen || isSearchOpen || isBackupRestoreOpen ||
+                isYouTubeSyncOpen || isSpotifySyncOpen || isAppearanceOpen ||
+                isAudioPlaybackOpen || isAppUpdateOpen || isSupportOpen ||
+                selectedPlaylistForDetail != null || isDiagnosticsOpen ||
+                isAiHubOpen || isDownloadsOpen || isLikedSongsOpen ||
+                isGeneratorOpen || selectedArtistForDetail != null || selectedAlbumForDetail != null
+
+        if (!isOverlayOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (currentTrack != null) {
+                        MiniPlayerDock(
+                            track = currentTrack!!,
+                            isPlaying = isPlaying,
+                            isLoading = isLoading,
+                            positionMs = positionMs,
+                            durationMs = durationMs,
+                            onExpand = { isNowPlayingExpanded = true },
+                            onPlayPause = { player.togglePlayPause() },
+                            onNext = { player.skipToNext() }
+                        )
+                    }
+
+                    if (!isSecondaryScreenOpen) {
+                        FloatingNavigationDock(
+                            currentTab = currentTab,
+                            onTabSelected = { currentTab = it }
+                        )
+                    }
+                }
             }
         }
     }
