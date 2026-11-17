@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +62,8 @@ import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.bouncyClickable
+import com.masterwave.player.ui.theme.EditorialHeadlineMedium
 import com.masterwave.player.ui.theme.ThemeState
 
 @Composable
@@ -89,6 +93,25 @@ fun PlaylistDetailScreen(
 
     var showMenu by remember { mutableStateOf(false) }
 
+    var tracksList by remember(playlist.id) { mutableStateOf(playlist.tracks) }
+    var isLoadingTracks by remember(playlist.id) {
+        mutableStateOf(playlist.tracks.isEmpty() && (playlist.description.isNotBlank() || playlist.title.isNotBlank()))
+    }
+
+    LaunchedEffect(playlist.id) {
+        if (tracksList.isEmpty() && (playlist.description.isNotBlank() || playlist.title.isNotBlank())) {
+            isLoadingTracks = true
+            try {
+                val q = playlist.description.ifBlank { playlist.title }
+                val results = repository.search(q).songs
+                if (results.isNotEmpty()) {
+                    tracksList = results
+                }
+            } catch (_: Exception) {}
+            isLoadingTracks = false
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -109,7 +132,7 @@ fun PlaylistDetailScreen(
                     .size(42.dp)
                     .clip(CircleShape)
                     .background(pillBg)
-                    .clickable(onClick = onBack),
+                    .bouncyClickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -138,7 +161,7 @@ fun PlaylistDetailScreen(
                         .size(42.dp)
                         .clip(CircleShape)
                         .background(pillBg)
-                        .clickable { showMenu = true },
+                        .bouncyClickable { showMenu = true },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -180,6 +203,7 @@ fun PlaylistDetailScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Large Rounded Artwork Box
+                    val displayArt = playlist.artworkUrl ?: playlist.tracks.firstOrNull()?.artworkUrl
                     Box(
                         modifier = Modifier
                             .size(160.dp)
@@ -187,9 +211,9 @@ fun PlaylistDetailScreen(
                             .background(pillBg),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (!playlist.artworkUrl.isNullOrBlank()) {
+                        if (!displayArt.isNullOrBlank()) {
                             AsyncImage(
-                                model = playlist.artworkUrl,
+                                model = displayArt,
                                 contentDescription = playlist.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
@@ -208,17 +232,14 @@ fun PlaylistDetailScreen(
 
                     Text(
                         text = playlist.title,
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 24.sp
-                        ),
+                        style = EditorialHeadlineMedium.copy(fontSize = 26.sp),
                         color = textPrimary
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "${playlist.tracks.size} tracks • ${playlist.source} • ${playlist.createdAt}",
+                        text = "${tracksList.size.coerceAtLeast(playlist.trackCount)} tracks • ${playlist.source} • ${playlist.createdAt}",
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                         color = textSecondary
                     )
@@ -233,10 +254,10 @@ fun PlaylistDetailScreen(
                     ) {
                         Button(
                             onClick = {
-                                if (playlist.tracks.isNotEmpty()) {
-                                    player.playTrack(playlist.tracks.first(), playlist.tracks)
+                                if (tracksList.isNotEmpty()) {
+                                    player.playTrack(tracksList.first(), tracksList)
                                 } else {
-                                    Toast.makeText(context, "Playlist is empty", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Playlist is loading...", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor),
@@ -244,6 +265,11 @@ fun PlaylistDetailScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
+                                .bouncyClickable(scaleDown = 0.94f, onClick = {
+                                    if (tracksList.isNotEmpty()) {
+                                        player.playTrack(tracksList.first(), tracksList)
+                                    }
+                                })
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
@@ -257,11 +283,11 @@ fun PlaylistDetailScreen(
 
                         Button(
                             onClick = {
-                                if (playlist.tracks.isNotEmpty()) {
-                                    val shuffled = playlist.tracks.shuffled()
+                                if (tracksList.isNotEmpty()) {
+                                    val shuffled = tracksList.shuffled()
                                     player.playTrack(shuffled.first(), shuffled)
                                 } else {
-                                    Toast.makeText(context, "Playlist is empty", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Playlist is loading...", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = pillBg),
@@ -269,6 +295,12 @@ fun PlaylistDetailScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
+                                .bouncyClickable(scaleDown = 0.94f, onClick = {
+                                    if (tracksList.isNotEmpty()) {
+                                        val shuffled = tracksList.shuffled()
+                                        player.playTrack(shuffled.first(), shuffled)
+                                    }
+                                })
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Shuffle,
@@ -284,7 +316,18 @@ fun PlaylistDetailScreen(
             }
 
             // --- Track List ---
-            if (playlist.tracks.isEmpty()) {
+            if (isLoadingTracks) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = accentColor, modifier = Modifier.size(36.dp))
+                    }
+                }
+            } else if (tracksList.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -309,7 +352,7 @@ fun PlaylistDetailScreen(
                     }
                 }
             } else {
-                itemsIndexed(playlist.tracks, key = { index, tr -> "${tr.id}_$index" }) { index, track ->
+                itemsIndexed(tracksList, key = { index, tr -> "${tr.id}_$index" }) { index, track ->
                     val isCurrent = currentTrack?.id == track.id
                     val isDownloaded = downloadedIds.contains(track.id)
 
@@ -318,8 +361,8 @@ fun PlaylistDetailScreen(
                         color = if (isCurrent) accentColor.copy(alpha = if (isAmoled) 0.25f else 0.12f) else cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                player.playTrack(track, playlist.tracks)
+                            .bouncyClickable {
+                                player.playTrack(track, tracksList)
                             }
                     ) {
                         Row(

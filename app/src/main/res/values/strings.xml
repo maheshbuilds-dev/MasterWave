@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MasterWave</string>
-    <string name="notification_channel_name">MasterWave Playback</string>
+    <string name="app_name">Marshall Music</string>
+    <string name="notification_channel_name">Marshall Music Playback</string>
     <string name="notification_channel_desc">Active audio playback notification and transport controls</string>
 </resources>

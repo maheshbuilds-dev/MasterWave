@@ -91,7 +91,7 @@ fun StatsScreen(
     val uniqueArtists = recentTracks.map { it.artist }.distinct().size
     val uniqueAlbums = recentTracks.mapNotNull { it.album.ifBlank { null } }.distinct().size
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
     val cardContainerBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.5f)
     val cardItemBg = if (isAmoled) Color(0xFF161620) else Color.White
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
@@ -103,7 +103,7 @@ fun StatsScreen(
             .fillMaxSize()
             .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 150.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 220.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // --- 1. Top App Bar ---
@@ -160,104 +160,80 @@ fun StatsScreen(
             }
         }
 
-        // --- 2. Google Account & Headphone Status Pills ---
+        // --- 2. Real Account & Cloud Status Pill (Clean & Functional) ---
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Google Account Pill
+                // Connected Account Pill
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(20.dp),
                     color = if (userProfile.isSignedIn) accentColor.copy(alpha = if (isAmoled) 0.35f else 0.16f) else pillBg,
                     modifier = Modifier.clickable {
-                        if (!userProfile.isSignedIn) {
-                            cloudManager.signInWithGoogle()
-                            Toast.makeText(context, "Signed in with Google Account", Toast.LENGTH_SHORT).show()
-                        } else {
-                            cloudManager.signOut()
-                            Toast.makeText(context, "Switched to Guest Mode", Toast.LENGTH_SHORT).show()
-                        }
+                        onNavigateToSettings()
                     }
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                     ) {
-                        if (userProfile.isSignedIn) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = userProfile.displayName,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                ),
-                                color = accentColor
+                        if (userProfile.isSignedIn && !userProfile.photoUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = userProfile.photoUrl,
+                                contentDescription = userProfile.displayName,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape)
                             )
                         } else {
-                            Text(
-                                text = "Sign in with Google",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                ),
-                                color = textPrimary
+                            Icon(
+                                imageVector = if (userProfile.isSignedIn) Icons.Default.CheckCircle else Icons.Default.AccountCircle,
+                                contentDescription = null,
+                                tint = if (userProfile.isSignedIn) accentColor else textSecondary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (userProfile.isSignedIn) userProfile.displayName else "Guest Mode",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            ),
+                            color = textPrimary
+                        )
                     }
                 }
 
-                // Headphone status pill
+                // Cloud Sync State Pill
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = pillBg
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (userProfile.isSignedIn) Color(0xFF00C853).copy(alpha = 0.18f) else pillBg
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Headphones,
-                            contentDescription = "Headphones",
-                            tint = textSecondary,
-                            modifier = Modifier.size(16.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(if (userProfile.isSignedIn) Color(0xFF00E676) else Color(0xFF888898))
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "--",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = textSecondary
+                            text = if (userProfile.isSignedIn) "Cloud Synced" else "Local Only",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            ),
+                            color = if (userProfile.isSignedIn) (if (isAmoled) Color(0xFF69F0AE) else Color(0xFF007E33)) else textSecondary
                         )
                     }
                 }
-            }
-        }
-
-        // --- 3. Last.fm Sync Banner Card ---
-        item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = accentColor.copy(alpha = if (isAmoled) 0.25f else 0.12f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToSettings() }
-            ) {
-                Text(
-                    text = "Connect Last.fm in Settings to sync global scrobbles",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = if (isAmoled) Color.White else textPrimary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
             }
         }
 

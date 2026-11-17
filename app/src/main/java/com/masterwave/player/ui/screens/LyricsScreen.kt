@@ -66,7 +66,22 @@ import com.masterwave.player.data.model.LyricsResult
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.AnimatedWaveform
+import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.theme.ThemeState
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import kotlin.math.cos
+import kotlin.math.sin
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
 import java.util.Locale
 
 /**
@@ -95,6 +110,8 @@ fun LyricsScreen(
     var lyricsResult by remember { mutableStateOf<LyricsResult?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var showMenu by remember { mutableStateOf(false) }
+    var syncOffsetMs by remember { mutableStateOf(0L) }
+    var textSizeMultiplier by remember { mutableStateOf(1.0f) }
 
     val listState = rememberLazyListState()
 
@@ -120,10 +137,23 @@ fun LyricsScreen(
         isLoading = false
     }
 
-    val currentLineIndex = remember(lyricsResult, positionMs) {
+    val effectivePositionMs = positionMs + syncOffsetMs
+    val currentLineIndex = remember(lyricsResult, effectivePositionMs) {
         val lines = lyricsResult?.lines ?: return@remember -1
-        lines.indexOfLast { it.timestampMs <= positionMs }
+        lines.indexOfLast { it.timestampMs <= effectivePositionMs }
     }
+
+    // Stormy Fluid Aurora Oscillation Animation (Matching Now Playing & Frame 5.0s)
+    val infiniteAuroraTransition = rememberInfiniteTransition(label = "lyrics_aurora_anim")
+    val auroraPhase by infiniteAuroraTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(14000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "lyrics_aurora_phase"
+    )
 
     LaunchedEffect(currentLineIndex) {
         if (currentLineIndex >= 0) {
@@ -133,7 +163,7 @@ fun LyricsScreen(
         }
     }
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val bgColor = if (isAmoled) Color(0xFF040407) else Color(0xFFF7F5F8)
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
@@ -141,11 +171,70 @@ fun LyricsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
-            .statusBarsPadding()
-            .navigationBarsPadding()
     ) {
+        // --- Ambient Background Layer (Blurred Artwork + Fluid Aurora - Frame 5.0s) ---
+        if (!currentTrack?.artworkUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = currentTrack?.artworkUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(radius = 54.dp)
+                    .scale(1.35f)
+            )
+        }
+
+        // Fluid Aurora Canvas
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val blob1X = w * (0.35f + 0.16f * cos(auroraPhase.toDouble()).toFloat())
+            val blob1Y = h * (0.65f + 0.12f * sin(auroraPhase.toDouble()).toFloat())
+            val blob2X = w * (0.68f + 0.18f * sin((auroraPhase * 1.3f).toDouble()).toFloat())
+            val blob2Y = h * (0.75f + 0.10f * cos((auroraPhase * 1.1f).toDouble()).toFloat())
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(accentColor.copy(alpha = 0.45f), Color.Transparent),
+                    center = Offset(blob1X, blob1Y),
+                    radius = w * 0.8f
+                ),
+                radius = w * 0.8f,
+                center = Offset(blob1X, blob1Y)
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFE040FB).copy(alpha = 0.30f), Color.Transparent),
+                    center = Offset(blob2X, blob2Y),
+                    radius = w * 0.70f
+                ),
+                radius = w * 0.70f,
+                center = Offset(blob2X, blob2Y)
+            )
+        }
+
+        // Dark Atmospheric Scrim
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0x88000000),
+                            Color(0x99000000),
+                            Color(0xCC000000),
+                            Color(0xF5040407)
+                        )
+                    )
+                )
+        )
+
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             // --- 1. Top Action Bar (Frame 5.0s) ---
@@ -240,18 +329,73 @@ fun LyricsScreen(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            val sizeLabel = if (textSizeMultiplier > 1.15f) "Large" else if (textSizeMultiplier < 0.95f) "Small" else "Normal"
+                            DropdownMenuItem(
+                                text = { Text("Text Size: $sizeLabel") },
+                                onClick = {
+                                    showMenu = false
+                                    textSizeMultiplier = when {
+                                        textSizeMultiplier < 0.95f -> 1.0f
+                                        textSizeMultiplier < 1.15f -> 1.25f
+                                        else -> 0.85f
+                                    }
+                                    Toast.makeText(context, "Text size: $sizeLabel", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Sync Offset: +100 ms") },
+                                onClick = {
+                                    showMenu = false
+                                    syncOffsetMs += 100L
+                                    Toast.makeText(context, "Offset: ${syncOffsetMs} ms", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Sync Offset: -100 ms") },
+                                onClick = {
+                                    showMenu = false
+                                    syncOffsetMs -= 100L
+                                    Toast.makeText(context, "Offset: ${syncOffsetMs} ms", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Reset Offset (0 ms)") },
+                                onClick = {
+                                    showMenu = false
+                                    syncOffsetMs = 0L
+                                    Toast.makeText(context, "Sync offset reset", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export .lrc file") },
+                                onClick = {
+                                    showMenu = false
+                                    try {
+                                        val lrcContent = lyricsResult?.lines?.joinToString("\n") { line ->
+                                            val m = line.timestampMs / 60000
+                                            val s = (line.timestampMs % 60000) / 1000
+                                            val ms = (line.timestampMs % 1000) / 10
+                                            "[%02d:%02d.%02d]%s".format(m, s, ms, line.text)
+                                        } ?: lyricsResult?.plainLyrics ?: ""
+                                        val filename = "${currentTrack?.title ?: "track"}.lrc".replace(Regex("[\\\\/:*?\"<>|]"), "_")
+                                        val exportDir = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS), "MasterWave")
+                                        if (!exportDir.exists()) exportDir.mkdirs()
+                                        java.io.File(exportDir, filename).writeText(lrcContent)
+                                        Toast.makeText(context, "Exported $filename to Downloads/MasterWave", Toast.LENGTH_LONG).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Copy Lyrics") },
                                 onClick = {
                                     showMenu = false
+                                    val plain = lyricsResult?.plainLyrics ?: lyricsResult?.lines?.joinToString("\n") { it.text } ?: ""
+                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("Lyrics", plain)
+                                    clipboard.setPrimaryClip(clip)
                                     Toast.makeText(context, "Lyrics copied to clipboard", Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Synchronize Offset") },
-                                onClick = {
-                                    showMenu = false
-                                    Toast.makeText(context, "Sync offset calibrated (0 ms)", Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -323,9 +467,9 @@ fun LyricsScreen(
                                 Text(
                                     text = line.text,
                                     style = TextStyle(
-                                        fontSize = if (isCurrent) 28.sp else 22.sp,
+                                        fontSize = ((if (isCurrent) 28f else 22f) * textSizeMultiplier).sp,
                                         fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        lineHeight = if (isCurrent) 38.sp else 30.sp,
+                                        lineHeight = ((if (isCurrent) 38f else 30f) * textSizeMultiplier).sp,
                                         shadow = if (isCurrent) {
                                             Shadow(
                                                 color = accentColor.copy(alpha = 0.9f),
@@ -379,12 +523,60 @@ fun LyricsScreen(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Transparent, if (isAmoled) Color(0xEE000000) else Color(0xEEF7F5F8))
+                            listOf(Color.Transparent, Color(0x99040407), Color(0xF5040407))
                         )
                     )
                     .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Top controls row above waveform (Fullscreen & Options pills - Frame 5.0s)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0x30FFFFFF),
+                            border = BorderStroke(0.8.dp, Color(0x35FFFFFF)),
+                            modifier = Modifier
+                                .size(36.dp)
+                                .bouncyClickable(onClick = onBack)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.CropFree,
+                                    contentDescription = "Fullscreen",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0x30FFFFFF),
+                            border = BorderStroke(0.8.dp, Color(0x35FFFFFF)),
+                            modifier = Modifier
+                                .size(36.dp)
+                                .bouncyClickable { showMenu = true }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    contentDescription = "Options",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Waveform scrubber
                 AnimatedWaveform(
                     positionMs = positionMs,
@@ -405,7 +597,7 @@ fun LyricsScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         ),
-                        color = textSecondary
+                        color = Color(0xCCFFFFFF)
                     )
                     Text(
                         text = "-${formatTime(remainingMs)}",
@@ -413,68 +605,76 @@ fun LyricsScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         ),
-                        color = textSecondary
+                        color = Color(0xCCFFFFFF)
                     )
                 }
 
-                // Transport Controls: Prev, Play/Pause, Next, Fullscreen
+                // Transport Controls: Prev, Play/Pause, Next (Frame 5.0s)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(top = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.size(40.dp)) // Spacer on left
-
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                        horizontalArrangement = Arrangement.spacedBy(28.dp)
                     ) {
-                        IconButton(onClick = { player.skipToPrevious() }) {
-                            Icon(
-                                imageVector = Icons.Default.SkipPrevious,
-                                contentDescription = "Previous",
-                                tint = textPrimary,
-                                modifier = Modifier.size(28.dp)
-                            )
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0x30FFFFFF),
+                            border = BorderStroke(0.8.dp, Color(0x35FFFFFF)),
+                            modifier = Modifier
+                                .size(48.dp)
+                                .bouncyClickable { player.skipToPrevious() }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
                         }
 
                         // Play/Pause circular button
-                        Box(
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            shadowElevation = 8.dp,
                             modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .background(if (isAmoled) Color.White else accentColor)
-                                .clickable { player.togglePlayPause() },
-                            contentAlignment = Alignment.Center
+                                .size(58.dp)
+                                .bouncyClickable { player.togglePlayPause() }
                         ) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = if (isAmoled) Color.Black else Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
                         }
 
-                        IconButton(onClick = { player.skipToNext() }) {
-                            Icon(
-                                imageVector = Icons.Default.SkipNext,
-                                contentDescription = "Next",
-                                tint = textPrimary,
-                                modifier = Modifier.size(28.dp)
-                            )
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0x30FFFFFF),
+                            border = BorderStroke(0.8.dp, Color(0x35FFFFFF)),
+                            modifier = Modifier
+                                .size(48.dp)
+                                .bouncyClickable { player.skipToNext() }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
                         }
-                    }
-
-                    // Fullscreen button
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.CropFree,
-                            contentDescription = "Fullscreen",
-                            tint = textSecondary,
-                            modifier = Modifier.size(22.dp)
-                        )
                     }
                 }
             }

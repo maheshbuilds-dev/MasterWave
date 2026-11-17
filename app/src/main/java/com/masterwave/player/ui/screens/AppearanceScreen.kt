@@ -78,9 +78,9 @@ fun AppearanceScreen(
     val activeAccent by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
+    val dynamicColorsEnabled by ThemeState.dynamicColorEnabled.collectAsState()
     var showColorPicker by remember { mutableStateOf(false) }
     var liquidGlassEnabled by remember { mutableStateOf(true) }
-    var dynamicColorsEnabled by remember { mutableStateOf(true) }
     var glowingLyricsEnabled by remember { mutableStateOf(true) }
     var animatedCanvasEnabled by remember { mutableStateOf(true) }
     var fullScreenArtworkEnabled by remember { mutableStateOf(true) }
@@ -88,7 +88,7 @@ fun AppearanceScreen(
     var buttonNowPlayingEnabled by remember { mutableStateOf(true) }
     val context = LocalContext.current
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
     val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.55f)
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
@@ -150,8 +150,9 @@ fun AppearanceScreen(
             ) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     listOf(
-                        ThemeMode.LIGHT to "Light Mode (Frosted Glass)",
-                        ThemeMode.AMOLED_DARK to "AMOLED Dark Mode (True Pitch Black #000000)",
+                        ThemeMode.LIGHT to "Light Mode (Apple Music / LastWave #F6F5F3)",
+                        ThemeMode.DARK to "Dark Mode (Layered Charcoal #0D0F0E)",
+                        ThemeMode.AMOLED to "AMOLED Dark Mode (True Pitch Black #000000)",
                         ThemeMode.SYSTEM to "System Default"
                     ).forEach { (mode, label) ->
                         val isSelected = mode == themeMode
@@ -350,7 +351,7 @@ fun AppearanceScreen(
                         }
                         Switch(
                             checked = dynamicColorsEnabled,
-                            onCheckedChange = { dynamicColorsEnabled = it },
+                            onCheckedChange = { ThemeState.setDynamicColorEnabled(it) },
                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = activeAccent)
                         )
                     }

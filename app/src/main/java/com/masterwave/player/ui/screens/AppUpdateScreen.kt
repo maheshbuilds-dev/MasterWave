@@ -150,7 +150,7 @@ fun AppUpdateScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "MasterWave v5.2.0",
+                        text = "Marshall Music v5.2.0",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp

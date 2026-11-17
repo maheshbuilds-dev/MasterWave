@@ -118,7 +118,7 @@ fun SupportCommunityScreen(
             }
         }
 
-        // About MasterWave Card
+        // About Marshall Music Card
         item {
             Surface(
                 shape = RoundedCornerShape(24.dp),
@@ -147,7 +147,7 @@ fun SupportCommunityScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "MasterWave Player",
+                                text = "Marshall Music",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = textPrimary
                             )
@@ -162,7 +162,7 @@ fun SupportCommunityScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "MasterWave is an open-source, private-by-design music player engineered natively for modern Android with hardware Opus decoding, liquid glass ergonomics, and seamless cloud discovery.",
+                        text = "Marshall Music is an open-source, private-by-design music player engineered natively for modern Android with hardware Opus decoding, liquid glass ergonomics, and seamless cloud discovery.",
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp),
                         color = textSecondary
                     )
@@ -172,7 +172,9 @@ fun SupportCommunityScreen(
 
         // Voluntary India UPI Contribution Card
         item {
-            val upiId = "masterwave@upi"
+            val primaryUpiId = "7411082317@ybl"
+            val displayMarshallUpi = "7411082317@marshall"
+            val phoneNumber = "7411082317"
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = cardBg,
@@ -205,7 +207,7 @@ fun SupportCommunityScreen(
                                 color = textPrimary
                             )
                             Text(
-                                text = "100% voluntary contribution to support development",
+                                text = "Phone: $phoneNumber • Marshall Music UPI",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                 color = textSecondary
                             )
@@ -225,17 +227,27 @@ fun SupportCommunityScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = "UPI ID: $upiId",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = textPrimary
-                            )
+                            Column {
+                                Text(
+                                    text = primaryUpiId,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = textPrimary
+                                )
+                                Text(
+                                    text = "Custom: $displayMarshallUpi",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = accentColor
+                                )
+                            }
                             IconButton(
                                 onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("UPI ID", upiId)
+                                    val clip = ClipData.newPlainText("UPI ID", primaryUpiId)
                                     clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "UPI ID copied: $upiId", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "UPI ID copied: $primaryUpiId", Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.size(32.dp)
                             ) {
@@ -253,7 +265,7 @@ fun SupportCommunityScreen(
                     Button(
                         onClick = {
                             try {
-                                val upiUri = Uri.parse("upi://pay?pa=$upiId&pn=MasterWave%20Player&cu=INR")
+                                val upiUri = Uri.parse("upi://pay?pa=$primaryUpiId&pn=Marshall%20Music&cu=INR")
                                 val upiIntent = Intent(Intent.ACTION_VIEW, upiUri)
                                 context.startActivity(Intent.createChooser(upiIntent, "Contribute via UPI"))
                             } catch (_: Exception) {

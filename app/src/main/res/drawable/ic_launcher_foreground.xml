@@ -1,56 +1,121 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Light Theme Supercool MasterWave Brand Emblem -->
     <group
-        android:scaleX="0.72"
-        android:scaleY="0.72"
-        android:translateX="15.12"
-        android:translateY="15.12">
+        android:scaleX="0.82"
+        android:scaleY="0.82"
+        android:translateX="9.72"
+        android:translateY="9.72">
 
-        <!-- Bar 1 (Outer Left) -->
+        <!-- Outer Soft Ambient Glow Disc -->
         <path
-            android:fillColor="#F06292"
-            android:pathData="M30,44 L30,64 A3,3 0 0,1 24,64 L24,44 A3,3 0 0,1 30,44 Z" />
+            android:pathData="M54,12 C77.2,12 96,30.8 96,54 C96,77.2 77.2,96 54,96 C30.8,96 12,77.2 12,54 C12,30.8 30.8,12 54,12 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="12"
+                    android:startY="12"
+                    android:endX="96"
+                    android:endY="96"
+                    android:type="linear">
+                    <item android:color="#25165B33" android:offset="0.0" />
+                    <item android:color="#0A165B33" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
 
-        <!-- Bar 2 (Mid Left Peak) -->
+        <!-- Outer Soundwave Crest Ring -->
         <path
-            android:fillColor="#E53935"
-            android:pathData="M40,32 L40,76 A3,3 0 0,1 34,76 L34,32 A3,3 0 0,1 40,32 Z" />
-
-        <!-- Bar 3 (Center Low - Wave valley) -->
-        <path
-            android:fillColor="#880E4F"
-            android:pathData="M50,42 L50,66 A3,3 0 0,1 44,66 L44,42 A3,3 0 0,1 50,42 Z" />
-
-        <!-- Bar 4 (Center Harmonic Crest) -->
-        <path
-            android:fillColor="#FF4081"
-            android:pathData="M60,26 L60,82 A3.5,3.5 0 0,1 53,82 L53,26 A3.5,3.5 0 0,1 60,26 Z" />
-
-        <!-- Bar 5 (Center Right Valley) -->
-        <path
-            android:fillColor="#880E4F"
-            android:pathData="M70,42 L70,66 A3,3 0 0,1 64,66 L64,42 A3,3 0 0,1 70,42 Z" />
-
-        <!-- Bar 6 (Mid Right Peak) -->
-        <path
-            android:fillColor="#E53935"
-            android:pathData="M80,32 L80,76 A3,3 0 0,1 74,76 L74,32 A3,3 0 0,1 80,32 Z" />
-
-        <!-- Bar 7 (Outer Right) -->
-        <path
-            android:fillColor="#F06292"
-            android:pathData="M90,44 L90,64 A3,3 0 0,1 84,64 L84,44 A3,3 0 0,1 90,44 Z" />
-
-        <!-- Dynamic Sine Wave Arc Overlay -->
-        <path
-            android:strokeColor="#FFFFFF"
             android:strokeWidth="2.5"
-            android:strokeLineCap="round"
-            android:pathData="M24,54 Q37,28 54,54 T84,54" />
+            android:strokeColor="#30165B33"
+            android:pathData="M54,16 C74.99,16 92,33.01 92,54 C92,74.99 74.99,92 54,92 C33.01,92 16,74.99 16,54 C16,33.01 33.01,16 54,16 Z" />
 
+        <!-- High-End Geometric Wave 1 (Left Peak) -->
+        <path
+            android:pathData="M26,68 L26,40 C26,36 30,33 34,36 L44,45 L44,72 L34,72 C29.58,72 26,68 26,68 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="26"
+                    android:startY="33"
+                    android:endX="44"
+                    android:endY="72"
+                    android:type="linear">
+                    <item android:color="#165B33" android:offset="0.0" />
+                    <item android:color="#0D3B20" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- High-End Geometric Wave 2 (Center Vibrant Emerald Spike) -->
+        <path
+            android:pathData="M44,45 L54,26 C55.5,23.5 58.5,23.5 60,26 L70,45 L70,78 C70,81.5 67,84 63.5,84 L50.5,84 C47,84 44,81.5 44,78 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="44"
+                    android:startY="24"
+                    android:endX="70"
+                    android:endY="84"
+                    android:type="linear">
+                    <item android:color="#2ECC71" android:offset="0.0" />
+                    <item android:color="#165B33" android:offset="0.65" />
+                    <item android:color="#0B2B17" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- High-End Geometric Wave 3 (Right Peak) -->
+        <path
+            android:pathData="M70,45 L80,36 C84,33 88,36 88,40 L88,68 C88,72 84.42,72 80,72 L70,72 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="70"
+                    android:startY="33"
+                    android:endX="88"
+                    android:endY="72"
+                    android:type="linear">
+                    <item android:color="#165B33" android:offset="0.0" />
+                    <item android:color="#0D3B20" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Electric Spark Accent Arc across Center Core -->
+        <path
+            android:strokeWidth="2.8"
+            android:strokeLineCap="round"
+            android:pathData="M38,52 Q54,64 70,52">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:startX="38"
+                    android:startY="52"
+                    android:endX="70"
+                    android:endY="52"
+                    android:type="linear">
+                    <item android:color="#00E676" android:offset="0.0" />
+                    <item android:color="#FFFFFF" android:offset="0.5" />
+                    <item android:color="#00E676" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Radiant Center Spark Orb -->
+        <path
+            android:pathData="M54,34 A4,4 0 1,1 54,42 A4,4 0 1,1 54,34 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="50"
+                    android:startY="34"
+                    android:endX="58"
+                    android:endY="42"
+                    android:type="linear">
+                    <item android:color="#FFFFFF" android:offset="0.0" />
+                    <item android:color="#69F0AE" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
 </vector>

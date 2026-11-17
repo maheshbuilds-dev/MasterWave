@@ -22,31 +22,49 @@ private fun createAmoledDarkColorScheme(accent: Color) = darkColorScheme(
     onPrimaryContainer = Color.White,
     secondary = accent.copy(alpha = 0.85f),
     onSecondary = Color.White,
-    tertiary = AccentRose,
-    background = Color(0xFF000000), // Pure AMOLED Pitch Black
+    tertiary = AccentLime,
+    background = AmoledBackground, // #000000 Pure Pitch Black
     onBackground = Color(0xFFFFFFFF),
-    surface = Color(0xFF08080A), // Deepest obsidian surface
+    surface = AmoledSurface, // Deepest surface
     onSurface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFF121216),
-    onSurfaceVariant = Color(0xFFCCCCCC),
-    outline = Color(0xFF24242E)
+    surfaceVariant = AmoledSurfaceElevated,
+    onSurfaceVariant = DarkTextSecondary,
+    outline = AmoledBorder
 )
 
-// Light Color Scheme
+// Standard Dark Color Scheme (#0D0F0E Layered Dark Charcoal)
+private fun createDarkColorScheme(accent: Color) = darkColorScheme(
+    primary = accent,
+    onPrimary = Color.White,
+    primaryContainer = accent.copy(alpha = 0.28f),
+    onPrimaryContainer = Color.White,
+    secondary = accent.copy(alpha = 0.85f),
+    onSecondary = Color.White,
+    tertiary = AccentLime,
+    background = DarkBackground, // #0D0F0E
+    onBackground = DarkTextPrimary, // #F2F4F3
+    surface = DarkSurface, // #141716
+    onSurface = DarkTextPrimary,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkTextSecondary,
+    outline = DarkBorder
+)
+
+// Light Color Scheme (#F6F5F3 Default Light Palette)
 private fun createLightColorScheme(accent: Color) = lightColorScheme(
     primary = accent,
     onPrimary = Color.White,
-    primaryContainer = accent.copy(alpha = 0.15f),
-    onPrimaryContainer = accent,
+    primaryContainer = LightSoftTint,
+    onPrimaryContainer = LightPrimaryGreen,
     secondary = accent.copy(alpha = 0.85f),
     onSecondary = Color.White,
-    tertiary = AccentRose,
-    background = LightBackground,
-    onBackground = LightTextPrimary,
-    surface = LightSurface,
+    tertiary = LightPrimaryGreen,
+    background = LightBackground, // #F6F5F3
+    onBackground = LightTextPrimary, // #1C1B1F
+    surface = LightSurface, // #FFFFFF
     onSurface = LightTextPrimary,
-    surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = LightTextSecondary,
+    surfaceVariant = LightSurfaceVariant, // #F0EFEB
+    onSurfaceVariant = LightTextSecondary, // #5A5A66
     outline = LightBorder
 )
 
@@ -60,21 +78,27 @@ fun MasterWaveTheme(
 
     val isDark = when (themeMode) {
         ThemeMode.LIGHT -> false
-        ThemeMode.AMOLED_DARK -> true
+        ThemeMode.DARK, ThemeMode.AMOLED -> true
         ThemeMode.SYSTEM -> systemInDark
     }
 
-    val colorScheme = if (isDark) {
-        createAmoledDarkColorScheme(accentColor)
-    } else {
-        createLightColorScheme(accentColor)
+    val colorScheme = when (themeMode) {
+        ThemeMode.LIGHT -> createLightColorScheme(accentColor)
+        ThemeMode.DARK -> createDarkColorScheme(accentColor)
+        ThemeMode.AMOLED -> createAmoledDarkColorScheme(accentColor)
+        ThemeMode.SYSTEM -> if (systemInDark) createDarkColorScheme(accentColor) else createLightColorScheme(accentColor)
     }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            val bgColor = (if (isDark) Color(0xFF000000) else LightBackground).toArgb()
+            val bgColor = (when (themeMode) {
+                ThemeMode.AMOLED -> AmoledBackground
+                ThemeMode.DARK -> DarkBackground
+                ThemeMode.LIGHT -> LightBackground
+                ThemeMode.SYSTEM -> if (systemInDark) DarkBackground else LightBackground
+            }).toArgb()
             window.statusBarColor = bgColor
             window.navigationBarColor = bgColor
             val insetsController = WindowCompat.getInsetsController(window, view)

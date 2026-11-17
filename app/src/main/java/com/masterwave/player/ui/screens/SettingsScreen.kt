@@ -2,6 +2,7 @@ package com.masterwave.player.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,16 +22,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,17 +42,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * Settings Screen with AMOLED Dark & Light mode adaptivity
- * and dynamic reactive accent coloring.
+ * Clean, Streamlined Settings Screen for MasterWave Music:
+ * Preserves essential services (YouTube Music, Spotify), Audio Engine,
+ * Visuals, and full launcher-standard Backup & Restore.
  */
 @Composable
 fun SettingsScreen(
@@ -62,109 +64,43 @@ fun SettingsScreen(
     onNavigateToAudioPlayback: () -> Unit,
     onNavigateToAppUpdate: () -> Unit,
     onNavigateToSupport: () -> Unit,
+    onNavigateToBackupRestore: () -> Unit,
     onNavigateToYouTubeSync: () -> Unit = {},
     onNavigateToSpotifySync: () -> Unit = {},
-    onNavigateToDiagnostics: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val accentColor by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
-    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.55f)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
+    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFFFFFFF)
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
 
-    LazyColumn(
+    val headerBg = if (isAmoled) Color(0xFF14151E) else Color(0xFFFFFFFF)
+    val headerBorder = if (isAmoled) Color(0x20FFFFFF) else Color(0x0D000000)
+    val headerShape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 150.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 1. Top Header Row ---
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = textPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Settings",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 30.sp
-                    ),
-                    color = textPrimary
-                )
-            }
-        }
-
-        // --- 2. Collaboration & Social ---
-        item {
-            SettingsSectionHeader("Collaboration & Social", accentColor)
-            SettingsCard(
-                icon = Icons.Default.Group,
-                iconBg = accentColor.copy(alpha = 0.2f),
-                iconTint = accentColor,
-                title = "MasterWave Jam",
-                subtitle = "Listen together in real-time • Host or join a room",
-                cardBg = cardBg,
-                textPrimary = textPrimary,
-                textSecondary = textSecondary,
-                onClick = {
-                    Toast.makeText(context, "MasterWave Jam: Peer listening ready", Toast.LENGTH_SHORT).show()
-                }
-            )
-        }
-
-        // --- 3. Services & Add-ons ---
-        item {
-            SettingsSectionHeader("Services & Add-ons", accentColor)
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SettingsCard(
-                    icon = Icons.Default.Extension,
-                    iconBg = accentColor.copy(alpha = 0.15f),
-                    iconTint = accentColor,
-                    title = "Provider Modules",
-                    subtitle = "Extra sources queried alongside YouTube Music",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = {
-                        Toast.makeText(context, "Provider Modules: Active (NewPipe + InnerTube)", Toast.LENGTH_SHORT).show()
-                    }
-                )
-                SettingsCard(
-                    icon = Icons.Default.Album,
-                    iconBg = accentColor.copy(alpha = 0.2f),
-                    iconTint = accentColor,
-                    title = "Last.fm",
-                    subtitle = "Connect account, scrobbles & statistics sync",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = {
-                        Toast.makeText(context, "Last.fm Scrobbler integration", Toast.LENGTH_SHORT).show()
-                    }
-                )
-                SettingsCard(
-                    icon = Icons.Default.Sync,
-                    iconBg = Color(0xFFFF0000).copy(alpha = 0.18f),
-                    iconTint = Color(0xFFFF0000),
-                    title = "YouTube & Sync",
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 96.dp, bottom = 150.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // --- 1. Connected Services ---
+            item {
+                SettingsSectionHeader("Connected Services", accentColor)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SettingsCard(
+                        icon = Icons.Default.Sync,
+                        iconBg = Color(0xFFFF0000).copy(alpha = 0.18f),
+                        iconTint = Color(0xFFFF0000),
+                        title = "YouTube & Sync",
                     subtitle = "Account connection, channels, history & cloud sync",
                     cardBg = cardBg,
                     textPrimary = textPrimary,
@@ -182,21 +118,10 @@ fun SettingsScreen(
                     textSecondary = textSecondary,
                     onClick = onNavigateToSpotifySync
                 )
-                SettingsCard(
-                    icon = Icons.Default.Equalizer,
-                    iconBg = Color(0xFF007AFF).copy(alpha = 0.2f),
-                    iconTint = Color(0xFF007AFF),
-                    title = "Connection Diagnostics",
-                    subtitle = "Live token state, latency pings, hardware audio",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToDiagnostics
-                )
             }
         }
 
-        // --- 4. Playback & UI ---
+        // --- 3. Playback & UI ---
         item {
             SettingsSectionHeader("Playback & UI", accentColor)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -205,7 +130,7 @@ fun SettingsScreen(
                     iconBg = accentColor.copy(alpha = 0.18f),
                     iconTint = accentColor,
                     title = "Appearance & Visuals",
-                    subtitle = "AMOLED Dark, Custom Palette, Color Picker",
+                    subtitle = "AMOLED Dark, Liquid Glass Dock, Accent Colors",
                     cardBg = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
@@ -222,45 +147,30 @@ fun SettingsScreen(
                     textSecondary = textSecondary,
                     onClick = onNavigateToAudioPlayback
                 )
-                SettingsCard(
-                    icon = Icons.Default.QueueMusic,
-                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
-                    iconTint = textPrimary,
-                    title = "Library & Content",
-                    subtitle = "Home layout, Playlist imports, Downloads,...",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = {
-                        Toast.makeText(context, "Library & Content management", Toast.LENGTH_SHORT).show()
-                    }
-                )
             }
         }
 
-        // --- 5. System & About ---
+        // --- 4. System & Backup ---
         item {
-            SettingsSectionHeader("System & About", accentColor)
+            SettingsSectionHeader("System & Data", accentColor)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SettingsCard(
-                    icon = Icons.Default.CloudDownload,
-                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
-                    iconTint = textPrimary,
-                    title = "Data & Storage",
-                    subtitle = "Backup & Restore, Cache clearing, CSV history",
+                    icon = Icons.Default.SettingsBackupRestore,
+                    iconBg = accentColor.copy(alpha = 0.18f),
+                    iconTint = accentColor,
+                    title = "Backup & Restore",
+                    subtitle = "Export or restore settings, themes, and playlists",
                     cardBg = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = {
-                        Toast.makeText(context, "Cache and offline media storage", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = onNavigateToBackupRestore
                 )
                 SettingsCard(
                     icon = Icons.Default.Info,
                     iconBg = accentColor.copy(alpha = 0.2f),
                     iconTint = accentColor,
                     title = "About & System",
-                    subtitle = "Version 1.0.0 (Snapdragon 6s Gen 3)",
+                    subtitle = "Version 5.2.0 • Snapdragon 6s Gen 3",
                     cardBg = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
@@ -271,7 +181,7 @@ fun SettingsScreen(
                     iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
                     iconTint = textPrimary,
                     title = "Support & Community",
-                    subtitle = "Open source code, FAQ, License",
+                    subtitle = "Telegram updates, Discord, FAQ",
                     cardBg = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
@@ -280,18 +190,79 @@ fun SettingsScreen(
             }
         }
     }
+
+    // Pinned Floating Top Header matching Reference Screenshot
+    Surface(
+        shape = headerShape,
+        color = headerBg,
+        shadowElevation = 8.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.TopCenter)
+            .shadow(
+                elevation = 8.dp,
+                shape = headerShape,
+                spotColor = Color.Black.copy(alpha = if (isAmoled) 0.5f else 0.08f),
+                ambientColor = Color.Black.copy(alpha = if (isAmoled) 0.3f else 0.03f)
+            )
+            .border(width = 1.dp, color = headerBorder, shape = headerShape)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = textPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Settings",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp
+                        ),
+                        color = textPrimary
+                    )
+                }
+
+                IconButton(onClick = { /* Search in settings */ }) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = textPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+    }
+}
 }
 
 @Composable
 private fun SettingsSectionHeader(title: String, accentColor: Color) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium.copy(
+        style = MaterialTheme.typography.titleSmall.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 15.sp
+            fontSize = 13.5.sp
         ),
         color = accentColor,
-        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
     )
 }
 
@@ -308,21 +279,21 @@ private fun SettingsCard(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = cardBg,
+        shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(18.dp))
+            .bouncyClickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(42.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(iconBg),
                 contentAlignment = Alignment.Center
@@ -331,18 +302,16 @@ private fun SettingsCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconTint,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
-
             Spacer(modifier = Modifier.width(14.dp))
-
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        fontSize = 15.sp
                     ),
                     color = textPrimary
                 )
@@ -350,15 +319,15 @@ private fun SettingsCard(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = textSecondary
+                    color = textSecondary,
+                    maxLines = 1
                 )
             }
-
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = textSecondary,
-                modifier = Modifier.size(16.dp)
+                tint = textSecondary.copy(alpha = 0.5f),
+                modifier = Modifier.size(14.dp)
             )
         }
     }

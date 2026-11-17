@@ -46,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -82,9 +84,11 @@ fun YouTubeSyncScreen(
     var showAuthDialog by remember { mutableStateOf(false) }
     var autoSyncLiked by remember { mutableStateOf(true) }
     var highResArtworkSync by remember { mutableStateOf(true) }
+    var playlistUrlInput by remember { mutableStateOf("") }
+    var isImportingUrl by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
     val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.55f)
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
@@ -211,10 +215,15 @@ fun YouTubeSyncScreen(
                                 if (!isSyncing) {
                                     isSyncing = true
                                     scope.launch {
-                                        cloudManager.syncAllPresetPlaylists()
-                                        delay(1500)
+                                        val syncedList = cloudManager.syncRealYouTubeMusicLibrary()
                                         isSyncing = false
-                                        Toast.makeText(context, "Synced YouTube Music Playlists!", Toast.LENGTH_SHORT).show()
+                                        if (syncedList.isNotEmpty()) {
+                                            Toast.makeText(context, "Synced ${syncedList.size} real playlists from your YouTube Music!", Toast.LENGTH_SHORT).show()
+                                        } else if (!cloudManager.isYtAuthenticated) {
+                                            Toast.makeText(context, "Sign in with Google first, or paste a playlist link below", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            Toast.makeText(context, "Library up to date", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
                             },
@@ -227,11 +236,87 @@ fun YouTubeSyncScreen(
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
                             Text(
-                                text = if (isSyncing) "Syncing..." else "Sync Now",
+                                text = if (isSyncing) "Syncing..." else "Sync Library",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        // Section: Instant YouTube Playlist Link / ID Importer
+        item {
+            Text(
+                text = "Import Any Playlist by Link / ID",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = accentColor
+                )
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = cardBg,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Paste any YouTube / YouTube Music playlist URL or ID (e.g. https://music.youtube.com/playlist?list=...)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = textSecondary
+                    )
+
+                    OutlinedTextField(
+                        value = playlistUrlInput,
+                        onValueChange = { playlistUrlInput = it },
+                        placeholder = { Text("https://music.youtube.com/playlist?list=...", color = textSecondary.copy(alpha = 0.6f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accentColor,
+                            unfocusedBorderColor = Color(0x33888898),
+                            focusedTextColor = textPrimary,
+                            unfocusedTextColor = textPrimary
+                        ),
+                        singleLine = true
+                    )
+
+                    Button(
+                        onClick = {
+                            val input = playlistUrlInput.trim()
+                            if (input.isNotBlank()) {
+                                isImportingUrl = true
+                                scope.launch {
+                                    val result = cloudManager.importYouTubePlaylistUrl(input)
+                                    isImportingUrl = false
+                                    result.onSuccess { pl ->
+                                        playlistUrlInput = ""
+                                        Toast.makeText(context, "Imported \"${pl.title}\" (${pl.trackCount} tracks)!", Toast.LENGTH_LONG).show()
+                                    }.onFailure { err ->
+                                        Toast.makeText(context, "Import failed: ${err.message ?: "Invalid link"}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Please paste a playlist URL or ID", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = ytRed),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isImportingUrl
+                    ) {
+                        if (isImportingUrl) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = if (isImportingUrl) "Importing Songs..." else "Import Playlist",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -348,7 +433,15 @@ fun YouTubeSyncScreen(
         onAuthCaptured = { cookies ->
             cloudManager.saveYouTubeAuth(cookies)
             showAuthDialog = false
-            Toast.makeText(context, "YouTube Music Account Authenticated!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "YouTube Music Connected! Fetching your playlists...", Toast.LENGTH_SHORT).show()
+            scope.launch {
+                isSyncing = true
+                val synced = cloudManager.syncRealYouTubeMusicLibrary()
+                isSyncing = false
+                if (synced.isNotEmpty()) {
+                    Toast.makeText(context, "Successfully synced ${synced.size} YouTube playlists!", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     )
 }

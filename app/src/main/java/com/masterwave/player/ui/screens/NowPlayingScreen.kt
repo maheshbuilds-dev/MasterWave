@@ -3,6 +3,7 @@ package com.masterwave.player.ui.screens
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -11,16 +12,17 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,13 +34,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -65,8 +69,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -78,20 +85,26 @@ import com.masterwave.player.MasterWaveApp
 import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
-import com.masterwave.player.ui.components.AnimatedWaveform
 import com.masterwave.player.ui.components.AudioPlaybackModal
+import com.masterwave.player.ui.components.GlassyStyle
+import com.masterwave.player.ui.components.LightningWaveform
+import com.masterwave.player.ui.components.bouncyClickable
+import com.masterwave.player.ui.components.glassySlab
+import com.masterwave.player.ui.components.glassySurface
+import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeState
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * Now Playing Screen engineered to match Screenshot 6:
- * - Full-bleed immersive cover artwork occupying top 56% with 3D breathing pulse.
- * - Seamless fade into true pitch black AMOLED background (#000000).
- * - Circular back arrow and options pills.
- * - Dynamic Title, Artist and circular Heart & Lyrics quote buttons.
- * - Animated Waveform Seekbar with harmonic sine oscillations, scrubber thumb,
- *   elapsed/remaining timestamps, and Opus codec quality pill.
- * - Previous circular button, large Stadium Play/Pause pill button, Next circular button.
- * - Bottom utility stadium pills: Shuffle, Speaker/Output, Repeat.
+ * MASTERWAVE NOW PLAYING SCREEN
+ * High-End Studio Art Direction:
+ * - Ambient multi-layer blurred artwork backdrop with fluid organic aurora glow
+ * - Centered 1:1 vinyl album cover hero with dynamic breathing animation
+ * - Clean, non-colliding top app bar with collapse and options
+ * - Ergonomic 5-button primary playback cluster (Shuffle, Prev, 72dp Play/Pause, Next, Repeat)
+ * - Interactive LightningWaveform with timestamps and codec quality pill
+ * - Tactile spring-physics micro-interactions on all actions
  */
 @Composable
 fun NowPlayingScreen(
@@ -110,6 +123,7 @@ fun NowPlayingScreen(
     val isShuffle by player.isShuffle.collectAsState()
     val repeatMode by player.repeatMode.collectAsState()
     val favorites by repository.favorites.collectAsState()
+    val queue by player.queue.collectAsState()
 
     val currentTrack = track ?: return
     val isFavorite = favorites.any { it.id == currentTrack.id }
@@ -118,237 +132,138 @@ fun NowPlayingScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
-    var isCanvasActive by remember { mutableStateOf(false) }
 
-    // 3D Breathing Pulse animation on artwork
-    val infiniteHeroTransition = rememberInfiniteTransition(label = "hero_anim")
-    val heroBreathingScale by infiniteHeroTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = if (isPlaying) 1.04f else 1.0f,
+    val artModel = remember(currentTrack.artworkUrl) {
+        val u = currentTrack.artworkUrl
+        when {
+            u.isNullOrBlank() -> null
+            u.startsWith("http://") || u.startsWith("https://") -> u
+            u.startsWith("content://") -> android.net.Uri.parse(u)
+            u.startsWith("file://") -> android.net.Uri.parse(u)
+            else -> java.io.File(u)
+        }
+    }
+
+    // Gentle breathing pulse animation for active album art
+    val infiniteTransition = rememberInfiniteTransition(label = "now_playing_anim")
+    val breathingScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (isPlaying) 1.018f else 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2600, easing = FastOutSlowInEasing),
+            animation = tween(2800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "hero_scale"
+        label = "art_breathing"
+    )
+
+    // Fluid ambient aurora movement
+    val auroraPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(14000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "aurora_phase"
     )
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF000000))
+            .background(Color(0xFF07080D))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
     ) {
-        // --- 1. Ambient Background Layer (Full Bleed Blur & Ambient Glow) ---
-        if (!currentTrack.artworkUrl.isNullOrBlank()) {
+        // --- 1. Ambient Background Layer (Full-Bleed Gaussian Blur & Fluid Aurora) ---
+        if (artModel != null) {
             AsyncImage(
-                model = currentTrack.artworkUrl,
+                model = artModel,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(radius = 36.dp)
-                    .scale(1.2f)
+                    .blur(radius = 54.dp)
+                    .scale(1.35f)
+                    .graphicsLayer { alpha = 0.55f }
             )
         }
 
-        // Full-screen ambient atmospheric scrim
+        // Dynamic Fluid Aurora Canvas (moves organically with music)
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+
+            val blob1X = w * (0.35f + 0.16f * cos(auroraPhase.toDouble()).toFloat())
+            val blob1Y = h * (0.50f + 0.12f * sin(auroraPhase.toDouble()).toFloat())
+
+            val blob2X = w * (0.68f + 0.18f * sin((auroraPhase * 1.2f).toDouble()).toFloat())
+            val blob2Y = h * (0.65f + 0.10f * cos((auroraPhase * 1.1f).toDouble()).toFloat())
+
+            // Blob 1: Vibrant Extracted Accent
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(accentColor.copy(alpha = 0.40f), Color.Transparent),
+                    center = Offset(blob1X, blob1Y),
+                    radius = w * 0.85f
+                ),
+                radius = w * 0.85f,
+                center = Offset(blob1X, blob1Y)
+            )
+
+            // Blob 2: Deep Harmonic Indigo
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF6366F1).copy(alpha = 0.25f), Color.Transparent),
+                    center = Offset(blob2X, blob2Y),
+                    radius = w * 0.75f
+                ),
+                radius = w * 0.75f,
+                center = Offset(blob2X, blob2Y)
+            )
+        }
+
+        // Atmospheric Scrim overlay guaranteeing WCAG 4.5:1 text contrast
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to Color(0x66000000),
-                            0.25f to accentColor.copy(alpha = 0.15f),
-                            0.55f to Color(0xAA000000),
-                            0.75f to Color(0xFF000000),
-                            1.0f to Color(0xFF000000)
+                            0.0f to Color(0x80000000),
+                            0.20f to Color(0x3007080D),
+                            0.50f to Color(0x6007080D),
+                            0.75f to Color(0xD007080D),
+                            1.0f to Color(0xFA07080D)
                         )
                     )
                 )
         )
 
-        // --- 2. Sharp Artwork Layer (Normal Mode: Full-Bleed Top Fade; Canvas Mode: Rounded Floating Card) ---
-        if (!isCanvasActive) {
-            // Normal Mode: High-res artwork with 3D breathing pulse & seamless gradient dissolve
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.65f)
-            ) {
-                if (!currentTrack.artworkUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = currentTrack.artworkUrl,
-                        contentDescription = currentTrack.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .scale(heroBreathingScale)
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(accentColor.copy(alpha = 0.6f), Color(0xFF0A0A0E))
-                                )
-                            )
-                    )
-                }
-
-                // Seamless fade mask: Reaches 100% black well before the bottom edge of this container
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color(0x33000000),
-                                    0.28f to Color.Transparent,
-                                    0.52f to Color(0x66000000),
-                                    0.78f to Color(0xDD000000),
-                                    0.96f to Color(0xFF000000),
-                                    1.0f to Color(0xFF000000)
-                                )
-                            )
-                        )
-                )
-            }
-        } else {
-            // Canvas Mode (Reference Frames 10.0s, 12.5s, 17.5s): Floating rounded card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = 64.dp, start = 20.dp, end = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Top Canvas Badges: • SYNCED on left, Auto + Close on right
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Left: • SYNCED Badge
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0x99000000),
-                        border = BorderStroke(1.dp, Color(0x33FFFFFF))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF34C759))
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "SYNCED",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    fontSize = 10.sp
-                                ),
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    // Right: Auto pill + Close button
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0x99000000),
-                            border = BorderStroke(1.dp, Color(0x33FFFFFF))
-                        ) {
-                            Text(
-                                text = "Auto",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
-                                ),
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color(0x99000000))
-                                .clickable { isCanvasActive = false },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close Canvas",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Floating Album Card
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(310.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(22.dp))
-                ) {
-                    if (!currentTrack.artworkUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = currentTrack.artworkUrl,
-                            contentDescription = currentTrack.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color(0xFF1E1E28))
-                        )
-                    }
-                }
-            }
-        }
-
-        // --- 2. Foreground Content ---
+        // --- 2. Main Structured Content ---
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 22.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // --- Top App Bar ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(top = 2.dp, bottom = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Collapse pill
+                // Collapse Glassy Slab Button
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x66000000))
-                        .clickable(onClick = onCollapse),
+                        .glassySlab(shape = CircleShape, onClick = onCollapse),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -359,31 +274,36 @@ fun NowPlayingScreen(
                     )
                 }
 
-                // Center Title
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Center Title & Album Context
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+                ) {
                     Text(
                         text = "NOW PLAYING",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            letterSpacing = 2.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 11.sp
-                        ),
-                        color = Color.White
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.8.sp,
+                        color = Color.White.copy(alpha = 0.7f)
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Search",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = Color(0xFFCCCCCC)
+                        text = currentTrack.album.ifBlank { "MasterWave Music" },
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.5.sp,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                // Options Pill
+                // Options Menu Glassy Slab Button
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x66000000))
-                        .clickable { showMenu = true },
+                        .glassySlab(shape = CircleShape, onClick = { showMenu = true }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -395,38 +315,41 @@ fun NowPlayingScreen(
 
                     DropdownMenu(
                         expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier
+                            .glassySurface(
+                                shape = RoundedCornerShape(18.dp),
+                                style = GlassyStyle.SURFACE,
+                                elevation = 16.dp
+                            )
                     ) {
                         DropdownMenuItem(
-                            text = { Text("View Queue") },
+                            text = { Text("View Queue (${queue.size})", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = accentColor) },
                             onClick = {
                                 showMenu = false
                                 onOpenQueue()
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("View Lyrics") },
+                            text = { Text("Lyrics & Synced Text", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.Default.FormatQuote, contentDescription = null, tint = accentColor) },
                             onClick = {
                                 showMenu = false
                                 onOpenLyrics()
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(if (isCanvasActive) "Exit Canvas Mode" else "Canvas Mode") },
-                            onClick = {
-                                showMenu = false
-                                isCanvasActive = !isCanvasActive
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Audio & Playback") },
+                            text = { Text("Audio & Playback Settings", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.Default.GraphicEq, contentDescription = null, tint = accentColor) },
                             onClick = {
                                 showMenu = false
                                 showAudioPlaybackModal = true
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Download Track (Offline)") },
+                            text = { Text("Download Track (Offline)", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                            leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, tint = accentColor) },
                             onClick = {
                                 showMenu = false
                                 val dm = MusicDownloadManager.getInstance(
@@ -435,39 +358,89 @@ fun NowPlayingScreen(
                                     repository
                                 )
                                 dm.downloadTrack(currentTrack)
-                                Toast.makeText(context, "Downloading in background...", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Downloading track offline...", Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(0.5f))
 
-            // --- 3. Track Metadata & Heart/Lyrics Row ---
+            // --- 3. Centered 1:1 High-Resolution Album Artwork Hero ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.88f)
+                    .aspectRatio(1f)
+                    .graphicsLayer {
+                        scaleX = breathingScale
+                        scaleY = breathingScale
+                    }
+                    .shadow(
+                        elevation = 24.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        spotColor = accentColor.copy(alpha = 0.55f),
+                        ambientColor = Color.Black.copy(alpha = 0.6f)
+                    )
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.35f),
+                                Color.White.copy(alpha = 0.08f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .background(Color(0xFF161824)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (artModel != null) {
+                    AsyncImage(
+                        model = artModel,
+                        contentDescription = currentTrack.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(72.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(0.7f))
+
+            // --- 4. Track Metadata & Favorite / Lyrics Actions ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = currentTrack.title,
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp
-                        ),
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp,
+                        letterSpacing = (-0.3).sp,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = currentTrack.artist,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
-                        color = Color(0xFFB0B0C0),
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp,
+                        color = Color.White.copy(alpha = 0.75f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -475,14 +448,14 @@ fun NowPlayingScreen(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Actions: Heart & Lyrics circular pills
+                // Actions: Heart & Lyrics buttons
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val heartScale by animateFloatAsState(
                         targetValue = if (isFavorite) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f),
                         label = "heart_scale"
                     )
 
@@ -490,15 +463,18 @@ fun NowPlayingScreen(
                     Box(
                         modifier = Modifier
                             .size(46.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x33282836))
-                            .clickable { repository.toggleFavorite(currentTrack) },
+                            .glassySlab(
+                                shape = CircleShape,
+                                prominent = isFavorite,
+                                tintColor = if (isFavorite) accentColor else null,
+                                onClick = { repository.toggleFavorite(currentTrack) }
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorite",
-                            tint = if (isFavorite) accentColor else Color.White,
+                            tint = Color.White,
                             modifier = Modifier
                                 .size(24.dp)
                                 .scale(heartScale)
@@ -509,9 +485,10 @@ fun NowPlayingScreen(
                     Box(
                         modifier = Modifier
                             .size(46.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x33282836))
-                            .clickable(onClick = onOpenLyrics),
+                            .glassySlab(
+                                shape = CircleShape,
+                                onClick = onOpenLyrics
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -524,189 +501,122 @@ fun NowPlayingScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // --- 4. Animated Waveform with Timestamps & Codec Pill ---
-            AnimatedWaveform(
+            // --- 5. Interactive Lightning Waveform Seekbar ---
+            LightningWaveform(
                 positionMs = positionMs,
                 durationMs = durationMs,
                 isPlaying = isPlaying,
                 waveColor = accentColor,
-                codecLabel = "Opus • OPUS 139 kbps",
+                codecLabel = "• OPUS • 132 kbps",
                 onSeek = { player.seekTo(it) },
-                onCodecClick = {
-                    Toast.makeText(context, "Hardware Opus Decoder: 139 kbps • 48 kHz Stereo", Toast.LENGTH_SHORT).show()
-                }
+                onCodecClick = { showAudioPlaybackModal = true }
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // --- 5. Main Playback Controls: Previous, Stadium Play/Pause, Next ---
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Previous circular pill
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x33242432))
-                        .clickable { player.skipToPrevious() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                // Pause / Play Large Stadium Pill Button (Screenshot 6)
-                Surface(
-                    shape = RoundedCornerShape(32.dp),
-                    color = Color(0x33242432),
-                    modifier = Modifier
-                        .height(56.dp)
-                        .weight(1f)
-                        .padding(horizontal = 14.dp)
-                        .clickable { player.togglePlayPause() }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                        }
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(26.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isPlaying) "Pause" else "Play",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            ),
-                            color = Color.White
-                        )
-                    }
-                }
-
-                // Next circular pill
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x33242432))
-                        .clickable { player.skipToNext() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // --- 6. Bottom Utility Controls Row (Shuffle, Speaker/Output, Repeat) ---
+            // --- 6. Universal 5-Button Ergonomic Playback Cluster ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Shuffle Stadium Pill
-                val shuffleBg by animateColorAsState(
-                    targetValue = if (isShuffle) accentColor.copy(alpha = 0.35f) else Color(0x221E1E2A),
-                    label = "shuffle_bg"
-                )
+                // 1. Shuffle Button
                 Box(
                     modifier = Modifier
-                        .height(48.dp)
-                        .weight(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(shuffleBg)
-                        .clickable { player.toggleShuffle() },
+                        .size(46.dp)
+                        .glassySurface(
+                            shape = CircleShape,
+                            style = if (isShuffle) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
+                            tintColor = if (isShuffle) accentColor else null,
+                            elevation = 3.dp,
+                            onClick = { player.toggleShuffle() }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffle) accentColor else Color(0xFFB0B0C0),
+                        tint = if (isShuffle) Color.White else Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
-                // Center Speaker / Output Stadium Pill [ 🔊 | ▶ ]
+                // 2. Previous Track Button
                 Box(
                     modifier = Modifier
-                        .height(48.dp)
-                        .weight(1.3f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0x221E1E2A))
-                        .clickable {
-                            showAudioPlaybackModal = true
-                        },
+                        .size(54.dp)
+                        .glassySlab(shape = CircleShape, onClick = { player.skipToPrevious() }),
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "Speaker",
-                            tint = Color(0xFFB0B0C0),
-                            modifier = Modifier.size(20.dp)
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Previous Track",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // 3. Prominent Center Play / Pause Button (72dp)
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .glassySurface(
+                            shape = CircleShape,
+                            style = GlassyStyle.PROMINENT,
+                            tintColor = accentColor,
+                            elevation = 10.dp,
+                            hasSheen = true,
+                            onClick = { player.togglePlayPause() }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(30.dp),
+                            strokeWidth = 3.dp
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .width(1.dp)
-                                .height(16.dp)
-                                .background(Color(0x44FFFFFF))
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Output",
-                            tint = Color(0xFFB0B0C0),
-                            modifier = Modifier.size(18.dp)
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = Color.White,
+                            modifier = Modifier.size(34.dp)
                         )
                     }
                 }
 
-                // Repeat Stadium Pill
-                val isRepeatActive = repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF
-                val repeatBg by animateColorAsState(
-                    targetValue = if (isRepeatActive) accentColor.copy(alpha = 0.35f) else Color(0x221E1E2A),
-                    label = "repeat_bg"
-                )
+                // 4. Next Track Button
                 Box(
                     modifier = Modifier
-                        .height(48.dp)
-                        .weight(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(repeatBg)
-                        .clickable { player.cycleRepeatMode() },
+                        .size(54.dp)
+                        .glassySlab(shape = CircleShape, onClick = { player.skipToNext() }),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next Track",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // 5. Repeat Button
+                val isRepeatActive = repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .glassySurface(
+                            shape = CircleShape,
+                            style = if (isRepeatActive) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
+                            tintColor = if (isRepeatActive) accentColor else null,
+                            elevation = 3.dp,
+                            onClick = { player.cycleRepeatMode() }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -716,14 +626,89 @@ fun NowPlayingScreen(
                             Icons.Default.Repeat
                         },
                         contentDescription = "Repeat",
-                        tint = if (isRepeatActive) accentColor else Color(0xFFB0B0C0),
+                        tint = if (isRepeatActive) Color.White else Color.White.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --- 7. Bottom Quick Utility Controls (Audio/EQ, Queue, Download) ---
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Audio & EQ pill
+                Box(
+                    modifier = Modifier
+                        .height(44.dp)
+                        .weight(1f)
+                        .glassySlab(
+                            shape = RoundedCornerShape(22.dp),
+                            onClick = { showAudioPlaybackModal = true }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = "Equalizer",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Audio & EQ",
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                // Queue access pill
+                Box(
+                    modifier = Modifier
+                        .height(44.dp)
+                        .weight(1f)
+                        .glassySlab(
+                            shape = RoundedCornerShape(22.dp),
+                            onClick = onOpenQueue
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                            contentDescription = "Queue",
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Queue (${queue.size})",
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
         }
 
-        // --- 7. In-App Audio & Playback Modal (Reference Frame 15.0s) ---
+        // --- 8. In-App Audio & Playback Modal ---
         AudioPlaybackModal(
             player = player,
             isOpen = showAudioPlaybackModal,

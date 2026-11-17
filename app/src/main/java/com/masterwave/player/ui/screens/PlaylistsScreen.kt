@@ -26,8 +26,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
@@ -35,6 +39,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,65 +59,93 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masterwave.player.MasterWaveApp
+import coil.compose.AsyncImage
 import com.masterwave.player.data.cloud.CloudAccountManager
-import com.masterwave.player.data.cloud.CloudPlaylistPreset
+import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.launch
 
 /**
- * Playlists Screen featuring 1-Tap Cloud Sync for YouTube Music & Spotify
- * (zero URL input required).
+ * Playlists Screen featuring Dedicated Liked Songs & Local / Downloaded Songs cards,
+ * 1-Tap Cloud Sync for YouTube Music & Spotify, and custom playlist creation.
  */
 @Composable
 fun PlaylistsScreen(
     player: MasterWavePlayer,
     repository: MusicRepository,
     onPlaylistSelected: (Playlist) -> Unit,
+    onNavigateToLikedSongs: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToGenerator: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val playlists by repository.playlists.collectAsState()
+    val favorites by repository.favorites.collectAsState()
     val accentColor by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
+    val context = LocalContext.current
+    val downloadManager = remember {
+        MusicDownloadManager.getInstance(context, repository.okHttpClient, repository)
+    }
+    val downloadedTracks by downloadManager.downloadedTracks.collectAsState()
+
     var searchQuery by remember { mutableStateOf("") }
     var showCreateDialog by remember { mutableStateOf(false) }
+    var newPlaylistTitle by remember { mutableStateOf("") }
     var isSyncingCloud by remember { mutableStateOf(false) }
 
+    var activeLibraryFilter by remember { mutableStateOf("Playlists") }
+    val libraryFilters = listOf("Playlists", "Songs", "Albums", "Artists", "Podcasts")
+
+    var activeSortOption by remember { mutableStateOf("Date added") }
+    val sortOptions = listOf("Date added", "A-Z", "Track count", "Most played")
+    var showSortMenu by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
 
-    val totalTracks = playlists.sumOf { it.trackCount }
-    val filteredPlaylists = if (searchQuery.isBlank()) {
-        playlists
-    } else {
-        playlists.filter { it.title.contains(searchQuery, ignoreCase = true) }
-    }
+    val localTracks by repository.localTracks.collectAsState()
+    val playCounts by repository.playCounts.collectAsState()
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
-    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.55f)
+    val userPlaylists = playlists.filter { it.id != "liked_songs" && it.id != "local_songs" }
+    val sortedPlaylists = remember(userPlaylists, activeSortOption, searchQuery) {
+        val filtered = if (searchQuery.isBlank()) userPlaylists else userPlaylists.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        when (activeSortOption) {
+            "A-Z" -> filtered.sortedBy { it.title.lowercase() }
+            "Track count" -> filtered.sortedByDescending { it.trackCount }
+            "Most played" -> filtered.sortedByDescending { it.tracks.sumOf { t -> playCounts[t.id] ?: 0 } }
+            else -> filtered // "Date added"
+        }
+    }
+    val filteredPlaylists = sortedPlaylists
+
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
+    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFEFECEF).copy(alpha = 0.6f)
+    val searchBg = if (isAmoled) Color(0xFF161622) else Color(0xFFE2E0E4)
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
-    val searchBg = if (isAmoled) Color(0xFF14141E) else Color(0xFFEFECEF)
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 150.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 220.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 1. Top Header Row ---
+        // --- 1. Top Header Bar ---
         item {
             Row(
                 modifier = Modifier
@@ -122,29 +156,53 @@ fun PlaylistsScreen(
             ) {
                 Column {
                     Text(
-                        text = "Playlist",
+                        text = "Library",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        ),
+                        color = accentColor
+                    )
+                    Text(
+                        text = "Playlists",
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 32.sp
                         ),
                         color = textPrimary
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${playlists.size} Playlists • $totalTracks Tracks",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = textSecondary
-                    )
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Circular "+" button for creating playlist
+                    // Generator pill button
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isAmoled) Color(0xFF161622) else Color(0xFFE2E0E4),
+                        modifier = Modifier.clickable(onClick = onNavigateToGenerator)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Generator",
+                                tint = accentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Generator",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.5.sp,
+                                color = textPrimary
+                            )
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .size(38.dp)
@@ -160,41 +218,306 @@ fun PlaylistsScreen(
                             modifier = Modifier.size(24.dp)
                         )
                     }
+                }
+            }
+        }
 
-                    // Sort pill button
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = searchBg,
-                        modifier = Modifier.clickable {
-                            Toast.makeText(context, "Sorted by Recently Added", Toast.LENGTH_SHORT).show()
-                        }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        // --- 1.5 Category Filters & Sorting Row (Section 13) ---
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Category Filters
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp)
+                ) {
+                    items(libraryFilters) { filter ->
+                        val isSelected = filter == activeLibraryFilter
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isSelected) {
+                                if (isAmoled) accentColor.copy(alpha = 0.35f) else Color(0xFFD7F5DD)
+                            } else searchBg,
+                            modifier = Modifier.bouncyClickable {
+                                activeLibraryFilter = filter
+                                Toast.makeText(context, "Filtered: $filter", Toast.LENGTH_SHORT).show()
+                            }
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Sort,
-                                contentDescription = null,
-                                tint = textPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Sort",
+                                text = filter,
                                 style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp
                                 ),
-                                color = textPrimary
+                                color = if (isSelected) {
+                                    if (isAmoled) Color.White else Color(0xFF1B5E20)
+                                } else textSecondary,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                             )
+                        }
+                    }
+                }
+
+                // Sorting Pill & Smart Collections Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Sort Pill
+                    Box {
+                        Surface(
+                            shape = CircleShape,
+                            color = searchBg,
+                            modifier = Modifier.bouncyClickable { showSortMenu = true }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Sort,
+                                    contentDescription = "Sort",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = activeSortOption,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = textPrimary
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            for (opt in sortOptions) {
+                                DropdownMenuItem(
+                                    text = { Text(opt, fontWeight = if (opt == activeSortOption) FontWeight.Bold else FontWeight.Normal) },
+                                    onClick = {
+                                        activeSortOption = opt
+                                        showSortMenu = false
+                                        Toast.makeText(context, "Sorted by $opt", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Smart Collections Shortcut Count
+                    Text(
+                        text = "${filteredPlaylists.size} playlists • ${favorites.size + downloadedTracks.size} items",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                        color = textSecondary
+                    )
+                }
+            }
+        }
+
+        // --- 2. Top Hero Cards: Liked Songs & Local Downloaded Songs ---
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Card 1: Liked Songs
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = cardBg,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(115.dp)
+                        .bouncyClickable(onClick = onNavigateToLikedSongs)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFFE91E63).copy(alpha = 0.18f), Color.Transparent)
+                                )
+                            )
+                            .padding(14.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE91E63)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = "Liked Songs",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = textPrimary
+                                )
+                                Text(
+                                    text = "${favorites.size} songs",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Card 2: Local & Downloaded Songs
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = cardBg,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(115.dp)
+                        .bouncyClickable(onClick = onNavigateToDownloads)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(accentColor.copy(alpha = 0.22f), Color.Transparent)
+                                )
+                            )
+                            .padding(14.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(accentColor),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDownload,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = "Local Songs",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = textPrimary
+                                )
+                                Text(
+                                    text = "${downloadedTracks.size} offline",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = textSecondary
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // --- 2. 1-Tap Cloud Sync Carousel (Spotify & YouTube Music) ---
+        // --- 2.5 Generator Action Banner (LastWave Page 5 & 7) ---
+        item {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = cardBg,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bouncyClickable(onClick = onNavigateToGenerator)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF7C4DFF).copy(alpha = 0.22f), Color(0xFF00E676).copy(alpha = 0.08f))
+                            )
+                        )
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF7C4DFF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "✦ Generator",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                ),
+                                color = textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Algorithmic playlists, song radio & acoustic DNA",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = textSecondary
+                            )
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF7C4DFF).copy(alpha = 0.18f),
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Open Generator",
+                                    tint = Color(0xFF7C4DFF),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 3. 1-Tap Cloud Sync Section ---
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -211,7 +534,7 @@ fun PlaylistsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "1-Tap Cloud Sync (Spotify & YouTube)",
+                            text = "Cloud Sync Playlists",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
@@ -233,25 +556,24 @@ fun PlaylistsScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(vertical = 4.dp)
                 ) {
-                    items(cloudManager.CuratedCloudPlaylists) { preset ->
+                    item {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = if (isAmoled) Color(0xFF14141E) else accentColor.copy(alpha = 0.08f),
-                            modifier = Modifier
-                                .clickable {
-                                    if (!isSyncingCloud) {
-                                        isSyncingCloud = true
-                                        scope.launch {
-                                            val res = cloudManager.syncCloudPlaylist(preset)
-                                            isSyncingCloud = false
-                                            if (res.isSuccess) {
-                                                Toast.makeText(context, "Synced: ${preset.title}", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(context, "Sync failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
-                                            }
+                            modifier = Modifier.clickable {
+                                if (!isSyncingCloud) {
+                                    isSyncingCloud = true
+                                    scope.launch {
+                                        val synced = cloudManager.syncRealYouTubeMusicLibrary()
+                                        isSyncingCloud = false
+                                        if (synced.isNotEmpty()) {
+                                            Toast.makeText(context, "Synced ${synced.size} YouTube playlists", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Sign in with Google in Settings to sync playlists", Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }
+                            }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -259,32 +581,115 @@ fun PlaylistsScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(accentColor),
+                                        .background(Color(0xFFFF0000)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CloudDownload,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
-                                        text = preset.title,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
-                                        ),
+                                        text = "YouTube Music",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                                         color = textPrimary
                                     )
                                     Text(
-                                        text = preset.source,
+                                        text = "Sync Google Account",
                                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
-                                        color = accentColor
+                                        color = textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isAmoled) Color(0xFF14141E) else accentColor.copy(alpha = 0.08f),
+                            modifier = Modifier.clickable {
+                                Toast.makeText(context, "Open Settings > YouTube & Sync to import link", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF2196F3)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudSync,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Import Link",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                        color = textPrimary
+                                    )
+                                    Text(
+                                        text = "YouTube URL / ID",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                        color = textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isAmoled) Color(0xFF14141E) else accentColor.copy(alpha = 0.08f),
+                            modifier = Modifier.clickable {
+                                Toast.makeText(context, "Spotify account sync active in Settings", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF1DB954)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudDownload,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Spotify Sync",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                        color = textPrimary
+                                    )
+                                    Text(
+                                        text = "Web Authenticated",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                                        color = textSecondary
                                     )
                                 }
                             }
@@ -294,88 +699,50 @@ fun PlaylistsScreen(
             }
         }
 
-        // --- 3. Search & Generator Row ---
+        // --- 4. Search Filter for Custom Playlists ---
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Search field pill
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = {
-                        Text(
-                            text = "Search playlists...",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                            color = textSecondary
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = searchBg,
-                        unfocusedContainerColor = searchBg,
-                        disabledContainerColor = searchBg,
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    singleLine = true,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp)
-                )
-
-                // Generator dynamic accent pill button
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = accentColor.copy(alpha = if (isAmoled) 0.35f else 0.16f),
-                    modifier = Modifier
-                        .height(50.dp)
-                        .clickable {
-                            Toast.makeText(context, "AI Playlist Generator ready", Toast.LENGTH_SHORT).show()
-                        }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Generator",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            ),
-                            color = accentColor
-                        )
-                    }
-                }
-            }
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = {
+                    Text(
+                        text = "Search playlists...",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                        color = textSecondary
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                shape = RoundedCornerShape(20.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = searchBg,
+                    unfocusedContainerColor = searchBg,
+                    disabledContainerColor = searchBg,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent
+                ),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            )
         }
 
-        // --- 4. Playlist Cards List ---
+        // --- 5. Custom Playlists List ---
         items(filteredPlaylists, key = { it.id }) { playlist ->
+            val artUrl = playlist.artworkUrl ?: playlist.tracks.firstOrNull()?.artworkUrl
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = cardBg,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onPlaylistSelected(playlist) }
+                    .bouncyClickable { onPlaylistSelected(playlist) }
             ) {
                 Row(
                     modifier = Modifier
@@ -383,7 +750,6 @@ fun PlaylistsScreen(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Icon Box
                     Box(
                         modifier = Modifier
                             .size(54.dp)
@@ -391,72 +757,69 @@ fun PlaylistsScreen(
                             .background(searchBg),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = textSecondary,
-                            modifier = Modifier.size(26.dp)
-                        )
+                        if (!artUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = artUrl,
+                                contentDescription = playlist.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = textSecondary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(14.dp))
 
-                    // Title & Metadata
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = playlist.title,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                ),
-                                color = textPrimary
-                            )
-                            if (playlist.isPinned) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.Default.PushPin,
-                                    contentDescription = "Pinned",
-                                    tint = accentColor,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        }
+                        Text(
+                            text = playlist.title,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            ),
+                            color = textPrimary
+                        )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${playlist.trackCount} tracks • ${playlist.createdAt} (${playlist.source})",
+                            text = "${playlist.trackCount} tracks • ${playlist.source}",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                             color = textSecondary
                         )
                     }
 
-                    // 3-dots Menu
-                    IconButton(onClick = {
-                        Toast.makeText(context, "${playlist.title} options", Toast.LENGTH_SHORT).show()
-                    }) {
+                    if (playlist.isPinned) {
                         Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = textSecondary,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = "Pinned",
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
         }
+
+        item {
+            Spacer(modifier = Modifier.height(130.dp))
+        }
     }
 
-    // Create Custom Playlist Dialog
+    // Dialog for creating new playlist
     if (showCreateDialog) {
-        var newTitle by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("Create New Playlist") },
+            title = { Text("Create New Playlist", fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
-                    value = newTitle,
-                    onValueChange = { newTitle = it },
-                    placeholder = { Text("Playlist Name") },
+                    value = newPlaylistTitle,
+                    onValueChange = { newPlaylistTitle = it },
+                    label = { Text("Playlist Title") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -464,14 +827,16 @@ fun PlaylistsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (newTitle.isNotBlank()) {
-                            repository.createCustomPlaylist(newTitle.trim())
+                        if (newPlaylistTitle.isNotBlank()) {
+                            repository.createPlaylist(newPlaylistTitle.trim())
+                            newPlaylistTitle = ""
                             showCreateDialog = false
+                            Toast.makeText(context, "Playlist created!", Toast.LENGTH_SHORT).show()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                 ) {
-                    Text("Create")
+                    Text("Create", color = Color.White)
                 }
             },
             dismissButton = {

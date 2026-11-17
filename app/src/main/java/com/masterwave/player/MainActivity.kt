@@ -16,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -24,10 +25,22 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.masterwave.player.ui.theme.ThemeState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -36,22 +49,34 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
+import com.masterwave.player.data.download.MusicDownloadManager
+import com.masterwave.player.data.model.Album
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlaybackService
+import com.masterwave.player.ui.components.FirstStartPermissionsDialog
 import com.masterwave.player.ui.components.FloatingNavigationDock
 import com.masterwave.player.ui.components.MainTab
 import com.masterwave.player.ui.components.MiniPlayerDock
+import com.masterwave.player.ui.components.hasRequiredPermissions
+import com.masterwave.player.ui.screens.AiHubScreen
+import com.masterwave.player.ui.screens.AlbumDetailScreen
 import com.masterwave.player.ui.screens.AppUpdateScreen
 import com.masterwave.player.ui.screens.AppearanceScreen
+import com.masterwave.player.ui.screens.ArtistScreen
 import com.masterwave.player.ui.screens.AudioPlaybackScreen
+import com.masterwave.player.ui.screens.BackupRestoreScreen
 import com.masterwave.player.ui.screens.ConnectionDiagnosticsScreen
+import com.masterwave.player.ui.screens.DownloadsScreen
+import com.masterwave.player.ui.screens.GeneratorScreen
 import com.masterwave.player.ui.screens.HomeScreen
+import com.masterwave.player.ui.screens.LikedSongsScreen
 import com.masterwave.player.ui.screens.LyricsScreen
-import com.masterwave.player.ui.screens.MoodGenresScreen
 import com.masterwave.player.ui.screens.NowPlayingScreen
 import com.masterwave.player.ui.screens.PlaylistDetailScreen
 import com.masterwave.player.ui.screens.PlaylistsScreen
@@ -87,6 +112,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Enable Hardware Window-Level Blur on Android 12+ (Snapdragon 6s Gen 3)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            window.attributes.blurBehindRadius = 40
+        }
+
         val serviceIntent = Intent(this, MasterWavePlaybackService::class.java)
         startService(serviceIntent)
         bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
@@ -110,23 +141,35 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
     val repository = remember { MusicRepository.getInstance(MasterWaveApp.instance) }
 
-    // Request permissions on startup
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ -> }
+    var showPermissionsDialog by remember {
+        mutableStateOf(!hasRequiredPermissions(context))
+    }
+
+    if (showPermissionsDialog) {
+        FirstStartPermissionsDialog(
+            onPermissionsGranted = {
+                showPermissionsDialog = false
+                scope.launch {
+                    repository.loadLocalTracks()
+                }
+                MusicDownloadManager.getInstance(context, repository.okHttpClient, repository).scanDownloadedFiles()
+            },
+            onDismiss = {
+                showPermissionsDialog = false
+                scope.launch {
+                    repository.loadLocalTracks()
+                }
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
-        val permissions = mutableListOf<String>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-            permissions.add(Manifest.permission.READ_MEDIA_AUDIO)
-        } else {
-            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        permissionLauncher.launch(permissions.toTypedArray())
         repository.loadLocalTracks()
+        MusicDownloadManager.getInstance(context, repository.okHttpClient, repository).scanDownloadedFiles()
     }
 
     if (playbackService == null) {
@@ -145,6 +188,16 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     val positionMs by player.positionMs.collectAsState()
     val durationMs by player.durationMs.collectAsState()
 
+    // Dynamic Artwork Color Extraction - Adapts app and player theme on EVERY song change!
+    LaunchedEffect(currentTrack?.id, currentTrack?.artworkUrl) {
+        if (currentTrack != null) {
+            val extracted = com.masterwave.player.ui.theme.ArtworkColorExtractor.extractVibrantColor(context, currentTrack?.artworkUrl)
+            if (extracted != null) {
+                com.masterwave.player.ui.theme.ThemeState.setAccentColor(extracted)
+            }
+        }
+    }
+
     // Navigation States
     var currentTab by remember { mutableStateOf(MainTab.FEED) }
     var isNowPlayingExpanded by remember { mutableStateOf(false) }
@@ -154,31 +207,46 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     var isSettingsOpen by remember { mutableStateOf(false) }
     var isAppearanceOpen by remember { mutableStateOf(false) }
     var isAudioPlaybackOpen by remember { mutableStateOf(false) }
+    var isBackupRestoreOpen by remember { mutableStateOf(false) }
     var isAppUpdateOpen by remember { mutableStateOf(false) }
     var isSupportOpen by remember { mutableStateOf(false) }
     var isYouTubeSyncOpen by remember { mutableStateOf(false) }
     var isSpotifySyncOpen by remember { mutableStateOf(false) }
-    var isMoodGenresOpen by remember { mutableStateOf(false) }
     var isDiagnosticsOpen by remember { mutableStateOf(false) }
+    var isAiHubOpen by remember { mutableStateOf(false) }
+    var isDownloadsOpen by remember { mutableStateOf(false) }
+    var isLikedSongsOpen by remember { mutableStateOf(false) }
+    var isGeneratorOpen by remember { mutableStateOf(false) }
+    var selectedArtistForDetail by remember { mutableStateOf<String?>(null) }
+    var selectedAlbumForDetail by remember { mutableStateOf<Album?>(null) }
     var selectedPlaylistForDetail by remember { mutableStateOf<Playlist?>(null) }
 
     // Back handling for nested views
     BackHandler(
         enabled = isNowPlayingExpanded || isLyricsOpen || isQueueOpen ||
                 isSearchOpen || isSettingsOpen || isAppearanceOpen ||
-                isAudioPlaybackOpen || isAppUpdateOpen || isSupportOpen ||
-                isYouTubeSyncOpen || isSpotifySyncOpen || isMoodGenresOpen ||
-                isDiagnosticsOpen || selectedPlaylistForDetail != null
+                isAudioPlaybackOpen || isBackupRestoreOpen || isAppUpdateOpen || isSupportOpen ||
+                isYouTubeSyncOpen || isSpotifySyncOpen ||
+                isDiagnosticsOpen || isAiHubOpen || isDownloadsOpen ||
+                isLikedSongsOpen || isGeneratorOpen || selectedArtistForDetail != null ||
+                selectedAlbumForDetail != null ||
+                selectedPlaylistForDetail != null
     ) {
         when {
+            selectedAlbumForDetail != null -> selectedAlbumForDetail = null
+            selectedArtistForDetail != null -> selectedArtistForDetail = null
+            isGeneratorOpen -> isGeneratorOpen = false
+            isLikedSongsOpen -> isLikedSongsOpen = false
+            isDownloadsOpen -> isDownloadsOpen = false
+            isAiHubOpen -> isAiHubOpen = false
             selectedPlaylistForDetail != null -> selectedPlaylistForDetail = null
             isDiagnosticsOpen -> isDiagnosticsOpen = false
-            isMoodGenresOpen -> isMoodGenresOpen = false
             isLyricsOpen -> isLyricsOpen = false
             isQueueOpen -> isQueueOpen = false
             isNowPlayingExpanded -> isNowPlayingExpanded = false
             isAppearanceOpen -> isAppearanceOpen = false
             isAudioPlaybackOpen -> isAudioPlaybackOpen = false
+            isBackupRestoreOpen -> isBackupRestoreOpen = false
             isAppUpdateOpen -> isAppUpdateOpen = false
             isSupportOpen -> isSupportOpen = false
             isYouTubeSyncOpen -> isYouTubeSyncOpen = false
@@ -189,75 +257,88 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
-            bottomBar = {
-                // Dock stack: MiniPlayer immediately above FloatingNavigationDock
-                Column(
-                    modifier = Modifier.navigationBarsPadding(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    if (currentTrack != null) {
-                        MiniPlayerDock(
-                            track = currentTrack!!,
-                            isPlaying = isPlaying,
-                            isLoading = isLoading,
-                            positionMs = positionMs,
-                            durationMs = durationMs,
-                            onExpand = { isNowPlayingExpanded = true },
-                            onPlayPause = { player.togglePlayPause() },
-                            onNext = { player.skipToNext() }
-                        )
+        // Tab Content filling full screen - LazyColumns can scroll completely underneath the floating dock
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // Animated Tab Switching with Spring Physics
+            AnimatedContent(
+                targetState = currentTab,
+                transitionSpec = {
+                    if (targetState.ordinal > initialState.ordinal) {
+                        (slideInHorizontally { width -> width / 3 } + fadeIn()) togetherWith
+                                (slideOutHorizontally { width -> -width / 3 } + fadeOut())
+                    } else {
+                        (slideInHorizontally { width -> -width / 3 } + fadeIn()) togetherWith
+                                (slideOutHorizontally { width -> width / 3 } + fadeOut())
                     }
-
-                    FloatingNavigationDock(
-                        currentTab = currentTab,
-                        onTabSelected = { currentTab = it }
+                },
+                label = "tab_transition"
+            ) { tab ->
+                when (tab) {
+                    MainTab.FEED -> HomeScreen(
+                        player = player,
+                        repository = repository,
+                        onNavigateToSearch = { isSearchOpen = true },
+                        onNavigateToSettings = { isSettingsOpen = true },
+                        onNavigateToDownloads = { isDownloadsOpen = true },
+                        onNavigateToArtist = { selectedArtistForDetail = it },
+                        onNavigateToLikedSongs = { isLikedSongsOpen = true },
+                        onNavigateToGenerator = { isGeneratorOpen = true },
+                        onPlaylistSelected = { playlist -> selectedPlaylistForDetail = playlist }
+                    )
+                    MainTab.STATS -> StatsScreen(
+                        player = player,
+                        repository = repository,
+                        onNavigateToSearch = { isSearchOpen = true },
+                        onNavigateToSettings = { isSettingsOpen = true }
+                    )
+                    MainTab.PLAYLISTS -> PlaylistsScreen(
+                        player = player,
+                        repository = repository,
+                        onPlaylistSelected = { playlist ->
+                            selectedPlaylistForDetail = playlist
+                        },
+                        onNavigateToLikedSongs = { isLikedSongsOpen = true },
+                        onNavigateToDownloads = { isDownloadsOpen = true },
+                        onNavigateToGenerator = { isGeneratorOpen = true }
                     )
                 }
             }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
+        }
+
+        // Floating Dock & MiniPlayer Stack pinned to bottom
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Animated Tab Switching with Spring Physics
-                AnimatedContent(
-                    targetState = currentTab,
-                    transitionSpec = {
-                        if (targetState.ordinal > initialState.ordinal) {
-                            (slideInHorizontally { width -> width / 3 } + fadeIn()) togetherWith
-                                    (slideOutHorizontally { width -> -width / 3 } + fadeOut())
-                        } else {
-                            (slideInHorizontally { width -> -width / 3 } + fadeIn()) togetherWith
-                                    (slideOutHorizontally { width -> width / 3 } + fadeOut())
-                        }
-                    },
-                    label = "tab_transition"
-                ) { tab ->
-                    when (tab) {
-                        MainTab.FEED -> HomeScreen(
-                            player = player,
-                            repository = repository,
-                            onNavigateToSearch = { isSearchOpen = true },
-                            onNavigateToSettings = { isSettingsOpen = true },
-                            onNavigateToMoodGenres = { isMoodGenresOpen = true }
-                        )
-                        MainTab.STATS -> StatsScreen(
-                            player = player,
-                            repository = repository,
-                            onNavigateToSearch = { isSearchOpen = true },
-                            onNavigateToSettings = { isSettingsOpen = true }
-                        )
-                        MainTab.PLAYLISTS -> PlaylistsScreen(
-                            player = player,
-                            repository = repository,
-                            onPlaylistSelected = { playlist ->
-                                selectedPlaylistForDetail = playlist
-                            }
-                        )
-                    }
+                if (currentTrack != null) {
+                    MiniPlayerDock(
+                        track = currentTrack!!,
+                        isPlaying = isPlaying,
+                        isLoading = isLoading,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        onExpand = { isNowPlayingExpanded = true },
+                        onPlayPause = { player.togglePlayPause() },
+                        onNext = { player.skipToNext() }
+                    )
                 }
+
+                FloatingNavigationDock(
+                    currentTab = currentTab,
+                    onTabSelected = { currentTab = it }
+                )
             }
         }
 
@@ -270,7 +351,10 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             SearchScreen(
                 player = player,
                 repository = repository,
-                onBack = { isSearchOpen = false }
+                onBack = { isSearchOpen = false },
+                onArtistSelected = { selectedArtistForDetail = it },
+                onAlbumSelected = { selectedAlbumForDetail = it },
+                onExpandNowPlaying = { isNowPlayingExpanded = true }
             )
         }
 
@@ -286,9 +370,22 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 onNavigateToAudioPlayback = { isAudioPlaybackOpen = true },
                 onNavigateToAppUpdate = { isAppUpdateOpen = true },
                 onNavigateToSupport = { isSupportOpen = true },
+                onNavigateToBackupRestore = { isBackupRestoreOpen = true },
                 onNavigateToYouTubeSync = { isYouTubeSyncOpen = true },
-                onNavigateToSpotifySync = { isSpotifySyncOpen = true },
-                onNavigateToDiagnostics = { isDiagnosticsOpen = true }
+                onNavigateToSpotifySync = { isSpotifySyncOpen = true }
+            )
+        }
+
+        // Sub-screen: Backup & Restore (Launcher-grade Snapshot Import & Export)
+        AnimatedVisibility(
+            visible = isBackupRestoreOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            BackupRestoreScreen(
+                player = player,
+                repository = repository,
+                onBack = { isBackupRestoreOpen = false }
             )
         }
 
@@ -352,19 +449,6 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
             SupportCommunityScreen(onBack = { isSupportOpen = false })
-        }
-
-        // Sub-screen: Mood & Genres
-        AnimatedVisibility(
-            visible = isMoodGenresOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
-        ) {
-            MoodGenresScreen(
-                player = player,
-                repository = repository,
-                onBack = { isMoodGenresOpen = false }
-            )
         }
 
         // Sub-screen: Playlist Detail
@@ -434,6 +518,87 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 player = player,
                 onBack = { isQueueOpen = false }
             )
+        }
+
+        // Sub-screen: AI Hub & Smart Addons
+        AnimatedVisibility(
+            visible = isAiHubOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            AiHubScreen(onBack = { isAiHubOpen = false })
+        }
+
+        // Sub-screen: Downloads Screen
+        AnimatedVisibility(
+            visible = isDownloadsOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            DownloadsScreen(
+                player = player,
+                repository = repository,
+                onBack = { isDownloadsOpen = false }
+            )
+        }
+
+        // Sub-screen: Liked Songs Screen
+        AnimatedVisibility(
+            visible = isLikedSongsOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            LikedSongsScreen(
+                player = player,
+                repository = repository,
+                onBack = { isLikedSongsOpen = false }
+            )
+        }
+
+        // Sub-screen: Generator Screen (LastWave Page 7)
+        AnimatedVisibility(
+            visible = isGeneratorOpen,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            GeneratorScreen(
+                player = player,
+                repository = repository,
+                onBack = { isGeneratorOpen = false }
+            )
+        }
+
+        // Sub-screen: Artist Screen
+        AnimatedVisibility(
+            visible = selectedArtistForDetail != null,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            selectedArtistForDetail?.let { artist ->
+                ArtistScreen(
+                    artistName = artist,
+                    player = player,
+                    repository = repository,
+                    onBack = { selectedArtistForDetail = null },
+                    onSelectArtist = { selectedArtistForDetail = it }
+                )
+            }
+        }
+
+        // Sub-screen: Album / Movie Soundtrack Detail Screen
+        AnimatedVisibility(
+            visible = selectedAlbumForDetail != null,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            selectedAlbumForDetail?.let { album ->
+                AlbumDetailScreen(
+                    album = album,
+                    player = player,
+                    repository = repository,
+                    onBack = { selectedAlbumForDetail = null }
+                )
+            }
         }
     }
 }

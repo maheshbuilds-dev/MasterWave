@@ -66,7 +66,7 @@ fun AudioPlaybackScreen(
     val accentColor by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
     val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.5f)
     val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)

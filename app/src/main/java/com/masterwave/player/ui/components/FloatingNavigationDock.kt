@@ -40,20 +40,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masterwave.player.ui.theme.SleekSmallFont
 import com.masterwave.player.ui.theme.ThemeState
 
 enum class MainTab(val title: String, val icon: ImageVector) {
-    FEED("Feed", Icons.Default.Home),
+    FEED("Home", Icons.Default.Home),
     STATS("Stats", Icons.Default.BarChart),
     PLAYLISTS("Playlists", Icons.AutoMirrored.Filled.QueueMusic)
 }
 
 /**
- * Pixel-perfect Liquid Glass Floating Navigation Dock:
- * - Compact centered stadium pill (width ~260dp, height ~52dp) matching Screenshot 5 exactly.
- * - Frosted glass refraction with specular white border.
- * - Soft colored capsule indicator on active tab.
- * - Spring touch physics.
+ * Authentic 3D Liquid Glass Floating Navigation Dock:
+ * - Real multi-layer frosted acrylic glass with optical refraction.
+ * - 3D top-edge specular highlight & bottom contact bevel.
+ * - Deep 24dp dual-stage ambient drop shadow.
+ * - Tactile 3D pill indicator with micro-relief highlight.
+ * - Spring touch physics and sleek geometric typography.
  */
 @Composable
 fun FloatingNavigationDock(
@@ -64,42 +66,34 @@ fun FloatingNavigationDock(
     val accentColor by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
-    // Glass fill colors matching screenshot
-    val glassBg = if (isAmoled) {
-        Color(0xD9101018) // Frosted deep obsidian
-    } else {
-        Color(0xE6FFFFFF) // Frosted crisp white glass
-    }
+    // Dynamic Color Morphing Accent based on Active Tab
+    val morphAccent by animateColorAsState(
+        targetValue = when (currentTab) {
+            MainTab.FEED -> accentColor
+            MainTab.STATS -> Color(0xFF2979FF)
+            MainTab.PLAYLISTS -> Color(0xFFD946EF)
+        },
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "dock_morph_accent"
+    )
 
-    val glassBorder = if (isAmoled) {
-        Brush.verticalGradient(
-            listOf(Color(0x55FFFFFF), Color(0x1AFFFFFF), Color(0x33FFFFFF))
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(Color(0xE6FFFFFF), Color(0x88FFFFFF), Color(0xCCFFFFFF))
-        )
-    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp),
+            .padding(bottom = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Floating compact capsule pill (centered, not full-width!)
-        Surface(
-            shape = CircleShape,
-            color = glassBg,
-            shadowElevation = if (isAmoled) 16.dp else 12.dp,
+        Box(
             modifier = Modifier
-                .shadow(
-                    elevation = 14.dp,
+                .glassySurface(
                     shape = CircleShape,
-                    spotColor = if (isAmoled) Color.Black.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.12f)
+                    style = GlassyStyle.DOCK,
+                    isDark = isAmoled,
+                    borderWidth = 1.2.dp,
+                    elevation = 14.dp,
+                    hasSheen = true
                 )
-                .clip(CircleShape)
-                .border(width = 1.2.dp, brush = glassBorder, shape = CircleShape)
         ) {
             Row(
                 modifier = Modifier
@@ -107,38 +101,36 @@ fun FloatingNavigationDock(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                MainTab.values().forEach { tab ->
+                MainTab.entries.forEach { tab ->
                     val isSelected = tab == currentTab
-
-                    val containerColor by animateColorAsState(
-                        targetValue = if (isSelected) {
-                            if (isAmoled) accentColor.copy(alpha = 0.32f) else accentColor.copy(alpha = 0.16f)
-                        } else {
-                            Color.Transparent
-                        },
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        label = "pill_bg"
-                    )
 
                     val contentColor by animateColorAsState(
                         targetValue = if (isSelected) {
-                            if (isAmoled) Color.White else accentColor
+                            Color.White
                         } else {
-                            if (isAmoled) Color(0xFF888898) else Color(0xFF6E6E7A)
+                            if (isAmoled) Color(0xFFA0A0B0) else Color(0xFF6E6E78)
                         },
                         label = "pill_content"
                     )
 
-                    Row(
-                        modifier = Modifier
-                            .height(40.dp)
-                            .clip(CircleShape)
-                            .background(containerColor)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { onTabSelected(tab) }
+                    val pillModifier = if (isSelected) {
+                        Modifier
+                            .height(42.dp)
+                            .glassySurface(
+                                shape = CircleShape,
+                                style = GlassyStyle.PROMINENT,
+                                tintColor = morphAccent,
+                                elevation = 4.dp
                             )
+                    } else {
+                        Modifier
+                            .height(42.dp)
+                            .clip(CircleShape)
+                    }
+
+                    Row(
+                        modifier = pillModifier
+                            .bouncyClickable(scaleDown = 0.92f, onClick = { onTabSelected(tab) })
                             .padding(horizontal = if (isSelected) 18.dp else 14.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
@@ -153,7 +145,7 @@ fun FloatingNavigationDock(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = tab.title,
-                                style = MaterialTheme.typography.labelLarge.copy(
+                                style = SleekSmallFont.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp
                                 ),

@@ -9,6 +9,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -37,11 +38,13 @@ class MasterWavePlayer(
     val exoPlayer: ExoPlayer by lazy {
         val renderersFactory = DefaultRenderersFactory(context)
 
-        val dataSourceFactory = OkHttpDataSource.Factory(MasterWaveApp.instance.okHttpClient)
+        val httpDataSourceFactory = OkHttpDataSource.Factory(MasterWaveApp.instance.okHttpClient)
             .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
 
+        val upstreamDataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+
         val mediaSourceFactory = DefaultMediaSourceFactory(context)
-            .setDataSourceFactory(dataSourceFactory)
+            .setDataSourceFactory(upstreamDataSourceFactory)
 
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -167,6 +170,21 @@ class MasterWavePlayer(
         _positionMs.value = exoPlayer.currentPosition.coerceAtLeast(0L)
     }
 
+    fun playPlaylist(tracks: List<Track>, startIndex: Int = 0) {
+        if (tracks.isEmpty()) return
+        val index = startIndex.coerceIn(0, tracks.size - 1)
+        playTrack(tracks[index], tracks)
+    }
+
+    private fun resolveMediaUri(url: String): Uri {
+        return when {
+            url.startsWith("http://") || url.startsWith("https://") -> Uri.parse(url)
+            url.startsWith("content://") -> Uri.parse(url)
+            url.startsWith("file://") -> Uri.parse(url)
+            else -> Uri.fromFile(java.io.File(url))
+        }
+    }
+
     fun playTrack(track: Track, newQueue: List<Track> = listOf(track)) {
         scope.launch {
             _isLoading.value = true
@@ -177,16 +195,22 @@ class MasterWavePlayer(
 
             try {
                 val streamUrl = repository.resolveStreamUrl(track)
+                val artworkUri = track.artworkUrl?.let { url ->
+                    if (url.isNotBlank()) resolveMediaUri(url) else null
+                }
+
                 val mediaMetadata = MediaMetadata.Builder()
                     .setTitle(track.title)
                     .setArtist(track.artist)
                     .setAlbumTitle(track.album)
-                    .setArtworkUri(track.artworkUrl?.let { Uri.parse(it) })
+                    .setArtworkUri(artworkUri)
                     .build()
+
+                val mediaUri = resolveMediaUri(streamUrl)
 
                 val mediaItem = MediaItem.Builder()
                     .setMediaId(track.id)
-                    .setUri(Uri.parse(streamUrl))
+                    .setUri(mediaUri)
                     .setMediaMetadata(mediaMetadata)
                     .build()
 
@@ -270,6 +294,17 @@ class MasterWavePlayer(
     }
 
     fun cycleRepeatMode() = toggleRepeat()
+
+    fun clearQueue() {
+        val cur = _currentTrack.value
+        if (cur != null) {
+            _queue.value = listOf(cur)
+            _currentIndex.value = 0
+        } else {
+            _queue.value = emptyList()
+            _currentIndex.value = -1
+        }
+    }
 
     // --- Audio & Playback Adjustments ---
     fun setVolume(vol: Float) {

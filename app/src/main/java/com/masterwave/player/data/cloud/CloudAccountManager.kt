@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import com.masterwave.player.MasterWaveApp
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -66,26 +68,72 @@ class CloudAccountManager(
     val isSpotifyAuthenticated: Boolean
         get() = !_spotifyCookies.value.isNullOrBlank()
 
+    private val ytFetcher by lazy {
+        YouTubeLibraryFetcher(MasterWaveApp.instance.okHttpClient, repository)
+    }
+
+    init {
+        // Auto-sync library in background if already signed in
+        val savedCookies = _ytCookies.value
+        if (!savedCookies.isNullOrBlank()) {
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    ytFetcher.fetchRealUserPlaylists(savedCookies)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
     /**
      * Genuine YouTube Music authentication captured via official web sign-in.
      */
     fun saveYouTubeAuth(cookies: String) {
         _ytCookies.value = cookies
-        val profile = UserProfile(
-            isSignedIn = true,
-            displayName = "YouTube Music Connected",
-            email = "Authenticated via Google",
-            photoUrl = null,
-            provider = "YouTube Music"
-        )
-        _userProfile.value = profile
-        prefs.edit()
-            .putString("yt_cookies", cookies)
-            .putBoolean("is_signed_in", true)
-            .putString("display_name", profile.displayName)
-            .putString("email", profile.email)
-            .putString("provider", profile.provider)
-            .apply()
+        prefs.edit().putString("yt_cookies", cookies).apply()
+
+        // Fetch real account profile and sync library asynchronously
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val (name, avatar) = ytFetcher.fetchUserProfile(cookies)
+                val profile = UserProfile(
+                    isSignedIn = true,
+                    displayName = name,
+                    email = "Google Account Synchronized",
+                    photoUrl = avatar,
+                    provider = "YouTube Music"
+                )
+                _userProfile.value = profile
+                prefs.edit()
+                    .putBoolean("is_signed_in", true)
+                    .putString("display_name", profile.displayName)
+                    .putString("email", profile.email)
+                    .putString("photo_url", avatar)
+                    .putString("provider", profile.provider)
+                    .apply()
+
+                // Immediately fetch Real Liked Songs & User Playlists
+                ytFetcher.fetchRealUserPlaylists(cookies)
+            } catch (e: Exception) {
+                android.util.Log.e("CloudAccountManager", "Error during YouTube Music sync", e)
+            }
+        }
+    }
+
+    suspend fun syncRealYouTubeMusicLibrary(): List<Playlist> = withContext(Dispatchers.IO) {
+        val cookies = _ytCookies.value
+        if (cookies.isNullOrBlank()) {
+            return@withContext emptyList()
+        }
+        ytFetcher.fetchRealUserPlaylists(cookies)
+    }
+
+    suspend fun importYouTubePlaylistUrl(urlOrId: String): Result<Playlist> = withContext(Dispatchers.IO) {
+        val importer = com.masterwave.player.data.provider.PlaylistImporter(MasterWaveApp.instance.okHttpClient)
+        val result = importer.importYouTubePlaylist(urlOrId)
+        result.onSuccess { pl ->
+            repository.addCustomPlaylist(pl)
+        }
+        result
     }
 
     fun signOutYouTube() {
@@ -125,68 +173,8 @@ class CloudAccountManager(
         }
     }
 
-    val CuratedCloudPlaylists = listOf(
-        CloudPlaylistPreset(
-            id = "cloud_sp_top_hits",
-            title = "Today's Top Hits",
-            source = "Spotify Cloud",
-            query = "Today's Top Hits popular songs"
-        ),
-        CloudPlaylistPreset(
-            id = "cloud_sp_global_50",
-            title = "Global Top 50 Hits",
-            source = "Spotify Cloud",
-            query = "Global Top 50 trending music"
-        ),
-        CloudPlaylistPreset(
-            id = "cloud_yt_charts",
-            title = "YouTube Music Top Charts",
-            source = "YouTube Music",
-            query = "YouTube Music Top 100 Charts"
-        ),
-        CloudPlaylistPreset(
-            id = "cloud_yt_bollywood",
-            title = "Bollywood Romance 2026",
-            source = "YouTube Music",
-            query = "Bollywood Romantic Hits 2026"
-        ),
-        CloudPlaylistPreset(
-            id = "cloud_sp_lofi",
-            title = "Chill Lofi Beats",
-            source = "Spotify Cloud",
-            query = "Lofi hip hop beats to study relax to"
-        )
-    )
-
-    suspend fun syncCloudPlaylist(preset: CloudPlaylistPreset): Result<Playlist> = withContext(Dispatchers.IO) {
-        runCatching {
-            val searchResult = repository.search(preset.query)
-            val songs = searchResult.songs.take(25)
-            val today = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
-
-            val playlist = Playlist(
-                id = preset.id + "_" + UUID.randomUUID().toString().take(6),
-                title = preset.title,
-                description = "Synced via ${preset.source}",
-                trackCount = songs.size,
-                tracks = songs,
-                artworkUrl = songs.firstOrNull()?.artworkUrl,
-                source = preset.source,
-                isPinned = false,
-                createdAt = today
-            )
-
-            repository.addCustomPlaylist(playlist)
-            playlist
-        }
-    }
-
     suspend fun syncAllPresetPlaylists(): List<Playlist> = withContext(Dispatchers.IO) {
-        val synced = mutableListOf<Playlist>()
-        CuratedCloudPlaylists.forEach { preset ->
-            syncCloudPlaylist(preset).getOrNull()?.let { synced.add(it) }
-        }
-        synced
+        syncRealYouTubeMusicLibrary()
     }
 
     companion object {
