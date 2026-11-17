@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.masterwave.player.data.cloud.CloudAccountManager
+import com.masterwave.player.data.cloud.UserProfile
 import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.model.Track
@@ -467,11 +468,34 @@ fun HomeScreen(
             .fillMaxSize()
             .background(bgColor)
     ) {
-        // --- Scrolling Feed Content with plenty of clearance above dock ---
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 176.dp, bottom = 220.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // 1. Dedicated Measured Header Layer (Never overlaps content!)
+            HomeScreenHeader(
+                isAmoled = isAmoled,
+                textPrimary = textPrimary,
+                textSecondary = textSecondary,
+                accentColor = accentColor,
+                userProfile = userProfile,
+                categories = categories,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { category ->
+                    selectedCategory = category
+                    if (category != "All") {
+                        Toast.makeText(context, "Filtered: $category", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onNavigateToDownloads = onNavigateToDownloads,
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToSettings = onNavigateToSettings
+            )
+
+            // 2. Dedicated Scrollable Content Region
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(top = 8.dp, bottom = 170.dp)
+            ) {
             // --- 1. Greeting & Uppercase Date (LastWave Page 1) ---
             item {
                 Spacer(modifier = Modifier.height(6.dp))
@@ -2030,213 +2054,218 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }
+    }
 
-        // --- Floating Curved Header with Protective Optical Density ---
-        val headerShape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+    // Interactive Favorite Artists Management Sheet
+    if (isArtistPickerOpen) {
+        ArtistPickerSheet(
+            repository = repository,
+            onDismiss = { isArtistPickerOpen = false }
+        )
+    }
+    }
+}
 
+// --- Dedicated Measured Header Layer with Liquid Glass Surface ---
+@Composable
+private fun HomeScreenHeader(
+    isAmoled: Boolean,
+    textPrimary: Color,
+    textSecondary: Color,
+    accentColor: Color,
+    userProfile: UserProfile,
+    categories: List<String>,
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToSearch: () -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
+    val headerShape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassySurface(
+                shape = headerShape,
+                style = GlassyStyle.HEADER,
+                isDark = isAmoled,
+                borderWidth = 1.dp,
+                elevation = 6.dp,
+                hasSheen = false
+            )
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.TopCenter)
+                .statusBarsPadding()
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .glassySurface(
-                        shape = headerShape,
-                        style = GlassyStyle.HEADER,
-                        isDark = isAmoled,
-                        borderWidth = 1.dp,
-                        elevation = 6.dp,
-                        hasSheen = false
-                    )
+                    .padding(bottom = 12.dp)
             ) {
-                Box(
+                // Row 1: Brand Logo ("MASTERWAVE"), Audio Engine tag, and Action items
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
+                        .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "MASTERWAVE",
+                                style = NothingHeadlineLarge.copy(
+                                    fontSize = 21.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = (-0.5).sp
+                                ),
+                                color = textPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(com.masterwave.player.ui.theme.MasterWaveTurquoise)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Music Discovery & Library",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = textSecondary
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Row 1: Brand Logo ("MASTER(WAVE)"), Audio Engine tag, and Action items
-                        Row(
+                        // Downloads Glassy Slab Button
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .size(42.dp)
+                                .glassySlab(
+                                    shape = CircleShape,
+                                    isDark = isAmoled,
+                                    onClick = onNavigateToDownloads
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "MASTERWAVE",
-                                        style = NothingHeadlineLarge.copy(
-                                            fontSize = 21.sp,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = (-0.5).sp
-                                        ),
-                                        color = textPrimary
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(7.dp)
-                                            .clip(CircleShape)
-                                            .background(com.masterwave.player.ui.theme.MasterWaveTurquoise)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Music Discovery & Library",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        letterSpacing = 0.5.sp
-                                    ),
-                                    color = textSecondary
-                                )
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                // Downloads Glassy Slab Button
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .glassySlab(
-                                            shape = CircleShape,
-                                            isDark = isAmoled,
-                                            onClick = onNavigateToDownloads
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Download,
-                                        contentDescription = "Downloads",
-                                        tint = textPrimary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                // Search Glassy Slab Button
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .glassySlab(
-                                            shape = CircleShape,
-                                            isDark = isAmoled,
-                                            onClick = onNavigateToSearch
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search",
-                                        tint = textPrimary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                // User Avatar with glowing halo
-                                Box(
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(CircleShape)
-                                        .border(
-                                            2.dp,
-                                            Brush.sweepGradient(
-                                                listOf(
-                                                    com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                                                    com.masterwave.player.ui.theme.MasterWaveCyan,
-                                                    com.masterwave.player.ui.theme.MasterWaveTurquoise
-                                                )
-                                            ),
-                                            CircleShape
-                                        )
-                                        .bouncyClickable(onClick = onNavigateToSettings),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (userProfile.photoUrl != null && userProfile.isSignedIn) {
-                                        AsyncImage(
-                                            model = userProfile.photoUrl,
-                                            contentDescription = userProfile.displayName,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.matchParentSize()
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(accentColor.copy(alpha = 0.25f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = userProfile.displayName.take(1).uppercase(),
-                                                fontWeight = FontWeight.Bold,
-                                                color = accentColor,
-                                                fontSize = 16.sp
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Downloads",
+                                tint = textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
-                        // Row 2: Category Selector Glassy Chips
-                        LazyRow(
+                        // Search Glassy Slab Button
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                            contentPadding = PaddingValues(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                .size(42.dp)
+                                .glassySlab(
+                                    shape = CircleShape,
+                                    isDark = isAmoled,
+                                    onClick = onNavigateToSearch
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            items(categories) { category ->
-                                val isSelected = category == selectedCategory
-                                Box(
-                                    modifier = Modifier.glassySurface(
-                                        shape = RoundedCornerShape(18.dp),
-                                        style = if (isSelected) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
-                                        isDark = isAmoled,
-                                        tintColor = if (isSelected) accentColor else null,
-                                        elevation = if (isSelected) 4.dp else 2.dp,
-                                        onClick = {
-                                            selectedCategory = category
-                                            if (category != "All") {
-                                                Toast.makeText(context, "Filtered: $category", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // User Avatar with glowing halo
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .border(
+                                    2.dp,
+                                    Brush.sweepGradient(
+                                        listOf(
+                                            com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                                            com.masterwave.player.ui.theme.MasterWaveCyan,
+                                            com.masterwave.player.ui.theme.MasterWaveTurquoise
+                                        )
                                     ),
+                                    CircleShape
+                                )
+                                .bouncyClickable(onClick = onNavigateToSettings),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (userProfile.photoUrl != null && userProfile.isSignedIn) {
+                                AsyncImage(
+                                    model = userProfile.photoUrl,
+                                    contentDescription = userProfile.displayName,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.matchParentSize()
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(accentColor.copy(alpha = 0.25f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = category,
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            fontSize = 12.5.sp,
-                                            letterSpacing = 0.2.sp
-                                        ),
-                                        color = if (isSelected) Color.White else textPrimary,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                        text = userProfile.displayName.take(1).uppercase(),
+                                        fontWeight = FontWeight.Bold,
+                                        color = accentColor,
+                                        fontSize = 16.sp
                                     )
                                 }
                             }
                         }
                     }
                 }
-            }
-        }
 
-        // Interactive Favorite Artists Management Sheet
-        if (isArtistPickerOpen) {
-            ArtistPickerSheet(
-                repository = repository,
-                onDismiss = { isArtistPickerOpen = false }
-            )
+                // Row 2: Category Selector Glassy Chips
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(categories) { category ->
+                        val isSelected = category == selectedCategory
+                        Box(
+                            modifier = Modifier.glassySurface(
+                                shape = RoundedCornerShape(18.dp),
+                                style = if (isSelected) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
+                                isDark = isAmoled,
+                                tintColor = if (isSelected) accentColor else null,
+                                elevation = if (isSelected) 4.dp else 2.dp,
+                                onClick = { onCategorySelected(category) }
+                            ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = category,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 12.5.sp,
+                                    letterSpacing = 0.2.sp
+                                ),
+                                color = if (isSelected) Color.White else textPrimary,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
