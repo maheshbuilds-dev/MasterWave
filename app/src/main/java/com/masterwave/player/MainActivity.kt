@@ -584,6 +584,24 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 isGeneratorOpen || selectedArtistForDetail != null || selectedAlbumForDetail != null
 
         if (!isOverlayOpen) {
+            val isAmoledTheme = ThemeState.isAmoledTheme()
+            // Ambient Depth Scrim: softly diffuses and fades scrolling content before it reaches the floating dock
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Transparent,
+                                if (isAmoledTheme) Color(0x60000000) else Color(0x60FFFFFF),
+                                if (isAmoledTheme) Color(0xEE000000) else Color(0xFAF6F5F3)
+                            )
+                        )
+                    )
+            )
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

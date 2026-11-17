@@ -102,29 +102,30 @@ fun FloatingNavigationDock(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                val appleCrimson = Color(0xFF880E4F)
+
                 MainTab.entries.forEach { tab ->
                     val isSelected = tab == currentTab
 
-                    val unselectedColor = if (isAmoled) Color.White.copy(alpha = 0.75f) else Color(0xFF252936)
-                    val activeContentColor = if (isAmoled) Color.White else Color(0xFF10121A)
+                    val unselectedColor = if (isAmoled) Color(0xFF9898A6) else Color(0xFF757582)
 
                     if (isSelected) {
-                        // Active State: Refined Translucent Liquid Glass Lens Pill (No solid opaque buttons)
+                        // Active State: Refined Apple Music Crimson Liquid Glass Lens Pill
                         Box(
                             modifier = Modifier
                                 .height(42.dp)
                                 .shadow(
                                     elevation = 4.dp,
                                     shape = CircleShape,
-                                    spotColor = animatedAccent.copy(alpha = 0.35f),
-                                    ambientColor = Color.Black.copy(alpha = 0.15f)
+                                    spotColor = appleCrimson.copy(alpha = 0.40f),
+                                    ambientColor = Color.Black.copy(alpha = 0.12f)
                                 )
                                 .clip(CircleShape)
                                 .background(
                                     Brush.verticalGradient(
                                         colors = listOf(
-                                            animatedAccent.copy(alpha = if (isAmoled) 0.35f else 0.22f),
-                                            animatedAccent.copy(alpha = if (isAmoled) 0.20f else 0.12f)
+                                            appleCrimson.copy(alpha = if (isAmoled) 0.35f else 0.16f),
+                                            appleCrimson.copy(alpha = if (isAmoled) 0.18f else 0.08f)
                                         )
                                     )
                                 )
@@ -134,7 +135,7 @@ fun FloatingNavigationDock(
                                     drawRect(
                                         brush = Brush.verticalGradient(
                                             colors = listOf(
-                                                Color.White.copy(alpha = 0.35f),
+                                                Color.White.copy(alpha = 0.45f),
                                                 Color.Transparent
                                             ),
                                             startY = 0f,
@@ -147,8 +148,8 @@ fun FloatingNavigationDock(
                                     width = 1.dp,
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
-                                            animatedAccent.copy(alpha = 0.70f),
-                                            animatedAccent.copy(alpha = 0.25f)
+                                            appleCrimson.copy(alpha = 0.65f),
+                                            appleCrimson.copy(alpha = 0.20f)
                                         )
                                     ),
                                     shape = CircleShape
@@ -164,7 +165,7 @@ fun FloatingNavigationDock(
                                 Icon(
                                     imageVector = tab.icon,
                                     contentDescription = tab.title,
-                                    tint = if (isAmoled) animatedAccent else activeContentColor,
+                                    tint = if (isAmoled) Color.White else appleCrimson,
                                     modifier = Modifier.size(19.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -173,7 +174,7 @@ fun FloatingNavigationDock(
                                     fontFamily = DisplayFontFamily,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = if (isAmoled) Color.White else activeContentColor
+                                    color = if (isAmoled) Color.White else appleCrimson
                                 )
                             }
                         }

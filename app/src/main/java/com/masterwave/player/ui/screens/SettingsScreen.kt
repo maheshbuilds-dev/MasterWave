@@ -256,14 +256,13 @@ fun SettingsScreen(
 @Composable
 private fun SettingsSectionHeader(title: String, accentColor: Color) {
     Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.labelMedium.copy(
+        text = title,
+        style = MaterialTheme.typography.titleMedium.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 11.5.sp,
-            letterSpacing = 1.2.sp
+            fontSize = 16.sp
         ),
-        color = com.masterwave.player.ui.theme.DarkTextSecondary,
-        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+        color = Color(0xFF880E4F), // Signature Burgundy / Crimson from reference screenshot
+        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
     )
 }
 

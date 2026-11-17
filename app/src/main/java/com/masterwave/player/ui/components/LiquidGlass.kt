@@ -114,17 +114,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xDF171A27), // 87% density: rich smoky quartz
-                            Color(0xD2121420), // 82% density: translucent core
-                            Color(0xDA0E1018)  // 85% density: grounded base
+                            Color(0xFA171A26), // 98% density: deep smoky obsidian
+                            Color(0xF212141F), // 95% density: translucent core
+                            Color(0xEA0D0F17)  // 92% density: grounded base
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF2FFFFFF), // 95% density: crisp liquid crystal
-                            Color(0xE4F4F6FB), // 89% density: translucent quartz body
-                            Color(0xEBEDF1F8)  // 92% density: ground light bounce
+                            Color(0xFFFFFFFF), // 100% luminous porcelain crown
+                            Color(0xFDFAFBFD), // 99% pure optical crystal body
+                            Color(0xF8F3F6FA)  // 97% ground light bounce
                         )
                     )
                 }
@@ -134,17 +134,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF610121C), // 96% density over status bar
-                            Color(0xF00D0F18), // 94% density
-                            Color(0xEA0A0B12)  // 92% density at curved bottom edge
+                            Color(0xFC10121C), // 99% density over status bar
+                            Color(0xF80D0F18), // 97% density
+                            Color(0xF20A0B12)  // 95% density at curved bottom edge
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF8FAF9F7), // 97% density over status bar
-                            Color(0xF4F2F0EB), // 95% density
-                            Color(0xEEEDE9E3)  // 93% density at curved bottom edge
+                            Color(0xFFFFFFFF), // 100% solid white over status bar
+                            Color(0xFFFFFFFF), // 100% solid white body
+                            Color(0xFAF8F6F4)  // 98% crystal bottom edge
                         )
                     )
                 }
@@ -220,11 +220,32 @@ fun Modifier.glassySurface(
             GlassyStyle.HEADER -> {
                 Brush.verticalGradient(
                     colors = listOf(
-                        if (isDark) Color(0x35FFFFFF) else Color(0x70FFFFFF), // Subtle top light
-                        if (isDark) Color(0x10FFFFFF) else Color(0x12000000),
-                        if (isDark) Color(0x25FFFFFF) else Color(0x0E000000)  // Bottom edge definition
+                        if (isDark) Color(0x40FFFFFF) else Color(0x90FFFFFF), // Crisp top specular light
+                        if (isDark) Color(0x15FFFFFF) else Color(0x10000000),
+                        if (isDark) Color(0x28FFFFFF) else Color(0x15000000)  // Defined bottom rim
                     )
                 )
+            }
+            GlassyStyle.DOCK -> {
+                if (isDark) {
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x95FFFFFF), // Brilliant top specular rim
+                            Color(0x35FFFFFF), // Mid transmission
+                            Color(0x0CFFFFFF), // Floor alpha
+                            Color(0x30FFFFFF)  // Ground reflection
+                        )
+                    )
+                } else {
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFFFFFFFF), // Pure white diamond specular rim
+                            Color(0x80FFFFFF), // Mid sheen
+                            Color(0x14000000), // Shadow bevel
+                            Color(0x50FFFFFF)  // Bottom ground reflection
+                        )
+                    )
+                }
             }
             else -> {
                 if (isDark) {
@@ -264,11 +285,11 @@ fun Modifier.glassySurface(
             elevation = elevation,
             shape = shape,
             spotColor = if (accentGlow != Color.Transparent) {
-                accentGlow.copy(alpha = 0.25f)
+                accentGlow.copy(alpha = 0.35f)
             } else {
-                Color.Black.copy(alpha = if (isDark) 0.40f else 0.08f)
+                Color.Black.copy(alpha = if (isDark) 0.50f else 0.14f)
             },
-            ambientColor = Color.Black.copy(alpha = if (isDark) 0.25f else 0.03f)
+            ambientColor = Color.Black.copy(alpha = if (isDark) 0.30f else 0.05f)
         )
         .clip(shape)
         .background(glassFillBrush)
@@ -279,19 +300,19 @@ fun Modifier.glassySurface(
                     drawContent()
 
                     // Soft radial overhead specular highlight pool
-                    val poolRadius = size.width * 0.65f
+                    val poolRadius = size.width * 0.70f
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.18f else 0.30f),
-                                Color.White.copy(alpha = if (isDark) 0.05f else 0.10f),
+                                Color.White.copy(alpha = if (isDark) 0.22f else 0.35f),
+                                Color.White.copy(alpha = if (isDark) 0.06f else 0.12f),
                                 Color.Transparent
                             ),
-                            center = Offset(size.width * 0.38f, 0f),
+                            center = Offset(size.width * 0.40f, 0f),
                             radius = poolRadius
                         ),
                         radius = poolRadius,
-                        center = Offset(size.width * 0.38f, 0f)
+                        center = Offset(size.width * 0.40f, 0f)
                     )
 
                     // Subtle top-rim light reflex across top 22%

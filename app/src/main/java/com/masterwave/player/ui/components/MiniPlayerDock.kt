@@ -183,7 +183,7 @@ fun MiniPlayerDock(
                         .padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Artwork Thumbnail with directional micro-bevel rim
+                    // Artwork Thumbnail with directional micro-bevel rim & soft elevation
                     val artworkModel = remember(track.artworkUrl) {
                         val u = track.artworkUrl
                         when {
@@ -197,17 +197,23 @@ fun MiniPlayerDock(
 
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
-                            .clip(RoundedCornerShape(13.dp))
+                            .size(48.dp)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = RoundedCornerShape(14.dp),
+                                spotColor = Color.Black.copy(alpha = if (isAmoled) 0.45f else 0.12f),
+                                ambientColor = Color.Black.copy(alpha = if (isAmoled) 0.30f else 0.04f)
+                            )
+                            .clip(RoundedCornerShape(14.dp))
                             .border(
                                 width = 1.dp,
                                 brush = Brush.verticalGradient(
                                     listOf(
-                                        Color.White.copy(alpha = 0.55f),
-                                        Color.White.copy(alpha = 0.15f)
+                                        Color.White.copy(alpha = 0.65f),
+                                        Color.Black.copy(alpha = 0.08f)
                                     )
                                 ),
-                                shape = RoundedCornerShape(13.dp)
+                                shape = RoundedCornerShape(14.dp)
                             )
                             .background(if (isAmoled) Color(0xFF1E202B) else Color(0xFFE9ECF2))
                             .clickable(onClick = onExpand),
@@ -233,6 +239,8 @@ fun MiniPlayerDock(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     // Title, Artist, & Live Animated Visualizer
+                    val crimsonJewel = Color(0xFF880E4F)
+
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -241,10 +249,10 @@ fun MiniPlayerDock(
                         Text(
                             text = track.title,
                             fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            letterSpacing = (-0.2).sp,
-                            color = textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            letterSpacing = (-0.3).sp,
+                            color = if (isAmoled) Color.White else Color(0xFF0F1419),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -263,21 +271,21 @@ fun MiniPlayerDock(
                                             .width(2.5.dp)
                                             .height(bar1Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(animatedAccent)
+                                            .background(crimsonJewel)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar2Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(animatedAccent)
+                                            .background(crimsonJewel)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar3Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(animatedAccent)
+                                            .background(crimsonJewel)
                                     )
                                 }
                             }
@@ -285,8 +293,8 @@ fun MiniPlayerDock(
                                 text = track.artist,
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Normal,
-                                fontSize = 12.sp,
-                                color = textSecondary,
+                                fontSize = 13.sp,
+                                color = if (isAmoled) Color(0xFFA2A7B8) else Color(0xFF6B7280),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -295,57 +303,59 @@ fun MiniPlayerDock(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Play / Pause Circular Liquid Glass Jewel Button
+                    // Play / Pause Circular Liquid Glass Jewel Button (Apple Music Signature)
+                    val playJewelGradient = Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF9E1B42), // Brilliant ruby crown
+                            Color(0xFF880E4F), // Deep wine red core
+                            Color(0xFF6A093D)  // Grounded burgundy floor
+                        )
+                    )
+
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .shadow(
-                                elevation = 4.dp,
+                                elevation = 6.dp,
                                 shape = CircleShape,
-                                spotColor = animatedAccent.copy(alpha = 0.40f),
-                                ambientColor = Color.Black.copy(alpha = 0.15f)
+                                spotColor = Color(0xFF880E4F).copy(alpha = 0.55f),
+                                ambientColor = Color.Black.copy(alpha = 0.20f)
                             )
                             .clip(CircleShape)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        animatedAccent.copy(alpha = 0.90f),
-                                        animatedAccent.copy(alpha = 0.72f)
-                                    )
-                                )
-                            )
+                            .background(playJewelGradient)
                             .drawWithContent {
                                 drawContent()
-                                // Subtle top specular sheen
+                                // Optical gloss reflex across top 45%
                                 drawRect(
                                     brush = Brush.verticalGradient(
                                         listOf(
-                                            Color.White.copy(alpha = 0.40f),
+                                            Color.White.copy(alpha = 0.45f),
+                                            Color.White.copy(alpha = 0.08f),
                                             Color.Transparent
                                         ),
                                         startY = 0f,
-                                        endY = size.height * 0.40f
+                                        endY = size.height * 0.45f
                                     ),
-                                    size = Size(size.width, size.height * 0.40f)
+                                    size = Size(size.width, size.height * 0.45f)
                                 )
                             }
                             .border(
-                                width = 1.dp,
+                                width = 1.2.dp,
                                 brush = Brush.verticalGradient(
                                     listOf(
-                                        Color.White.copy(alpha = 0.75f),
-                                        Color.White.copy(alpha = 0.20f)
+                                        Color.White.copy(alpha = 0.85f),
+                                        Color.White.copy(alpha = 0.25f)
                                     )
                                 ),
                                 shape = CircleShape
                             )
-                            .bouncyClickable(scaleDown = 0.92f, onClick = onPlayPause),
+                            .bouncyClickable(scaleDown = 0.90f, onClick = onPlayPause),
                         contentAlignment = Alignment.Center
                     ) {
                         if (isLoading) {
                             CircularProgressIndicator(
                                 color = Color.White,
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp
                             )
                         } else {
@@ -353,30 +363,43 @@ fun MiniPlayerDock(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isPlaying) "Pause" else "Play",
                                 tint = Color.White,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.width(6.dp))
 
-                    // Next Track Clear Glass Slab Button
+                    // Next Track Circular Frosted Lens Button
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .glassySurface(
-                                shape = CircleShape,
-                                style = GlassyStyle.SLAB,
-                                isDark = isAmoled,
+                            .size(40.dp)
+                            .shadow(
                                 elevation = 2.dp,
-                                onClick = onNext
-                            ),
+                                shape = CircleShape,
+                                spotColor = Color.Black.copy(alpha = if (isAmoled) 0.35f else 0.08f)
+                            )
+                            .clip(CircleShape)
+                            .background(
+                                if (isAmoled) Color(0x28FFFFFF) else Color(0xFFEFF0F4)
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(
+                                        if (isAmoled) Color(0x40FFFFFF) else Color.White,
+                                        if (isAmoled) Color(0x10FFFFFF) else Color(0x12000000)
+                                    )
+                                ),
+                                shape = CircleShape
+                            )
+                            .bouncyClickable(scaleDown = 0.90f, onClick = onNext),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next Track",
-                            tint = textPrimary,
+                            tint = if (isAmoled) Color.White else Color(0xFF1D1F28),
                             modifier = Modifier.size(20.dp)
                         )
                     }
