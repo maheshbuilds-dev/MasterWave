@@ -34,6 +34,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
@@ -83,12 +84,16 @@ import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.data.recommendation.ArtistPhotoProvider
+import com.masterwave.player.ui.components.ArtistAvatar
+import com.masterwave.player.ui.components.ArtistPickerSheet
 import com.masterwave.player.ui.components.GlassyBadge
 import com.masterwave.player.ui.components.GlassyBadgeTone
 import com.masterwave.player.ui.components.GlassyStyle
 import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.components.glassySlab
 import com.masterwave.player.ui.components.glassySurface
+import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.NothingHeadlineLarge
 import com.masterwave.player.ui.theme.NothingHeadlineMedium
 import com.masterwave.player.ui.theme.NothingHeadlineSmall
@@ -223,17 +228,8 @@ fun HomeScreen(
         trendingTracks.drop(2).take(6)
     }
 
-    val favoriteArtists = remember(activeLanguage, trendingTracks) {
-        val fromTrending = trendingTracks.map { it.artist }.distinct().filter { it.isNotBlank() && it != "Unknown" }
-        val fallback = when (activeLanguage) {
-            "Tamil" -> listOf("Sai Abhyankkar", "Anirudh Ravichander", "A.R. Rahman", "Yuvan Shankar Raja", "Harris Jayaraj", "Sid Sriram", "Santhosh Narayanan", "D. Imman")
-            "Punjabi" -> listOf("Diljit Dosanjh", "Sidhu Moose Wala", "Karan Aujla", "AP Dhillon", "B Praak", "Ammy Virk", "Guru Randhawa", "Shubh")
-            "Telugu" -> listOf("Devi Sri Prasad", "Thaman S", "Sid Sriram", "Anurag Kulkarni", "Ram Miriyala", "M.M. Keeravaani", "Armaan Malik")
-            "Hindi" -> listOf("Arijit Singh", "Pritam", "Shreya Ghoshal", "Sachin-Jigar", "KR\$NA", "Atif Aslam", "Vishal-Shekhar", "Neha Kakkar")
-            else -> listOf("The Weeknd", "Dua Lipa", "Coolio", "Post Malone", "Ed Sheeran", "Billie Eilish", "Taylor Swift", "Drake")
-        }
-        (fromTrending + fallback).distinct().take(10)
-    }
+    val followedArtists by repository.followedArtists.collectAsState()
+    var isArtistPickerOpen by remember { mutableStateOf(false) }
 
     val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
     val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFFFFFFF)
@@ -1558,62 +1554,89 @@ fun HomeScreen(
                 }
             }
 
-            // --- 5. Favorite Artists Section (Real Artist Photography - LastWave Page 3) ---
+            // --- 5. Favorite Artists Section (Persistent, Real Artist Photos & Interactive Add/Edit) ---
             item {
                 Spacer(modifier = Modifier.height(24.dp))
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    Text(
-                        text = "Favorite Artists",
-                        style = ExpressiveSectionHeader.copy(
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Favorite Artists",
+                            fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 23.sp
-                        ),
-                        color = textPrimary
-                    )
-                    Text(
-                        text = "Artists you listen to frequently",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = textSecondary
-                    )
+                            fontSize = 22.sp,
+                            color = textPrimary
+                        )
+                        Text(
+                            text = "${followedArtists.size} artists followed",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = textSecondary
+                        )
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = accentColor.copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
+                        modifier = Modifier.clickable { isArtistPickerOpen = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add Artist",
+                                tint = accentColor,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "Add / Edit",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp
+                                ),
+                                color = accentColor
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(favoriteArtists) { artistName ->
+                    items(followedArtists) { artist ->
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
                                 .width(86.dp)
-                                .clickable { onNavigateToArtist(artistName) }
+                                .clickable { onNavigateToArtist(artist.name) }
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(76.dp)
-                                    .clip(CircleShape)
-                                    .background(accentColor.copy(alpha = 0.2f))
-                                    .border(1.5.dp, com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.6f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                AsyncImage(
-                                    model = getArtistPhotoUrl(artistName),
-                                    contentDescription = artistName,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
+                            ArtistAvatar(
+                                name = artist.name,
+                                photoUrl = artist.thumbnailUrl ?: ArtistPhotoProvider.getPhotoUrlOrNull(artist.name),
+                                size = 76.dp,
+                                borderColor = accentColor.copy(alpha = 0.4f),
+                                borderWidth = 1.5.dp
+                            )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = artistName,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 12.5.sp
-                                ),
+                                text = artist.name,
+                                fontFamily = DisplayFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.5.sp,
                                 color = textPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1621,6 +1644,49 @@ fun HomeScreen(
 
                             Text(
                                 text = "Artist",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = textSecondary
+                            )
+                        }
+                    }
+
+                    // Trailing "+ Add" card in the row
+                    item {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .width(86.dp)
+                                .clickable { isArtistPickerOpen = true }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(76.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isAmoled) Color(0xFF141624) else Color(0xFFE9ECF4))
+                                    .border(1.dp, accentColor.copy(alpha = 0.35f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add More Artists",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = "Add Artist",
+                                fontFamily = DisplayFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.5.sp,
+                                color = accentColor,
+                                maxLines = 1
+                            )
+
+                            Text(
+                                text = "Explore",
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                 color = textSecondary
                             )
@@ -2013,11 +2079,11 @@ fun HomeScreen(
                                 }
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "PRECISION AUDIO ENGINE • 48 kHz",
+                                    text = "Music Discovery & Library",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 9.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        letterSpacing = 1.2.sp
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        letterSpacing = 0.5.sp
                                     ),
                                     color = textSecondary
                                 )
@@ -2152,6 +2218,14 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        // Interactive Favorite Artists Management Sheet
+        if (isArtistPickerOpen) {
+            ArtistPickerSheet(
+                repository = repository,
+                onDismiss = { isArtistPickerOpen = false }
+            )
         }
     }
 }

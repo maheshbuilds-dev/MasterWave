@@ -20,8 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,22 +40,29 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masterwave.player.ui.theme.SleekSmallFont
+import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeState
 
 enum class MainTab(val title: String, val icon: ImageVector) {
-    FEED("Home", Icons.Default.Home),
-    STATS("Stats", Icons.Default.BarChart),
-    PLAYLISTS("Playlists", Icons.AutoMirrored.Filled.QueueMusic)
+    HOME("Home", Icons.Default.Home),
+    SEARCH("Search", Icons.Default.Search),
+    LIBRARY("Library", Icons.AutoMirrored.Filled.QueueMusic);
+
+    companion object {
+        val FEED = HOME
+        val PLAYLISTS = LIBRARY
+        val STATS = LIBRARY
+    }
 }
 
 /**
- * Authentic 3D Liquid Glass Floating Navigation Dock:
- * - Real multi-layer frosted acrylic glass with optical refraction.
- * - 3D top-edge specular highlight & bottom contact bevel.
- * - Deep 24dp dual-stage ambient drop shadow.
- * - Tactile 3D pill indicator with micro-relief highlight.
- * - Spring touch physics and sleek geometric typography.
+ * Apple Music-Inspired Floating Liquid Glass Navigation Dock:
+ * - Ultra-refined frosted acrylic glass shelf with specular rim reflection.
+ * - Dynamic contextual accent pill: automatically inherits current album artwork tone,
+ *   or follows curated theme studio preset (Ocean, Berry, Forest, Sunset, Monochrome).
+ * - Tactile spring-physics selection pill without permanent static green.
+ * - Minimal, uncluttered navigation: Home, Search, Library.
+ * - Safe area navigation padding & compact footprint.
  */
 @Composable
 fun FloatingNavigationDock(
@@ -63,12 +70,14 @@ fun FloatingNavigationDock(
     onTabSelected: (MainTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentColor by ThemeState.accentColor.collectAsState()
+    val accentColor by ThemeState.effectiveAccentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
-    val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
-    val morphAccent = brandTurquoise
-
+    val animatedAccent by animateColorAsState(
+        targetValue = accentColor,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "dock_accent"
+    )
 
     Box(
         modifier = modifier
@@ -82,7 +91,7 @@ fun FloatingNavigationDock(
                     shape = CircleShape,
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.2.dp,
+                    borderWidth = 1.dp,
                     elevation = 14.dp,
                     hasSheen = true
                 )
@@ -111,7 +120,7 @@ fun FloatingNavigationDock(
                             .glassySurface(
                                 shape = CircleShape,
                                 style = GlassyStyle.PROMINENT,
-                                tintColor = morphAccent,
+                                tintColor = animatedAccent,
                                 elevation = 4.dp
                             )
                     } else {
@@ -137,10 +146,9 @@ fun FloatingNavigationDock(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = tab.title,
-                                style = SleekSmallFont.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp
-                                ),
+                                fontFamily = DisplayFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
                                 color = contentColor
                             )
                         }

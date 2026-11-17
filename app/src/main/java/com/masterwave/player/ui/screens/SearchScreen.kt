@@ -75,6 +75,7 @@ import com.masterwave.player.data.model.SearchResult
 import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.ArtistAvatar
 import com.masterwave.player.ui.components.GlassyStyle
 import com.masterwave.player.ui.components.MiniPlayerDock
 import com.masterwave.player.ui.components.TrackItem
@@ -637,21 +638,13 @@ fun SearchScreen(
                                         .width(86.dp)
                                         .clickable { onArtistSelected(artistName) }
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(72.dp)
-                                            .clip(CircleShape)
-                                            .background(accentColor.copy(alpha = 0.15f))
-                                            .border(1.5.dp, com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.6f), CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        AsyncImage(
-                                            model = ArtistPhotoProvider.getPhotoUrl(artistName),
-                                            contentDescription = artistName,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
+                                    ArtistAvatar(
+                                        name = artistName,
+                                        photoUrl = ArtistPhotoProvider.getPhotoUrlOrNull(artistName),
+                                        size = 72.dp,
+                                        borderWidth = 1.5.dp,
+                                        borderColor = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.6f)
+                                    )
 
                                     Spacer(modifier = Modifier.height(6.dp))
 

@@ -116,6 +116,10 @@ class RecommendationManager private constructor(
         eventTracker.onHideTrack(track)
     }
 
+    fun onArtistFollowChanged(artistName: String, isFollowing: Boolean) {
+        eventTracker.onArtistFollowChanged(artistName, isFollowing)
+    }
+
     companion object {
         @Volatile
         private var instance: RecommendationManager? = null

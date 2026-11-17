@@ -237,4 +237,21 @@ class ListeningEventTracker(
             )
         }
     }
+
+    fun onArtistFollowChanged(artistName: String, isFollowing: Boolean) {
+        scope.launch(Dispatchers.IO) {
+            tasteProfileStore.recordEvent(
+                ListeningEvent(
+                    trackId = "artist_follow_$artistName",
+                    title = "",
+                    artist = artistName,
+                    album = "",
+                    eventType = if (isFollowing) ListeningEventType.LIKE else ListeningEventType.UNLIKE,
+                    durationSeconds = 180L,
+                    listenedSeconds = 180L,
+                    completionRatio = 1.0f
+                )
+            )
+        }
+    }
 }

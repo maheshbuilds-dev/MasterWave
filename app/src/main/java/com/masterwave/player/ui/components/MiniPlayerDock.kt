@@ -1,12 +1,15 @@
 package com.masterwave.player.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -80,8 +83,14 @@ fun MiniPlayerDock(
 ) {
     val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "mini_progress")
-    val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
+    val accentColor by ThemeState.effectiveAccentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
+
+    val animatedAccent by animateColorAsState(
+        targetValue = accentColor,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "mini_accent"
+    )
 
     val textPrimary = if (isAmoled) Color.White else Color(0xFF14171E)
     val textSecondary = if (isAmoled) Color(0xFFA0A5B8) else Color(0xFF6B7285)
@@ -153,8 +162,8 @@ fun MiniPlayerDock(
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
-                                        brandTurquoise.copy(alpha = 0.6f),
-                                        brandTurquoise,
+                                        animatedAccent.copy(alpha = 0.6f),
+                                        animatedAccent,
                                         Color.White.copy(alpha = 0.9f)
                                     )
                                 )
@@ -243,21 +252,21 @@ fun MiniPlayerDock(
                                             .width(2.5.dp)
                                             .height(bar1Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(brandTurquoise)
+                                            .background(animatedAccent)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar2Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(brandTurquoise)
+                                            .background(animatedAccent)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar3Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(brandTurquoise)
+                                            .background(animatedAccent)
                                     )
                                 }
                             }
@@ -282,7 +291,7 @@ fun MiniPlayerDock(
                             .glassySurface(
                                 shape = CircleShape,
                                 style = GlassyStyle.PROMINENT,
-                                tintColor = brandTurquoise,
+                                tintColor = animatedAccent,
                                 elevation = 4.dp,
                                 onClick = onPlayPause
                             ),

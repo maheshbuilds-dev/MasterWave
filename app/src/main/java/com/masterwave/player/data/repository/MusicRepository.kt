@@ -3,6 +3,7 @@ package com.masterwave.player.data.repository
 import android.content.Context
 import com.masterwave.player.MasterWaveApp
 import com.masterwave.player.data.lyrics.LrclibLyricsProvider
+import com.masterwave.player.data.model.Artist
 import com.masterwave.player.data.model.LyricsResult
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.model.SearchResult
@@ -35,6 +36,10 @@ class MusicRepository(private val context: Context) {
     // Favorites
     private val _favorites = MutableStateFlow<List<Track>>(emptyList())
     val favorites: StateFlow<List<Track>> = _favorites.asStateFlow()
+
+    // Followed / Favorite Artists (Persistent, fully editable)
+    private val _followedArtists = MutableStateFlow<List<Artist>>(emptyList())
+    val followedArtists: StateFlow<List<Artist>> = _followedArtists.asStateFlow()
 
     // Recent History
     private val _recentTracks = MutableStateFlow<List<Track>>(emptyList())
@@ -76,6 +81,7 @@ class MusicRepository(private val context: Context) {
     init {
         loadCachedFavorites()
         loadCachedPlaylists()
+        loadCachedFollowedArtists()
     }
 
     // Listening Stats
@@ -128,6 +134,58 @@ class MusicRepository(private val context: Context) {
 
     fun isFavorite(trackId: String): Boolean {
         return _favorites.value.any { it.id == trackId }
+    }
+
+    // --- Followed Artists API ---
+    fun followArtist(artist: Artist) {
+        val current = _followedArtists.value.toMutableList()
+        val index = current.indexOfFirst {
+            it.name.equals(artist.name, ignoreCase = true) || (it.id.isNotBlank() && it.id.equals(artist.id, ignoreCase = true))
+        }
+        val photo = artist.thumbnailUrl?.takeIf { it.isNotBlank() }
+            ?: com.masterwave.player.data.recommendation.ArtistPhotoProvider.getPhotoUrlOrNull(artist.name)
+        val updated = artist.copy(
+            thumbnailUrl = photo,
+            isFavorite = true,
+            followedAtMs = if (artist.followedAtMs > 0) artist.followedAtMs else System.currentTimeMillis()
+        )
+        if (index >= 0) {
+            current[index] = updated
+        } else {
+            current.add(0, updated)
+        }
+        _followedArtists.value = current
+        saveCachedFollowedArtists()
+        recommendationManager.onArtistFollowChanged(artist.name, isFollowing = true)
+    }
+
+    fun unfollowArtist(artistName: String) {
+        val current = _followedArtists.value.toMutableList()
+        val removed = current.removeAll {
+            it.name.equals(artistName, ignoreCase = true) || it.id.equals(artistName, ignoreCase = true)
+        }
+        if (removed) {
+            _followedArtists.value = current
+            saveCachedFollowedArtists()
+            recommendationManager.onArtistFollowChanged(artistName, isFollowing = false)
+        }
+    }
+
+    fun isArtistFollowed(artistName: String): Boolean {
+        if (artistName.isBlank()) return false
+        return _followedArtists.value.any {
+            it.name.equals(artistName, ignoreCase = true) || it.id.equals(artistName, ignoreCase = true)
+        }
+    }
+
+    fun toggleFollowArtist(artist: Artist): Boolean {
+        return if (isArtistFollowed(artist.name)) {
+            unfollowArtist(artist.name)
+            false
+        } else {
+            followArtist(artist)
+            true
+        }
     }
 
     private fun updateLikedPlaylistCount(count: Int) {
@@ -262,6 +320,81 @@ class MusicRepository(private val context: Context) {
                 updateLikedPlaylistCount(list.size)
             }
         } catch (_: Exception) {}
+    }
+
+    private fun saveCachedFollowedArtists() {
+        try {
+            val arr = JSONArray()
+            _followedArtists.value.forEach { a ->
+                val o = JSONObject().apply {
+                    put("id", a.id)
+                    put("name", a.name)
+                    put("thumbnailUrl", a.thumbnailUrl ?: "")
+                    put("subscribers", a.subscribers ?: "")
+                    put("description", a.description ?: "")
+                    put("isFavorite", a.isFavorite)
+                    put("followedAtMs", a.followedAtMs)
+                }
+                arr.put(o)
+            }
+            cachePrefs.edit().putString("cached_followed_artists", arr.toString()).apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun loadCachedFollowedArtists() {
+        try {
+            val json = cachePrefs.getString("cached_followed_artists", null)
+            if (!json.isNullOrBlank()) {
+                val arr = JSONArray(json)
+                val list = mutableListOf<Artist>()
+                for (i in 0 until arr.length()) {
+                    val o = arr.getJSONObject(i)
+                    val name = o.optString("name")
+                    if (name.isNotBlank()) {
+                        list.add(
+                            Artist(
+                                id = o.optString("id").ifBlank { name },
+                                name = name,
+                                thumbnailUrl = o.optString("thumbnailUrl").takeIf { it.isNotBlank() }
+                                    ?: com.masterwave.player.data.recommendation.ArtistPhotoProvider.getPhotoUrlOrNull(name),
+                                subscribers = o.optString("subscribers").takeIf { it.isNotBlank() },
+                                description = o.optString("description").takeIf { it.isNotBlank() },
+                                isFavorite = o.optBoolean("isFavorite", true),
+                                followedAtMs = o.optLong("followedAtMs", System.currentTimeMillis())
+                            )
+                        )
+                    }
+                }
+                if (list.isNotEmpty()) {
+                    _followedArtists.value = list
+                    return
+                }
+            }
+        } catch (_: Exception) {}
+
+        // Baseline initial seed for cold start (Fully editable and removable by the user!)
+        val initialSeeds = listOf(
+            "Arijit Singh",
+            "Anirudh Ravichander",
+            "Sai Abhyankkar",
+            "Diljit Dosanjh",
+            "A.R. Rahman",
+            "The Weeknd",
+            "Sid Sriram",
+            "Shreya Ghoshal",
+            "Dua Lipa",
+            "Badshah"
+        ).map { name ->
+            Artist(
+                id = name,
+                name = name,
+                thumbnailUrl = com.masterwave.player.data.recommendation.ArtistPhotoProvider.getPhotoUrlOrNull(name),
+                isFavorite = true,
+                followedAtMs = System.currentTimeMillis()
+            )
+        }
+        _followedArtists.value = initialSeeds
+        saveCachedFollowedArtists()
     }
 
     private fun saveCachedPlaylists() {

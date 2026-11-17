@@ -2,7 +2,6 @@ package com.masterwave.player.ui.theme
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,9 +19,54 @@ enum class ThemeMode {
     SYSTEM
 }
 
+enum class ThemeAccentPreset(
+    val title: String,
+    val subtitle: String,
+    val primaryColor: Color,
+    val secondaryColor: Color
+) {
+    AUTOMATIC(
+        title = "Automatic",
+        subtitle = "Adapts live to currently playing album artwork",
+        primaryColor = Color(0xFF00D4B2),
+        secondaryColor = Color(0xFF00B4D8)
+    ),
+    OCEAN(
+        title = "Ocean",
+        subtitle = "Pacific deep blue & marine teal",
+        primaryColor = Color(0xFF0EA5E9),
+        secondaryColor = Color(0xFF14B8A6)
+    ),
+    BERRY(
+        title = "Berry",
+        subtitle = "Muted velvet rose & deep burgundy",
+        primaryColor = Color(0xFFE11D48),
+        secondaryColor = Color(0xFFBE123C)
+    ),
+    FOREST(
+        title = "Forest",
+        subtitle = "Natural emerald & calm woodland pine",
+        primaryColor = Color(0xFF10B981),
+        secondaryColor = Color(0xFF059669)
+    ),
+    SUNSET(
+        title = "Sunset",
+        subtitle = "Warm amber glow & dusk coral",
+        primaryColor = Color(0xFFF59E0B),
+        secondaryColor = Color(0xFFF97316)
+    ),
+    MONOCHROME(
+        title = "Monochrome",
+        subtitle = "Pure minimalist white, silver & slate",
+        primaryColor = Color(0xFFFFFFFF),
+        secondaryColor = Color(0xFF94A3B8)
+    )
+}
+
 object ThemeState {
     private const val PREFS_NAME = "masterwave_theme_prefs_v2"
     private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_ACCENT_PRESET = "theme_accent_preset"
     private const val KEY_ACCENT_COLOR = "accent_color"
     private const val KEY_DYNAMIC_COLOR = "dynamic_color_enabled"
     private const val KEY_LIQUID_GLASS = "liquid_glass_enabled"
@@ -32,15 +76,13 @@ object ThemeState {
         MasterWaveApp.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // Default accent: MasterWave Turquoise (#00D4B2)
     val Presets = listOf(
         Color(0xFF00D4B2) to "MasterWave Turquoise",
-        Color(0xFF00B4D8) to "Electric Cyan",
-        Color(0xFF10B981) to "Emerald Pulse",
-        Color(0xFF6366F1) to "Deep Indigo",
-        Color(0xFF8B5CF6) to "Electric Violet",
-        Color(0xFFF43F5E) to "Crimson Flame",
-        Color(0xFFF59E0B) to "Amber Gold"
+        Color(0xFF0EA5E9) to "Ocean Blue",
+        Color(0xFFE11D48) to "Velvet Berry",
+        Color(0xFF10B981) to "Emerald Forest",
+        Color(0xFFF59E0B) to "Sunset Amber",
+        Color(0xFFFFFFFF) to "Monochrome White"
     )
 
     private val _themeMode = MutableStateFlow(
@@ -49,7 +91,7 @@ object ThemeState {
             when (saved) {
                 "AMOLED", "AMOLED_DARK" -> ThemeMode.AMOLED
                 "DARK" -> ThemeMode.DARK
-                "LIGHT" -> ThemeMode.AMOLED // Auto-upgrade legacy light mode to AMOLED Dark for MasterWave 2.0
+                "LIGHT" -> ThemeMode.AMOLED
                 "SYSTEM" -> ThemeMode.AMOLED
                 else -> ThemeMode.AMOLED
             }
@@ -59,18 +101,26 @@ object ThemeState {
     )
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
-    private val _accentColor = MutableStateFlow(
-        Color(prefs.getInt(KEY_ACCENT_COLOR, Color(0xFF00D4B2).toArgb()))
+    private val _accentPreset = MutableStateFlow(
+        try {
+            val saved = prefs.getString(KEY_ACCENT_PRESET, ThemeAccentPreset.AUTOMATIC.name)
+            ThemeAccentPreset.valueOf(saved ?: ThemeAccentPreset.AUTOMATIC.name)
+        } catch (_: Exception) {
+            ThemeAccentPreset.AUTOMATIC
+        }
     )
-    val accentColor: StateFlow<Color> = _accentColor.asStateFlow()
+    val accentPreset: StateFlow<ThemeAccentPreset> = _accentPreset.asStateFlow()
 
-    // Isolated artwork color for Now Playing ambient backdrop (does NOT mutate global app headers)
+    // Isolated artwork color extracted from current album cover
     private val _artworkColor = MutableStateFlow<Color?>(null)
     val artworkColor: StateFlow<Color?> = _artworkColor.asStateFlow()
 
-    fun setArtworkColor(color: Color?) {
-        _artworkColor.value = color
-    }
+    // Effective reactive accent color (combines preset and dynamic artwork)
+    private val _effectiveAccentColor = MutableStateFlow(computeEffectiveAccent())
+    val effectiveAccentColor: StateFlow<Color> = _effectiveAccentColor.asStateFlow()
+
+    // Backwards-compatible alias for existing composables
+    val accentColor: StateFlow<Color> = _effectiveAccentColor.asStateFlow()
 
     private val _dynamicColorEnabled = MutableStateFlow(
         prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
@@ -87,6 +137,26 @@ object ThemeState {
     )
     val wavySeekbarEnabled: StateFlow<Boolean> = _wavySeekbarEnabled.asStateFlow()
 
+    private fun computeEffectiveAccent(): Color {
+        val preset = _accentPreset.value
+        return if (preset == ThemeAccentPreset.AUTOMATIC) {
+            _artworkColor.value ?: preset.primaryColor
+        } else {
+            preset.primaryColor
+        }
+    }
+
+    fun setArtworkColor(color: Color?) {
+        _artworkColor.value = color
+        _effectiveAccentColor.value = computeEffectiveAccent()
+    }
+
+    fun setAccentPreset(preset: ThemeAccentPreset) {
+        _accentPreset.value = preset
+        _effectiveAccentColor.value = computeEffectiveAccent()
+        prefs.edit().putString(KEY_ACCENT_PRESET, preset.name).apply()
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
@@ -102,14 +172,15 @@ object ThemeState {
         prefs.edit().putBoolean(KEY_WAVY_SEEKBAR, enabled).apply()
     }
 
-    fun setAccentColor(color: Color) {
-        _accentColor.value = color
-        prefs.edit().putInt(KEY_ACCENT_COLOR, color.toArgb()).apply()
-    }
-
     fun setDynamicColorEnabled(enabled: Boolean) {
         _dynamicColorEnabled.value = enabled
         prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
+    }
+
+    fun setAccentColor(color: Color) {
+        // Find nearest preset or fallback
+        _effectiveAccentColor.value = color
+        prefs.edit().putInt(KEY_ACCENT_COLOR, color.toArgb()).apply()
     }
 
     fun isAmoledDark(): Boolean {

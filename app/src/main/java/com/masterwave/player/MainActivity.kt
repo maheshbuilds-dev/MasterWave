@@ -198,8 +198,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         }
     }
 
-    // Navigation States
-    var currentTab by remember { mutableStateOf(MainTab.FEED) }
+    // Navigation States (Apple Music Liquid Glass Dock: Home, Search, Library)
+    var currentTab by remember { mutableStateOf(MainTab.HOME) }
     var isNowPlayingExpanded by remember { mutableStateOf(false) }
     var isLyricsOpen by remember { mutableStateOf(false) }
     var isQueueOpen by remember { mutableStateOf(false) }
@@ -230,7 +230,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 isDiagnosticsOpen || isAiHubOpen || isDownloadsOpen ||
                 isLikedSongsOpen || isGeneratorOpen || selectedArtistForDetail != null ||
                 selectedAlbumForDetail != null ||
-                selectedPlaylistForDetail != null
+                selectedPlaylistForDetail != null ||
+                currentTab != MainTab.HOME
     ) {
         when {
             selectedAlbumForDetail != null -> selectedAlbumForDetail = null
@@ -253,6 +254,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             isSpotifySyncOpen -> isSpotifySyncOpen = false
             isSettingsOpen -> isSettingsOpen = false
             isSearchOpen -> isSearchOpen = false
+            currentTab != MainTab.HOME -> currentTab = MainTab.HOME
         }
     }
 
@@ -278,10 +280,10 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 label = "tab_transition"
             ) { tab ->
                 when (tab) {
-                    MainTab.FEED -> HomeScreen(
+                    MainTab.HOME -> HomeScreen(
                         player = player,
                         repository = repository,
-                        onNavigateToSearch = { isSearchOpen = true },
+                        onNavigateToSearch = { currentTab = MainTab.SEARCH },
                         onNavigateToSettings = { isSettingsOpen = true },
                         onNavigateToDownloads = { isDownloadsOpen = true },
                         onNavigateToArtist = { selectedArtistForDetail = it },
@@ -289,13 +291,15 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                         onNavigateToGenerator = { isGeneratorOpen = true },
                         onPlaylistSelected = { playlist -> selectedPlaylistForDetail = playlist }
                     )
-                    MainTab.STATS -> StatsScreen(
+                    MainTab.SEARCH -> SearchScreen(
                         player = player,
                         repository = repository,
-                        onNavigateToSearch = { isSearchOpen = true },
-                        onNavigateToSettings = { isSettingsOpen = true }
+                        onBack = { currentTab = MainTab.HOME },
+                        onArtistSelected = { selectedArtistForDetail = it },
+                        onAlbumSelected = { selectedAlbumForDetail = it },
+                        onExpandNowPlaying = { isNowPlayingExpanded = true }
                     )
-                    MainTab.PLAYLISTS -> PlaylistsScreen(
+                    MainTab.LIBRARY -> PlaylistsScreen(
                         player = player,
                         repository = repository,
                         onPlaylistSelected = { playlist ->

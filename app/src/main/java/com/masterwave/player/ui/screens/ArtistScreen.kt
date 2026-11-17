@@ -63,10 +63,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.masterwave.player.data.model.Artist
 import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.recommendation.ArtistPhotoProvider
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.ArtistAvatar
 import com.masterwave.player.ui.theme.ThemeState
 import kotlinx.coroutines.launch
 
@@ -90,7 +92,11 @@ fun ArtistScreen(
     var popularTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var latestReleases by remember { mutableStateOf<List<Track>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var isFollowing by remember { mutableStateOf(false) }
+    
+    val followedArtists by repository.followedArtists.collectAsState()
+    val isFollowing = remember(followedArtists, artistName) {
+        repository.isArtistFollowed(artistName)
+    }
 
     val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
     val cardBg = if (isAmoled) Color(0xFF12121A) else Color(0xFFEFECEF).copy(alpha = 0.6f)
@@ -339,10 +345,16 @@ fun ArtistScreen(
                             modifier = Modifier
                                 .height(46.dp)
                                 .clickable {
-                                    isFollowing = !isFollowing
+                                    val newStatus = repository.toggleFollowArtist(
+                                        Artist(
+                                            id = artistName,
+                                            name = artistName,
+                                            thumbnailUrl = heroArtwork
+                                        )
+                                    )
                                     Toast.makeText(
                                         context,
-                                        if (isFollowing) "Followed $artistName" else "Unfollowed $artistName",
+                                        if (newStatus) "Followed $artistName" else "Unfollowed $artistName",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -544,20 +556,13 @@ fun ArtistScreen(
                                     .width(96.dp)
                                     .clickable { onSelectArtist(similarName) }
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                        .clip(CircleShape)
-                                        .border(1.5.dp, cardBg, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    AsyncImage(
-                                        model = ArtistPhotoProvider.getPhotoUrl(similarName),
-                                        contentDescription = similarName,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
+                                ArtistAvatar(
+                                    name = similarName,
+                                    photoUrl = ArtistPhotoProvider.getPhotoUrlOrNull(similarName),
+                                    size = 80.dp,
+                                    borderColor = cardBg,
+                                    borderWidth = 1.5.dp
+                                )
 
                                 Spacer(modifier = Modifier.height(6.dp))
 
