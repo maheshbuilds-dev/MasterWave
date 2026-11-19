@@ -11,6 +11,12 @@ import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.provider.LocalMusicProvider
 import com.masterwave.player.data.provider.PlaylistImporter
 import com.masterwave.player.data.provider.YouTubeMusicProvider
+import com.masterwave.player.data.provider.AudiusSourceAdapter
+import com.masterwave.player.data.provider.InternetArchiveSourceAdapter
+import com.masterwave.player.data.provider.JamendoSourceAdapter
+import com.masterwave.player.data.provider.LocalMusicSourceAdapter
+import com.masterwave.player.data.provider.YouTubeMusicSourceAdapter
+import com.masterwave.player.data.provider.LastFmDiscoveryAdapter
 import com.masterwave.player.data.recommendation.engine.RecommendationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +35,21 @@ class MusicRepository(private val context: Context) {
     private val localProvider = LocalMusicProvider(context)
     private val lyricsProvider = LrclibLyricsProvider(MasterWaveApp.instance.okHttpClient)
     private val playlistImporter = PlaylistImporter(MasterWaveApp.instance.okHttpClient)
+
+    val localAdapter = LocalMusicSourceAdapter(localProvider)
+    val audiusAdapter = AudiusSourceAdapter(okHttpClient)
+    val internetArchiveAdapter = InternetArchiveSourceAdapter(okHttpClient)
+    val jamendoAdapter = JamendoSourceAdapter(okHttpClient)
+    val youtubeAdapter = YouTubeMusicSourceAdapter(ytProvider)
+    val lastFmAdapter = LastFmDiscoveryAdapter(okHttpClient)
+
+    val catalogRepository = MusicCatalogRepository(
+        localAdapter = localAdapter,
+        audiusAdapter = audiusAdapter,
+        internetArchiveAdapter = internetArchiveAdapter,
+        jamendoAdapter = jamendoAdapter,
+        youtubeAdapter = youtubeAdapter
+    )
     val recommendationManager: RecommendationManager by lazy {
         RecommendationManager.getInstance(context, ytProvider, this)
     }
@@ -474,7 +495,15 @@ class MusicRepository(private val context: Context) {
     }
 
     suspend fun search(query: String): SearchResult {
-        return ytProvider.search(query)
+        val catalogTracks = catalogRepository.searchAll(query)
+        val ytResult = try { ytProvider.search(query) } catch (_: Exception) { SearchResult(query = query) }
+        val combinedSongs = catalogRepository.deduplicateTracks(catalogTracks + ytResult.songs)
+        return SearchResult(
+            query = query,
+            songs = combinedSongs,
+            artists = ytResult.artists,
+            albums = ytResult.albums
+        )
     }
 
     suspend fun getSearchSuggestions(query: String): List<String> {
@@ -482,12 +511,22 @@ class MusicRepository(private val context: Context) {
     }
 
     suspend fun getTrending(): List<Track> {
-        return ytProvider.getTrending()
+        val catalogTrending = catalogRepository.getTrendingAll()
+        return if (catalogTrending.isNotEmpty()) {
+            catalogTrending
+        } else {
+            ytProvider.getTrending()
+        }
     }
 
     suspend fun getTrendingTracks(): List<Track> = getTrending()
 
+    suspend fun getIndianMusic(category: String, limit: Int = 25): List<Track> {
+        return catalogRepository.getIndianMusic(category, limit)
+    }
+
     suspend fun resolveStreamUrl(track: Track): String {
+        // 1. Direct local file
         if (track.isLocal && !track.localUri.isNullOrBlank()) {
             return track.localUri
         }
@@ -496,22 +535,25 @@ class MusicRepository(private val context: Context) {
             if (!candidate.isNullOrBlank()) {
                 val cleanPath = candidate.removePrefix("file://")
                 val f = java.io.File(cleanPath)
-                if (f.exists()) {
-                    return f.absolutePath
-                }
+                if (f.exists()) return f.absolutePath
             }
         }
-        // If track streamUrl is directly usable
+        // 2. Direct playable HTTP stream URL
         if (!track.streamUrl.isNullOrBlank()) {
             if (track.streamUrl.startsWith("http://") || track.streamUrl.startsWith("https://")) {
                 return track.streamUrl
             }
             val f = java.io.File(track.streamUrl.removePrefix("file://"))
-            if (f.exists()) {
-                return f.absolutePath
-            }
+            if (f.exists()) return f.absolutePath
         }
-        // If track originated from Spotify import, search YouTube Music by "Title Artist"
+
+        // 3. Multi-source catalog resolver
+        val resolved = catalogRepository.resolveStreamUrl(track)
+        if (!resolved.isNullOrBlank()) {
+            return resolved
+        }
+
+        // 4. Fallback for Spotify imported tracks
         if (track.id.startsWith("sp_")) {
             val searchRes = ytProvider.search("${track.title} ${track.artist}")
             val bestMatch = searchRes.songs.firstOrNull()
@@ -519,7 +561,10 @@ class MusicRepository(private val context: Context) {
                 return ytProvider.resolveStreamUrl(bestMatch.id)
             }
         }
-        return ytProvider.resolveStreamUrl(track.id)
+
+        // 5. Raw provider fallback
+        val rawId = track.id.removePrefix("yt_").removePrefix("audius_").removePrefix("ia_")
+        return ytProvider.resolveStreamUrl(rawId)
     }
 
     suspend fun getLyrics(track: Track): LyricsResult? {

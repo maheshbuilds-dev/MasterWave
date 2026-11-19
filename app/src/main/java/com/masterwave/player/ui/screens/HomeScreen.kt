@@ -421,7 +421,18 @@ fun HomeScreen(
     }
 
     var selectedCategory by remember { mutableStateOf("All") }
-    val categories = listOf("All", "Podcasts", "Sleep", "Relax", "Feel good", "Romance", "Energize", "Workout", "Focus", "Party")
+    val categories = listOf(
+        "All", "Hindi", "Tamil", "Telugu", "Punjabi", "Malayalam", "Kannada", "Bengali", "Marathi",
+        "Hindustani", "Carnatic", "Classical", "Devotional", "Indie",
+        "Relax", "Workout", "Focus", "Party"
+    )
+
+    val indianCategories = remember {
+        setOf(
+            "Hindi", "Tamil", "Telugu", "Punjabi", "Malayalam", "Kannada", "Bengali", "Marathi",
+            "Hindustani", "Carnatic", "Classical", "Devotional", "Indie"
+        )
+    }
 
     var categoryFilterTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var isLoadingCategoryFilter by remember { mutableStateOf(false) }
@@ -429,20 +440,24 @@ fun HomeScreen(
     LaunchedEffect(selectedCategory) {
         if (selectedCategory != "All") {
             isLoadingCategoryFilter = true
-            val query = when (selectedCategory) {
-                "Podcasts" -> "podcast episodes music discussion"
-                "Sleep" -> "deep sleep ambient calming delta wave music"
-                "Relax" -> "relaxing calm ambient music"
-                "Feel good" -> "feel good happy upbeat pop songs"
-                "Romance" -> "romantic hindi english love songs"
-                "Energize" -> "high energy workout edm party tracks"
-                "Workout" -> "gym workout motivation bass tracks"
-                "Focus" -> "lo-fi study focus instrumental beats"
-                "Party" -> "party dance anthems club hits"
-                else -> "$selectedCategory hits"
-            }
             try {
-                val results = repository.search(query).songs
+                val results = if (selectedCategory in indianCategories) {
+                    repository.getIndianMusic(selectedCategory, limit = 25)
+                } else {
+                    val query = when (selectedCategory) {
+                        "Podcasts" -> "podcast episodes music discussion"
+                        "Sleep" -> "deep sleep ambient calming delta wave music"
+                        "Relax" -> "relaxing calm ambient music"
+                        "Feel good" -> "feel good happy upbeat pop songs"
+                        "Romance" -> "romantic hindi english love songs"
+                        "Energize" -> "high energy workout edm party tracks"
+                        "Workout" -> "gym workout motivation bass tracks"
+                        "Focus" -> "lo-fi study focus instrumental beats"
+                        "Party" -> "party dance anthems club hits"
+                        else -> "$selectedCategory hits"
+                    }
+                    repository.search(query).songs
+                }
                 categoryFilterTracks = results
             } catch (_: Exception) {
                 categoryFilterTracks = emptyList()

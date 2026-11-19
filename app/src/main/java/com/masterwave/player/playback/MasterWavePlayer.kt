@@ -98,6 +98,11 @@ class MasterWavePlayer(
     private val _playbackPitch = MutableStateFlow(1.0f)
     val playbackPitch: StateFlow<Float> = _playbackPitch.asStateFlow()
 
+    private val _playbackError = MutableStateFlow<String?>(null)
+    val playbackError: StateFlow<String?> = _playbackError.asStateFlow()
+
+    private var trackRetryCount = 0
+
     private val _isSpeedPitchLinked = MutableStateFlow(true)
     val isSpeedPitchLinked: StateFlow<Boolean> = _isSpeedPitchLinked.asStateFlow()
 
@@ -148,6 +153,50 @@ class MasterWavePlayer(
             _isLoading.value = false
             _isPlaying.value = false
             error.printStackTrace()
+
+            val curTrack = _currentTrack.value
+            if (curTrack != null && trackRetryCount < 2) {
+                trackRetryCount++
+                scope.launch {
+                    delay(800L * trackRetryCount) // Exponential backoff with delay
+                    try {
+                        val refreshedUrl = repository.resolveStreamUrl(curTrack)
+                        if (!refreshedUrl.isNullOrBlank()) {
+                            val artworkUri = curTrack.artworkUrl?.let { url ->
+                                if (url.isNotBlank()) resolveMediaUri(url) else null
+                            }
+                            val mediaMetadata = MediaMetadata.Builder()
+                                .setTitle(curTrack.title)
+                                .setArtist(curTrack.artist)
+                                .setAlbumTitle(curTrack.album)
+                                .setArtworkUri(artworkUri)
+                                .build()
+                            val mediaItem = MediaItem.Builder()
+                                .setMediaId(curTrack.id)
+                                .setUri(resolveMediaUri(refreshedUrl))
+                                .setMediaMetadata(mediaMetadata)
+                                .build()
+                            exoPlayer.setMediaItem(mediaItem)
+                            exoPlayer.prepare()
+                            exoPlayer.play()
+                            return@launch
+                        }
+                    } catch (_: Exception) {}
+                    // If retry fails:
+                    _playbackError.value = "Playback error: ${curTrack.title}. Skipping..."
+                    delay(1200L)
+                    _playbackError.value = null
+                    playNext()
+                }
+            } else if (curTrack != null) {
+                trackRetryCount = 0
+                _playbackError.value = "Track unavailable: ${curTrack.title}"
+                scope.launch {
+                    delay(1200L)
+                    _playbackError.value = null
+                    playNext()
+                }
+            }
         }
     }
 
@@ -189,6 +238,7 @@ class MasterWavePlayer(
     }
 
     fun playTrack(track: Track, newQueue: List<Track> = listOf(track)) {
+        trackRetryCount = 0
         scope.launch {
             _isLoading.value = true
             _currentTrack.value = track

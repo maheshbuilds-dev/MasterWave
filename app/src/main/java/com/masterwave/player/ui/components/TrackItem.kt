@@ -171,17 +171,37 @@ fun TrackItem(
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 ),
-                color = if (isPlaying) accentColor else textPrimary,
+                color = if (isPlaying) accentColor else if (!track.isPlayable) textSecondary.copy(alpha = 0.6f) else textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = track.artist + if (track.album.isNotBlank()) " • ${track.album}" else "",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (track.providerId != "youtube" && track.providerId.isNotBlank()) {
+                    Text(
+                        text = when (track.providerId) {
+                            "audius" -> "AUDIUS"
+                            "internet_archive" -> "ARCHIVE"
+                            "jamendo" -> "JAMENDO"
+                            "local" -> "LOCAL"
+                            else -> track.providerId.uppercase()
+                        },
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = accentColor,
+                        modifier = Modifier.padding(end = 5.dp)
+                    )
+                }
+                Text(
+                    text = track.artist + if (track.album.isNotBlank()) " • ${track.album}" else "",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                    color = textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         // Optional Favorite Button
