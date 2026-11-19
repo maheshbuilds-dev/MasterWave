@@ -328,6 +328,34 @@ class MasterWavePlayer(
         }
     }
 
+    fun addToQueue(track: Track) {
+        _queue.value = QueueOperations.add(_queue.value, track)
+        if (_currentIndex.value < 0 && _queue.value.isNotEmpty()) {
+            _currentIndex.value = 0
+        }
+    }
+
+    fun removeFromQueue(trackId: String) {
+        val (updatedQueue, updatedIndex) = QueueOperations.remove(
+            _queue.value,
+            _currentIndex.value,
+            trackId
+        )
+        _queue.value = updatedQueue
+        _currentIndex.value = updatedIndex
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val (updatedQueue, updatedIndex) = QueueOperations.move(
+            _queue.value,
+            _currentIndex.value,
+            fromIndex,
+            toIndex
+        )
+        _queue.value = updatedQueue
+        _currentIndex.value = updatedIndex
+    }
+
     // --- Audio & Playback Adjustments ---
     fun setVolume(vol: Float) {
         val clamped = vol.coerceIn(0f, 1f)

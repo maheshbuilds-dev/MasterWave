@@ -25,13 +25,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -343,6 +346,7 @@ fun QueueScreen(
                     }
 
                     itemsIndexed(upNextTracks) { offsetIdx, track ->
+                        val absoluteIndex = queue.indexOfFirst { it.id == track.id }
                         QueueTrackRow(
                             track = track,
                             cardBg = cardBg,
@@ -351,7 +355,17 @@ fun QueueScreen(
                             textSecondary = textSecondary,
                             onPlay = {
                                 player.playTrack(track, queue)
-                            }
+                            },
+                            onRemove = {
+                                player.removeFromQueue(track.id)
+                                Toast.makeText(context, "Removed from queue", Toast.LENGTH_SHORT).show()
+                            },
+                            onMoveUp = if (absoluteIndex > currentIndex + 1) {
+                                { player.moveQueueItem(absoluteIndex, absoluteIndex - 1) }
+                            } else null,
+                            onMoveDown = if (absoluteIndex < queue.lastIndex) {
+                                { player.moveQueueItem(absoluteIndex, absoluteIndex + 1) }
+                            } else null
                         )
                     }
                 }
@@ -393,8 +407,7 @@ fun QueueScreen(
                             textPrimary = textPrimary,
                             textSecondary = textSecondary,
                             onAdd = {
-                                val currentQ = player.queue.value.toMutableList()
-                                currentQ.add(track)
+                                player.addToQueue(track)
                                 repository?.recommendationManager?.eventTracker?.onManualQueueAdd(track)
                                 recommendedTracks = recommendedTracks.filterNot { it.id == track.id }
                                 Toast.makeText(context, "Added to queue: ${track.title}", Toast.LENGTH_SHORT).show()
@@ -422,7 +435,10 @@ private fun QueueTrackRow(
     cardBorder: Color,
     textPrimary: Color,
     textSecondary: Color,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
+    onRemove: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -494,13 +510,34 @@ private fun QueueTrackRow(
                 modifier = Modifier.padding(horizontal = 6.dp)
             )
 
-            // Drag handle indicator
-            Icon(
-                imageVector = Icons.Default.DragHandle,
-                contentDescription = "Reorder",
-                tint = textSecondary.copy(alpha = 0.6f),
-                modifier = Modifier.size(20.dp)
-            )
+            if (onMoveUp != null) {
+                IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = "Move up",
+                        tint = textSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            if (onMoveDown != null) {
+                IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = "Move down",
+                        tint = textSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove from queue",
+                    tint = textSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

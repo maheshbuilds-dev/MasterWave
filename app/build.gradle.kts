@@ -101,4 +101,6 @@ dependencies {
 
     // Visuals & Translucent Glass
     implementation(libs.fletchmckee.liquid)
+
+    testImplementation("junit:junit:4.13.2")
 }
