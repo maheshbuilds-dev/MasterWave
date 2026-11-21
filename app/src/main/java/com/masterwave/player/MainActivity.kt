@@ -1,14 +1,18 @@
 package com.masterwave.player
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.ComponentActivity
+import androidx.core.content.ContextCompat
+import com.masterwave.player.data.update.AppUpdateInstallActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -104,6 +108,14 @@ class MainActivity : ComponentActivity() {
     private var playbackService: MasterWavePlaybackService? = null
     private val isServiceBoundState = mutableStateOf(false)
 
+    private val closeForUpdateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AppUpdateInstallActivity.ACTION_CLOSE_FOR_UPDATE) {
+                finishAffinity()
+            }
+        }
+    }
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? MasterWavePlaybackService.LocalBinder
@@ -120,6 +132,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        try {
+            ContextCompat.registerReceiver(
+                this,
+                closeForUpdateReceiver,
+                IntentFilter(AppUpdateInstallActivity.ACTION_CLOSE_FOR_UPDATE),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        } catch (_: Exception) {}
 
         // Enable Hardware Window-Level Blur on Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -156,6 +177,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            unregisterReceiver(closeForUpdateReceiver)
+        } catch (_: Exception) {}
         if (isServiceBoundState.value) {
             unbindService(serviceConnection)
         }

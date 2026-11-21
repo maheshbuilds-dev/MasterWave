@@ -5,13 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
+import com.masterwave.player.BuildConfig
 import java.io.File
 
 /**
  * Triggered automatically by Android OS when MasterWave finishes updating:
  * 1. Cleans up and deletes any downloaded update APKs from internal cache/storage.
  * 2. Cancels lingering update notifications.
- * 3. Automatically relaunches MasterWave to the latest version smoothly.
+ * 3. Records updated version code so no update notification is shown until next update.
+ * 4. Automatically relaunches MasterWave to the latest version smoothly.
  */
 class AppPackageReplacedReceiver : BroadcastReceiver() {
 
@@ -31,12 +33,26 @@ class AppPackageReplacedReceiver : BroadcastReceiver() {
 
             // 2. Clear any active update notification
             try {
-                NotificationManagerCompat.from(context).cancel(20_001)
+                val nm = NotificationManagerCompat.from(context)
+                nm.cancel(20_001)
+                nm.cancelAll()
             } catch (e: Exception) {
                 Log.w(TAG, "Could not dismiss update notification", e)
             }
 
-            // 3. Automatically relaunch the app into the new version
+            // 3. Suppress update notifications until a newer remote update exists
+            try {
+                val prefs = context.getSharedPreferences("masterwave_updates", Context.MODE_PRIVATE)
+                val currentCode = BuildConfig.VERSION_CODE
+                prefs.edit()
+                    .putInt("last_notified_version", currentCode)
+                    .putInt("dismissed_version_code", currentCode)
+                    .apply()
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not record post-update version preferences", e)
+            }
+
+            // 4. Automatically relaunch the app into the new version
             try {
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)

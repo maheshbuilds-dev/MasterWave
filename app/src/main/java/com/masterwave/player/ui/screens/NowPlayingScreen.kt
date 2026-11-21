@@ -618,7 +618,7 @@ fun NowPlayingScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(28.dp)
+                        .height(44.dp) // Apple HIG 44dp touch target for effortless scrubbing
                         .pointerInput(durationMs) {
                             detectTapGestures { offset ->
                                 if (durationMs > 0 && size.width > 0) {
@@ -707,7 +707,7 @@ fun NowPlayingScreen(
                     }
                 }
 
-                // Timestamps: 0:42 and -2:45
+                // Timestamps: 0:42 and -2:45 (WCAG AA 4.5:1 Contrast & Tabular figures)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -720,7 +720,7 @@ fun NowPlayingScreen(
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Medium,
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.60f)
+                        color = Color.White.copy(alpha = 0.82f)
                     )
 
                     val remainingMs = (durationMs - activePosition).coerceAtLeast(0L)
@@ -729,7 +729,7 @@ fun NowPlayingScreen(
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Medium,
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.60f)
+                        color = Color.White.copy(alpha = 0.82f)
                     )
                 }
             }
@@ -956,26 +956,26 @@ fun NowPlayingScreen(
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color.White.copy(alpha = 0.12f))
                     .border(
-                        width = 1.dp,
+                        width = 1.2.dp,
                         brush = Brush.verticalGradient(
                             listOf(
-                                Color.White.copy(alpha = 0.28f),
-                                Color.White.copy(alpha = 0.06f)
+                                Color.White.copy(alpha = 0.40f),
+                                Color.White.copy(alpha = 0.08f)
                             )
                         ),
                         shape = RoundedCornerShape(24.dp)
                     )
-                    .padding(horizontal = 22.dp, vertical = 6.dp)
+                    .padding(horizontal = 18.dp, vertical = 4.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Lyrics Button
+                    // Lyrics Button (Apple HIG 44dp Touch Target)
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .bouncyClickable(scaleDown = 0.92f) { onOpenLyrics() },
                         contentAlignment = Alignment.Center
@@ -983,15 +983,15 @@ fun NowPlayingScreen(
                         Icon(
                             imageVector = Icons.Filled.ChatBubbleOutline,
                             contentDescription = "Lyrics",
-                            tint = Color.White.copy(alpha = 0.85f),
+                            tint = Color.White.copy(alpha = 0.90f),
                             modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    // Audio & EQ effects button
+                    // Audio & EQ effects button (Apple HIG 44dp Touch Target)
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .bouncyClickable(scaleDown = 0.92f) { showAudioPlaybackModal = true },
                         contentAlignment = Alignment.Center
@@ -1004,10 +1004,10 @@ fun NowPlayingScreen(
                         )
                     }
 
-                    // Queue Button
+                    // Queue Button (Apple HIG 44dp Touch Target)
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .bouncyClickable(scaleDown = 0.92f) { onOpenQueue() },
                         contentAlignment = Alignment.Center
@@ -1015,7 +1015,7 @@ fun NowPlayingScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                             contentDescription = "Queue",
-                            tint = Color.White.copy(alpha = 0.85f),
+                            tint = Color.White.copy(alpha = 0.90f),
                             modifier = Modifier.size(22.dp)
                         )
                     }

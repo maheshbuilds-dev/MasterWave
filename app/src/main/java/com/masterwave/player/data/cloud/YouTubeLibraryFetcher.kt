@@ -282,7 +282,7 @@ class YouTubeLibraryFetcher(
             }
         }
 
-        // Strategy 5: Standard YouTube browse "VLSE" / "LL"
+        // Strategy 5: Standard YouTube browse "VLLL" (YouTube Liked Videos Playlist)
         if (tracks.isEmpty()) {
             try {
                 val payload = JSONObject().apply {
@@ -294,7 +294,7 @@ class YouTubeLibraryFetcher(
                             put("gl", "US")
                         })
                     })
-                    put("browseId", "VLSE")
+                    put("browseId", "VLLL")
                 }
                 val request = buildInnerTubeRequest(
                     url = "https://www.youtube.com/youtubei/v1/browse?key=${getEffectiveApiKey()}&prettyPrint=false",
@@ -308,11 +308,38 @@ class YouTubeLibraryFetcher(
                     if (parsed.isNotEmpty()) {
                         tracks.addAll(parsed)
                         continuationToken = extractContinuationToken(body)
-                        Log.d(TAG, "Fetched ${parsed.size} liked tracks from YouTube browse VLSE")
+                        Log.d(TAG, "Fetched ${parsed.size} liked tracks from YouTube browse VLLL")
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Error browsing YouTube VLSE", e)
+                Log.w(TAG, "Error browsing YouTube VLLL", e)
+            }
+        }
+
+        // Strategy 6: Standard YouTube browse "LL"
+        if (tracks.isEmpty()) {
+            try {
+                val payload = JSONObject().apply {
+                    put("context", buildClientContext())
+                    put("browseId", "LL")
+                }
+                val request = buildInnerTubeRequest(
+                    url = "https://music.youtube.com/youtubei/v1/browse?key=${getEffectiveApiKey()}&prettyPrint=false",
+                    payloadJson = payload,
+                    cookies = cookies
+                )
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: ""
+                    val parsed = parseTracksFromInnerTube(body)
+                    if (parsed.isNotEmpty()) {
+                        tracks.addAll(parsed)
+                        continuationToken = extractContinuationToken(body)
+                        Log.d(TAG, "Fetched ${parsed.size} liked tracks from browse LL")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error browsing LL", e)
             }
         }
 
@@ -344,7 +371,8 @@ class YouTubeLibraryFetcher(
                 createdAt = today
             )
             repository.addCustomPlaylist(ytLikedPlaylist)
-            Log.i(TAG, "Saved ${result.size} genuine YouTube Liked songs to repository")
+            repository.addAllToFavorites(result)
+            Log.i(TAG, "Saved ${result.size} genuine YouTube Liked songs to repository and synced to Favorites")
         }
 
         result
@@ -529,6 +557,7 @@ class YouTubeLibraryFetcher(
             )
             importedPlaylists.add(ytLikedPlaylist)
             repository.addCustomPlaylist(ytLikedPlaylist)
+            repository.addAllToFavorites(likedTracks)
         }
 
         // 2. Import tracks for each real playlist discovered

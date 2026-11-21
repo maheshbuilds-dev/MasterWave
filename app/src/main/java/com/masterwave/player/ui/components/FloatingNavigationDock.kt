@@ -110,17 +110,17 @@ fun FloatingNavigationDock(
         label = "dock_horizontal_padding"
     )
     val islandHeight by animateDpAsState(
-        targetValue = if (minimized) 48.dp else 54.dp,
+        targetValue = if (minimized) 50.dp else 56.dp,
         animationSpec = dockSpring,
         label = "dock_island_height"
     )
     val satelliteSize by animateDpAsState(
-        targetValue = if (minimized) 48.dp else 54.dp,
+        targetValue = if (minimized) 50.dp else 56.dp,
         animationSpec = dockSpring,
         label = "dock_satellite_size"
     )
     val tabItemHeight by animateDpAsState(
-        targetValue = if (minimized) 38.dp else 44.dp,
+        targetValue = if (minimized) 42.dp else 46.dp,
         animationSpec = dockSpring,
         label = "dock_tab_item_height"
     )

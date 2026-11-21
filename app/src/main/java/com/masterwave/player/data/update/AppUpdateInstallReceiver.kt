@@ -9,8 +9,9 @@ import android.util.Log
 
 /**
  * Handles package installer session callbacks for clean, trusted in-app updates.
- * When the package installer requires user confirmation, it launches the official
- * system "Update MasterWave? [Cancel] [Update]" prompt directly.
+ * When the package installer requires user confirmation, it delegates to AppUpdateInstallActivity,
+ * which displays the system prompt and closes MasterWave ONLY when the user clicks the real [Update] button,
+ * allowing the update to proceed silently in the background.
  */
 class AppUpdateInstallReceiver : BroadcastReceiver() {
 
@@ -27,8 +28,7 @@ class AppUpdateInstallReceiver : BroadcastReceiver() {
                     intent.getParcelableExtra(Intent.EXTRA_INTENT)
                 }
                 if (confirmIntent != null) {
-                    confirmIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(confirmIntent)
+                    AppUpdateInstallActivity.launch(context, confirmIntent)
                 }
             }
             PackageInstaller.STATUS_SUCCESS -> {
@@ -44,6 +44,9 @@ class AppUpdateInstallReceiver : BroadcastReceiver() {
                 } catch (e: Exception) {
                     Log.w(TAG, "Could not auto-launch after update", e)
                 }
+            }
+            PackageInstaller.STATUS_FAILURE_ABORTED -> {
+                Log.i(TAG, "Update session aborted by user")
             }
             else -> {
                 val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)

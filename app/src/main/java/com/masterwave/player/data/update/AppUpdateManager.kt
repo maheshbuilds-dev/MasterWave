@@ -89,6 +89,9 @@ class AppUpdateManager(
         _availableUpdate.value?.let {
             prefs.edit().putInt("dismissed_version_code", it.versionCode).apply()
         }
+        try {
+            notificationManager.cancel(UPDATE_NOTIFICATION_ID)
+        } catch (_: Exception) {}
     }
 
     fun checkForUpdate(silent: Boolean = false, onResult: ((UpdateInfo?) -> Unit)? = null) {
@@ -136,10 +139,10 @@ class AppUpdateManager(
                     _availableUpdate.value = update
 
                     val dismissedCode = prefs.getInt("dismissed_version_code", -1)
-                    _isDismissed.value = (dismissedCode == remoteVersionCode && !forceUpdate)
+                    _isDismissed.value = (dismissedCode >= remoteVersionCode && !forceUpdate)
 
                     val lastNotified = prefs.getInt("last_notified_version", -1)
-                    if (!silent && lastNotified < remoteVersionCode) {
+                    if (!silent && !_isDismissed.value && lastNotified < remoteVersionCode) {
                         postUpdateNotification(update)
                         prefs.edit().putInt("last_notified_version", remoteVersionCode).apply()
                     }
@@ -149,10 +152,14 @@ class AppUpdateManager(
                     }
                 } else {
                     _availableUpdate.value = null
-                    _isDismissed.value = false
+                    _isDismissed.value = true
                     try {
                         notificationManager.cancel(UPDATE_NOTIFICATION_ID)
                     } catch (_: Exception) {}
+                    prefs.edit()
+                        .putInt("last_notified_version", currentCode)
+                        .putInt("dismissed_version_code", currentCode)
+                        .apply()
                     cleanOldApks()
                     withContext(Dispatchers.Main) {
                         onResult?.invoke(null)
@@ -284,8 +291,9 @@ class AppUpdateManager(
                     session.commit(pendingIntent.intentSender)
                     session.close()
 
-                    // Immediately close/minimize app so Android system can apply the update cleanly
-                    closeAppForUpdate()
+                    // App remains open while PackageInstaller dialog is shown!
+                    // AppUpdateInstallReceiver delegates to AppUpdateInstallActivity, which closes
+                    // the app ONLY when the user clicks the real system [Update] button.
                     return
                 } catch (e: Exception) {
                     Log.w(TAG, "PackageInstaller session failed; using FileProvider fallback", e)
@@ -298,30 +306,17 @@ class AppUpdateManager(
 
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
                 putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
                 putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
             }
-            context.startActivity(installIntent)
-
-            // Immediately close/minimize app so Android system can apply update cleanly
-            closeAppForUpdate()
+            AppUpdateInstallActivity.launch(context, installIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Could not launch package installer", e)
         } finally {
             _downloadProgress.value = null
             _isInstalling.value = false
         }
-    }
-
-    private fun closeAppForUpdate() {
-        try {
-            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_HOME)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            context.startActivity(homeIntent)
-        } catch (_: Exception) {}
     }
 
     private fun postUpdateNotification(update: UpdateInfo) {

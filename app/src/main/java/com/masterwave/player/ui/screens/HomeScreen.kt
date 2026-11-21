@@ -2043,10 +2043,10 @@ private fun HomeScreenHeader(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Download button
+                        // Download button (Apple HIG 44dp Touch Target)
                         IconButton(
                             onClick = onNavigateToDownloads,
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
@@ -2056,10 +2056,10 @@ private fun HomeScreenHeader(
                             )
                         }
 
-                        // Search button
+                        // Search button (Apple HIG 44dp Touch Target)
                         IconButton(
                             onClick = onNavigateToSearch,
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -2069,10 +2069,10 @@ private fun HomeScreenHeader(
                             )
                         }
 
-                        // User Avatar button (Settings)
+                        // User Avatar button (Settings - Apple HIG 44dp Touch Target)
                         IconButton(
                             onClick = onNavigateToSettings,
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -2179,11 +2179,11 @@ private fun QuickPicksSection(
             Box(
                 modifier = Modifier
                     .padding(start = 12.dp)
-                    .size(36.dp)
+                    .size(44.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
-                    .clickable(onClick = onShuffle),
+                    .bouncyClickable(scaleDown = 0.94f, onClick = onShuffle),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -2213,7 +2213,7 @@ private fun QuickPicksSection(
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(cardBg)
                                 .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
-                                .clickable { onTrackClick(track) }
+                                .bouncyClickable(scaleDown = 0.98f) { onTrackClick(track) }
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -2323,7 +2323,7 @@ private fun RecommendationShelf(
                 Column(
                     modifier = Modifier
                         .width(135.dp)
-                        .clickable { onTrackClick(track) }
+                        .bouncyClickable(scaleDown = 0.96f) { onTrackClick(track) }
                 ) {
                     Surface(
                         shape = RoundedCornerShape(18.dp),

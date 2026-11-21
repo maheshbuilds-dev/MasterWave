@@ -98,5 +98,10 @@
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name=".data.update.AppUpdateInstallActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
     </application>
 </manifest>
