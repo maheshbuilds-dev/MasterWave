@@ -73,12 +73,41 @@ class MusicRepository(private val context: Context) {
             createdAt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
         ),
         Playlist(
+            id = "yt_liked_songs",
+            title = "YouTube Liked",
+            description = "Your favorite tracks from YouTube Music",
+            trackCount = 0,
+            source = "YouTube Music",
+            isPinned = true,
+            createdAt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
+        ),
+        Playlist(
             id = "local_songs",
-            title = "Local songs",
+            title = "Local Audio",
             description = "On-device audio tracks",
             trackCount = 0,
             source = "Local",
             isPinned = true,
+            createdAt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
+        ),
+        Playlist(
+            id = "custom_empty_1",
+            title = "Playlist 1",
+            description = "Custom playlist • Tap to add songs",
+            trackCount = 0,
+            tracks = emptyList(),
+            source = "Custom",
+            isPinned = false,
+            createdAt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
+        ),
+        Playlist(
+            id = "custom_empty_2",
+            title = "Playlist 2",
+            description = "Custom playlist • Tap to add songs",
+            trackCount = 0,
+            tracks = emptyList(),
+            source = "Custom",
+            isPinned = false,
             createdAt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
         )
     )
@@ -283,6 +312,46 @@ class MusicRepository(private val context: Context) {
     }
 
     fun createPlaylist(title: String, description: String = ""): Playlist = createCustomPlaylist(title, description)
+
+    fun addTrackToPlaylist(playlistId: String, track: Track) {
+        val list = _playlists.value.toMutableList()
+        val index = list.indexOfFirst { it.id == playlistId }
+        if (index != -1) {
+            val pl = list[index]
+            if (pl.tracks.none { it.id == track.id }) {
+                val updatedTracks = pl.tracks + track
+                list[index] = pl.copy(
+                    tracks = updatedTracks,
+                    trackCount = updatedTracks.size,
+                    artworkUrl = pl.artworkUrl ?: track.artworkUrl
+                )
+                _playlists.value = list
+                saveCachedPlaylists()
+            }
+        }
+    }
+
+    fun removeTrackFromPlaylist(playlistId: String, trackId: String) {
+        val list = _playlists.value.toMutableList()
+        val index = list.indexOfFirst { it.id == playlistId }
+        if (index != -1) {
+            val pl = list[index]
+            val updatedTracks = pl.tracks.filter { it.id != trackId }
+            list[index] = pl.copy(
+                tracks = updatedTracks,
+                trackCount = updatedTracks.size,
+                artworkUrl = updatedTracks.firstOrNull()?.artworkUrl
+            )
+            _playlists.value = list
+            saveCachedPlaylists()
+        }
+    }
+
+    fun deletePlaylist(playlistId: String) {
+        if (playlistId == "liked_songs" || playlistId == "local_songs" || playlistId == "yt_liked_songs") return
+        _playlists.value = _playlists.value.filter { it.id != playlistId }
+        saveCachedPlaylists()
+    }
 
     private fun saveCachedFavorites() {
         try {

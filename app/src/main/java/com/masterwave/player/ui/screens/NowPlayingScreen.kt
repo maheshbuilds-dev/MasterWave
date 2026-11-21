@@ -57,7 +57,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChatBubbleOutline
@@ -182,6 +188,8 @@ fun NowPlayingScreen(
 
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    val playlists by repository.playlists.collectAsState()
 
     val artworkContent = remember(currentTrack.id, currentTrack.title, currentTrack.artworkUrl) {
         ArtworkContent(currentTrack.id, currentTrack.title, currentTrack.artworkUrl)
@@ -537,6 +545,14 @@ fun NowPlayingScreen(
                                 onClick = {
                                     showMenu = false
                                     showAudioPlaybackModal = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add to Playlist", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null, tint = accentColor) },
+                                onClick = {
+                                    showMenu = false
+                                    showAddToPlaylistDialog = true
                                 }
                             )
                             DropdownMenuItem(
@@ -1019,6 +1035,72 @@ fun NowPlayingScreen(
             isOpen = showAudioPlaybackModal,
             onDismiss = { showAudioPlaybackModal = false }
         )
+
+        // --- Add to Playlist Dialog ---
+        if (showAddToPlaylistDialog) {
+            val selectablePlaylists = playlists.filter { it.id != "liked_songs" && it.id != "local_songs" }
+            Dialog(onDismissRequest = { showAddToPlaylistDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF161622),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = "Add to Playlist",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 18.sp),
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        if (selectablePlaylists.isEmpty()) {
+                            Text(
+                                text = "No custom playlists yet. Create one in the Playlist tab!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        } else {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.heightIn(max = 300.dp)) {
+                                items(selectablePlaylists, key = { it.id }) { pl ->
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color.White.copy(alpha = 0.06f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .bouncyClickable {
+                                                repository.addTrackToPlaylist(pl.id, currentTrack)
+                                                showAddToPlaylistDialog = false
+                                                Toast.makeText(context, "Added to ${pl.title}", Toast.LENGTH_SHORT).show()
+                                            }
+                                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.MusicNote, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(pl.title, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = Color.White)
+                                                Text("${pl.trackCount} tracks • ${pl.source}", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            androidx.compose.material3.TextButton(onClick = { showAddToPlaylistDialog = false }) {
+                                Text("Cancel", color = Color.White.copy(alpha = 0.7f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

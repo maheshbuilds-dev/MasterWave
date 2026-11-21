@@ -18,16 +18,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,6 +42,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,21 +51,27 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 import com.masterwave.player.MasterWaveApp
 import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Playlist
+import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.bouncyClickable
@@ -93,13 +105,23 @@ fun PlaylistDetailScreen(
 
     var showMenu by remember { mutableStateOf(false) }
 
-    var tracksList by remember(playlist.id) { mutableStateOf(playlist.tracks) }
+    val isCustomPlaylist = playlist.source == "Custom" || playlist.source == "User" || playlist.id.startsWith("custom_") || playlist.id.startsWith("user_")
+    var tracksList by remember(playlist.id, playlist.tracks) { mutableStateOf(playlist.tracks) }
     var isLoadingTracks by remember(playlist.id) {
-        mutableStateOf(playlist.tracks.isEmpty() && (playlist.description.isNotBlank() || playlist.title.isNotBlank()))
+        mutableStateOf(playlist.tracks.isEmpty() && !isCustomPlaylist && (playlist.description.isNotBlank() || playlist.title.isNotBlank()))
+    }
+    var showAddSongsDialog by remember { mutableStateOf(false) }
+
+    val allPlaylists by repository.playlists.collectAsState()
+    val updatedPlaylist = allPlaylists.find { it.id == playlist.id }
+    LaunchedEffect(updatedPlaylist) {
+        if (updatedPlaylist != null) {
+            tracksList = updatedPlaylist.tracks
+        }
     }
 
     LaunchedEffect(playlist.id) {
-        if (tracksList.isEmpty() && (playlist.description.isNotBlank() || playlist.title.isNotBlank())) {
+        if (tracksList.isEmpty() && !isCustomPlaylist && (playlist.description.isNotBlank() || playlist.title.isNotBlank())) {
             isLoadingTracks = true
             try {
                 val q = playlist.description.ifBlank { playlist.title }
@@ -246,70 +268,81 @@ fun PlaylistDetailScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Action buttons: Play All & Shuffle
+                    // Action buttons: Play All, Shuffle & Add Songs
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = {
-                                if (tracksList.isNotEmpty()) {
+                        if (tracksList.isNotEmpty()) {
+                            Button(
+                                onClick = {
                                     player.playTrack(tracksList.first(), tracksList)
-                                } else {
-                                    Toast.makeText(context, "Playlist is loading...", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .bouncyClickable(scaleDown = 0.94f, onClick = {
-                                    if (tracksList.isNotEmpty()) {
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .bouncyClickable(scaleDown = 0.94f, onClick = {
                                         player.playTrack(tracksList.first(), tracksList)
-                                    }
-                                })
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Play All",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Play All", fontWeight = FontWeight.Bold, color = Color.White)
-                        }
+                                    })
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Play All",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Play All", fontWeight = FontWeight.Bold, color = Color.White)
+                            }
 
-                        Button(
-                            onClick = {
-                                if (tracksList.isNotEmpty()) {
+                            Button(
+                                onClick = {
                                     val shuffled = tracksList.shuffled()
                                     player.playTrack(shuffled.first(), shuffled)
-                                } else {
-                                    Toast.makeText(context, "Playlist is loading...", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = pillBg),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .bouncyClickable(scaleDown = 0.94f, onClick = {
-                                    if (tracksList.isNotEmpty()) {
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = pillBg),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .bouncyClickable(scaleDown = 0.94f, onClick = {
                                         val shuffled = tracksList.shuffled()
                                         player.playTrack(shuffled.first(), shuffled)
-                                    }
-                                })
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Shuffle,
-                                contentDescription = "Shuffle",
-                                tint = textPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Shuffle", fontWeight = FontWeight.Bold, color = textPrimary)
+                                    })
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    tint = textPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Shuffle", fontWeight = FontWeight.Bold, color = textPrimary)
+                            }
+                        }
+
+                        if (isCustomPlaylist) {
+                            Button(
+                                onClick = { showAddSongsDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = if (tracksList.isEmpty()) accentColor else pillBg),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier
+                                    .weight(if (tracksList.isEmpty()) 2f else 1f)
+                                    .height(46.dp)
+                                    .bouncyClickable(scaleDown = 0.94f, onClick = { showAddSongsDialog = true })
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Songs",
+                                    tint = if (tracksList.isEmpty()) Color.White else textPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Add Songs", fontWeight = FontWeight.Bold, color = if (tracksList.isEmpty()) Color.White else textPrimary)
+                            }
                         }
                     }
                 }
@@ -348,6 +381,21 @@ fun PlaylistDetailScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = textSecondary
                             )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = { showAddSongsDialog = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Add Songs", fontWeight = FontWeight.Bold, color = Color.White)
+                            }
                         }
                     }
                 }
@@ -420,6 +468,21 @@ fun PlaylistDetailScreen(
                                 )
                             }
 
+                            if (isCustomPlaylist) {
+                                IconButton(onClick = {
+                                    repository.removeTrackFromPlaylist(playlist.id, track.id)
+                                    tracksList = tracksList.filter { it.id != track.id }
+                                    Toast.makeText(context, "Removed from ${playlist.title}", Toast.LENGTH_SHORT).show()
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = "Remove",
+                                        tint = textSecondary.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
                             // Download Icon
                             IconButton(onClick = {
                                 downloadManager.downloadTrack(track)
@@ -431,6 +494,229 @@ fun PlaylistDetailScreen(
                                     tint = if (isDownloaded) accentColor else textSecondary.copy(alpha = 0.5f),
                                     modifier = Modifier.size(18.dp)
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAddSongsDialog) {
+        AddSongsDialog(
+            playlist = playlist,
+            repository = repository,
+            accentColor = accentColor,
+            cardBg = cardBg,
+            textPrimary = textPrimary,
+            textSecondary = textSecondary,
+            onDismiss = { showAddSongsDialog = false },
+            onTrackAdded = { newTrack ->
+                if (tracksList.none { it.id == newTrack.id }) {
+                    tracksList = tracksList + newTrack
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddSongsDialog(
+    playlist: Playlist,
+    repository: MusicRepository,
+    accentColor: Color,
+    cardBg: Color,
+    textPrimary: Color,
+    textSecondary: Color,
+    onDismiss: () -> Unit,
+    onTrackAdded: (Track) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+
+    val favorites by repository.favorites.collectAsState()
+    val localTracks by repository.localTracks.collectAsState()
+
+    var activeTab by remember { mutableStateOf(0) } // 0 = Search, 1 = Liked Songs, 2 = Local Audio
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = cardBg,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(520.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(18.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Add to ${playlist.title}",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 17.sp),
+                        color = textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textSecondary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { query ->
+                        searchQuery = query
+                        if (query.isNotBlank()) {
+                            isSearching = true
+                            scope.launch {
+                                try {
+                                    val res = repository.search(query).songs
+                                    searchResults = res
+                                } catch (_: Exception) {}
+                                isSearching = false
+                            }
+                        } else {
+                            searchResults = emptyList()
+                        }
+                    },
+                    placeholder = { Text("Search songs on YouTube...", fontSize = 13.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = accentColor) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Quick tabs: Search, Liked Songs, Local
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("Search", "Liked (${favorites.size})", "Local (${localTracks.size})").forEachIndexed { index, label ->
+                        val isSelected = activeTab == index
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) accentColor else Color.White.copy(alpha = 0.08f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .bouncyClickable { activeTab = index }
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 11.sp
+                                ),
+                                color = if (isSelected) Color.White else textSecondary,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                val displayedTracks = when (activeTab) {
+                    0 -> searchResults
+                    1 -> favorites
+                    else -> localTracks
+                }
+
+                if (isSearching) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = accentColor, modifier = Modifier.size(32.dp))
+                    }
+                } else if (displayedTracks.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = if (activeTab == 0 && searchQuery.isBlank()) "Type in the search bar above to find songs" else "No songs found",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = textSecondary
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(displayedTracks, key = { it.id }) { track ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.04f))
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.White.copy(alpha = 0.08f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (!track.artworkUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = track.artworkUrl,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = textSecondary, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = track.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp),
+                                        color = textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = track.artist,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                        color = textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        repository.addTrackToPlaylist(playlist.id, track)
+                                        onTrackAdded(track)
+                                        Toast.makeText(context, "Added \"${track.title}\"", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Add",
+                                        tint = accentColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }

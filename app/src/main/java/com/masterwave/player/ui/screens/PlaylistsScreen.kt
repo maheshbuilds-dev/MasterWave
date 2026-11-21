@@ -141,7 +141,8 @@ fun PlaylistsScreen(
     val ytRed = Color(0xFFFF0000)
 
     val playCounts by repository.playCounts.collectAsState()
-    val userPlaylists = playlists.filter { it.id != "liked_songs" && it.id != "local_songs" }
+    val ytLikedPlaylist = playlists.find { it.id == "yt_liked_songs" }
+    val userPlaylists = playlists.filter { it.id != "liked_songs" && it.id != "local_songs" && it.id != "yt_liked_songs" }
     val sortedPlaylists = remember(userPlaylists, activeSortOption, searchQuery) {
         val filtered = if (searchQuery.isBlank()) {
             userPlaylists
@@ -358,21 +359,44 @@ fun PlaylistsScreen(
             }
         }
 
-        // --- Smart Collections: Liked Songs & Local Audio Hero Cards ---
+        // --- Smart Collections: Liked Songs, YouTube Liked & Local Audio Cards ---
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 SmartCollectionCard(
                     title = "Liked Songs",
-                    subtitle = "${favorites.size} tracks",
+                    subtitle = "${favorites.size} songs",
                     icon = Icons.Default.Favorite,
                     tint = brandTurquoise,
                     background = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
                     onClick = onNavigateToLikedSongs,
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                )
+
+                SmartCollectionCard(
+                    title = "YouTube Liked",
+                    subtitle = "${ytLikedPlaylist?.trackCount ?: ytLikedPlaylist?.tracks?.size ?: 0} songs",
+                    icon = Icons.Default.MusicNote,
+                    tint = ytRed,
+                    background = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = {
+                        val pl = ytLikedPlaylist ?: Playlist(
+                            id = "yt_liked_songs",
+                            title = "YouTube Liked",
+                            description = "Your favorite tracks from YouTube Music",
+                            source = "YouTube Music",
+                            isPinned = true
+                        )
+                        onPlaylistSelected(pl)
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
@@ -531,76 +555,6 @@ fun PlaylistsScreen(
                 }
             }
         }
-
-        // --- Generator Action Banner ---
-        item {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = cardBg,
-                border = BorderStroke(1.dp, borderColor),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .bouncyClickable(onClick = onNavigateToGenerator)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.linearGradient(
-                                listOf(brandTurquoise.copy(alpha = 0.12f), brandCyan.copy(alpha = 0.06f))
-                            )
-                        )
-                        .padding(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(brandTurquoise.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = brandTurquoise,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "✦ Music Generator",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                ),
-                                color = textPrimary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Algorithmic playlists, song radio & acoustic DNA",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = textSecondary
-                            )
-                        }
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                            contentDescription = null,
-                            tint = textSecondary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-            }
-        }
-
 
         // --- Playlists header ---
         item {
@@ -781,11 +735,11 @@ private fun SmartCollectionCard(
             .clip(RoundedCornerShape(16.dp))
             .background(background)
             .bouncyClickable(onClick = onClick)
-            .padding(14.dp)
+            .padding(horizontal = 10.dp, vertical = 12.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(34.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(
                     Brush.linearGradient(
@@ -798,15 +752,15 @@ private fun SmartCollectionCard(
                 imageVector = icon,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp
+                fontSize = 13.5.sp
             ),
             color = textPrimary,
             maxLines = 1,
@@ -814,8 +768,10 @@ private fun SmartCollectionCard(
         )
         Text(
             text = subtitle,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-            color = textSecondary
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+            color = textSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

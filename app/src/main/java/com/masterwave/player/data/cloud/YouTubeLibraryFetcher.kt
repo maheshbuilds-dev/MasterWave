@@ -269,10 +269,9 @@ class YouTubeLibraryFetcher(
         val importedPlaylists = mutableListOf<Playlist>()
 
         if (likedTracks.isNotEmpty()) {
-            repository.addAllToFavorites(likedTracks)
-            val likedPlaylist = Playlist(
-                id = "liked_songs",
-                title = "Liked Songs",
+            val ytLikedPlaylist = Playlist(
+                id = "yt_liked_songs",
+                title = "YouTube Liked",
                 description = "Your favorite tracks from YouTube Music",
                 trackCount = likedTracks.size,
                 tracks = likedTracks,
@@ -281,8 +280,8 @@ class YouTubeLibraryFetcher(
                 isPinned = true,
                 createdAt = today
             )
-            importedPlaylists.add(likedPlaylist)
-            repository.addCustomPlaylist(likedPlaylist)
+            importedPlaylists.add(ytLikedPlaylist)
+            repository.addCustomPlaylist(ytLikedPlaylist)
         }
 
         // 2. Import tracks for each real playlist discovered
