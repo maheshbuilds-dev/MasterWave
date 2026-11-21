@@ -32,7 +32,18 @@ class AppUpdateInstallReceiver : BroadcastReceiver() {
                 }
             }
             PackageInstaller.STATUS_SUCCESS -> {
-                Log.i(TAG, "MasterWave update installed successfully!")
+                Log.i(TAG, "MasterWave update installed successfully! Auto-launching latest version...")
+                try {
+                    val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        putExtra("post_update_relaunch", true)
+                    }
+                    if (launchIntent != null) {
+                        context.startActivity(launchIntent)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not auto-launch after update", e)
+                }
             }
             else -> {
                 val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)

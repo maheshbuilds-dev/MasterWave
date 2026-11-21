@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -259,13 +260,13 @@ fun AppUpdateScreen(
                         )
                     }
 
-                    // Check for Updates Pill Button
+                    // Update Check Pill Button (Black button, bold white text)
                     Button(
                         onClick = { checkForUpdates() },
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
-                            contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
+                            containerColor = Color(0xFF0A0A0A),
+                            contentColor = Color.White
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -274,23 +275,25 @@ fun AppUpdateScreen(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = null,
+                            tint = Color.White,
                             modifier = Modifier
                                 .size(18.dp)
                                 .then(if (isChecking) Modifier.rotate(rotation) else Modifier)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isChecking) "Checking Mirrors..." else "Check for Updates",
+                            text = if (isChecking) "Checking Updates..." else "Update Check",
                             fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = Color.White
                         )
                     }
                 }
             }
         }
 
-        // --- Direct APK Download Card ---
+        // --- Share MasterWave Card (Replaces Standalone APK Download) ---
         item {
             Surface(
                 shape = RoundedCornerShape(24.dp),
@@ -313,14 +316,14 @@ fun AppUpdateScreen(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(WebAccentSky)
+                                    .background(WebAccentEmerald)
                                     .border(1.5.dp, colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color(0xFF0A0A0A), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF0A0A0A), modifier = Modifier.size(20.dp))
                             }
                             Text(
-                                text = "Standalone APK Download",
+                                text = "Share MasterWave",
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
@@ -330,89 +333,52 @@ fun AppUpdateScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(WebAccentPeach)
+                                .background(WebAccentGreen)
                                 .border(1.dp, colors.border, RoundedCornerShape(999.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text(text = "27.6 MB", fontFamily = DisplayFontFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0A0A0A))
+                            Text(text = "Invite Friends", fontFamily = DisplayFontFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0A0A0A))
                         }
                     }
 
                     Text(
-                        text = "Download the latest production release package directly from the MasterWave web server without third-party app store limitations.",
+                        text = "Share MasterWave with friends, family, and music lovers so they can experience pure, ad-free studio audio playback and live Listen Together music rooms.",
                         fontFamily = DisplayFontFamily,
                         fontSize = 13.sp,
                         color = colors.body,
                         lineHeight = 18.sp
                     )
 
-                    val currentProgress = downloadProgress
-                    if (currentProgress != null) {
-                        val progressFloat = currentProgress.coerceIn(0f, 1f)
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            androidx.compose.material3.LinearProgressIndicator(
-                                progress = { progressFloat },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(999.dp)),
-                                color = WebAccentGreen,
-                                trackColor = colors.hairline
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = if (isInstalling) "Opening Installer..." else "Downloading update package...",
-                                    fontFamily = DisplayFontFamily,
-                                    fontSize = 12.sp,
-                                    color = colors.muted
-                                )
-                                Text(
-                                    text = "${(progressFloat * 100).toInt()}%",
-                                    fontFamily = DisplayFontFamily,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.ink
-                                )
-                            }
-                        }
-                    }
-
                     Button(
                         onClick = {
-                            val update = availableUpdate ?: com.masterwave.player.data.update.UpdateInfo(
-                                versionCode = 2,
-                                versionName = "2.0.1",
-                                releaseNotes = "Dynamic thumbnail bleed & direct internal storage downloads",
-                                apkUrl = "https://masterwave.vercel.app/assets/MasterWave.apk",
-                                apkSize = "28 MB",
-                                publishedAt = "2026-11-21"
-                            )
-                            actualUpdateManager.downloadAndInstall(update)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "MasterWave Studio Player")
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "Hey! Try MasterWave — the ultimate music player with Listen Together, high-fidelity sound, and zero ads: https://masterwave.vercel.app"
+                                )
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Share MasterWave via"))
                         },
-                        enabled = downloadProgress == null,
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
-                            contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
+                            containerColor = Color(0xFF0A0A0A),
+                            contentColor = Color.White
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(2.dp, colors.border, RoundedCornerShape(999.dp))
                             .height(48.dp)
                     ) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (downloadProgress != null) "Downloading..." else "Download & Install MasterWave.apk",
+                            text = "Share App with Friends",
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
+                            color = Color.White
                         )
                     }
                 }

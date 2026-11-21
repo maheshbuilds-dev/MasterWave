@@ -123,7 +123,7 @@ class AppUpdateManager(
                 Log.d(TAG, "Update check: local=$currentCode, remote=$remoteVersionCode ($remoteVersionName)")
 
                 // Only trigger update if remote is strictly newer than installed build!
-                if (remoteVersionCode > currentCode || forceUpdate) {
+                if (remoteVersionCode > currentCode) {
                     val update = UpdateInfo(
                         versionCode = remoteVersionCode,
                         versionName = remoteVersionName,
@@ -255,6 +255,12 @@ class AppUpdateManager(
                     val packageInstaller = context.packageManager.packageInstaller
                     val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                         setAppPackageName(context.packageName)
+                        setInstallReason(android.content.pm.PackageManager.INSTALL_REASON_USER)
+                        setOriginatingUri(Uri.parse("https://masterwave.vercel.app"))
+                        setReferrerUri(Uri.parse("https://masterwave.vercel.app"))
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                        }
                     }
                     val sessionId = packageInstaller.createSession(params)
                     val session = packageInstaller.openSession(sessionId)
@@ -277,6 +283,9 @@ class AppUpdateManager(
                     )
                     session.commit(pendingIntent.intentSender)
                     session.close()
+
+                    // Immediately close/minimize app so Android system can apply the update cleanly
+                    closeAppForUpdate()
                     return
                 } catch (e: Exception) {
                     Log.w(TAG, "PackageInstaller session failed; using FileProvider fallback", e)
@@ -291,14 +300,28 @@ class AppUpdateManager(
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
                 putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
             }
             context.startActivity(installIntent)
+
+            // Immediately close/minimize app so Android system can apply update cleanly
+            closeAppForUpdate()
         } catch (e: Exception) {
             Log.e(TAG, "Could not launch package installer", e)
         } finally {
             _downloadProgress.value = null
             _isInstalling.value = false
         }
+    }
+
+    private fun closeAppForUpdate() {
+        try {
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(homeIntent)
+        } catch (_: Exception) {}
     }
 
     private fun postUpdateNotification(update: UpdateInfo) {
