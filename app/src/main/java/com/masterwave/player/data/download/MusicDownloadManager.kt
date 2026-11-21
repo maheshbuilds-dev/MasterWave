@@ -1,9 +1,14 @@
 package com.masterwave.player.data.download
 
+import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -11,8 +16,8 @@ import com.masterwave.player.MasterWaveApp
 import com.masterwave.player.R
 import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.repository.MusicRepository
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,16 +27,19 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Real Offline Music Download Manager:
- * - Downloads audio streams (Opus/AAC/M4A).
- * - Saves directly to Public Internal Storage under /Music/MasterWave/ (accessible to user file managers).
- * - Downloads maximum-resolution artwork thumbnail (.jpg) alongside each track.
- * - Registers files with Android MediaScannerConnection so external file managers show artwork thumbnails.
+ * Public Internal Storage Music & Artwork Download Manager:
+ * - Downloads genuine audio streams directly to /storage/emulated/0/Music/MasterWave/
+ *   via Android MediaStore and public Environment storage.
+ * - Downloads high-resolution thumbnail artwork (.jpg) alongside every single track.
+ * - Embeds/associates artwork and indexes via Android MediaStore & MediaScannerConnection
+ *   so system file managers and other music players display the attached thumbnail.
+ * - Automatically migrates any legacy app-private downloads to public storage.
  * - Exposes live downloadedTracks StateFlow.
  */
 class MusicDownloadManager(
@@ -57,68 +65,29 @@ class MusicDownloadManager(
     @Volatile
     private var notificationPermissionWarningShown = false
     private val activeDownloadIds = ConcurrentHashMap.newKeySet<String>()
-    private val downloadRegistryLock = Any()
 
-    // Public Internal Storage /Music/MasterWave/ or App External Files Dir
-    val musicDir: File by lazy {
-        var chosenDir: File? = null
-        try {
-            val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "MasterWave")
-            if (!publicDir.exists()) publicDir.mkdirs()
-            val testFile = File(publicDir, ".test_${System.currentTimeMillis()}")
-            if (testFile.createNewFile()) {
-                testFile.delete()
-                chosenDir = publicDir
+    /**
+     * Primary Public Storage Directory:
+     * Internal Storage -> /Music/MasterWave/
+     */
+    val musicDir: File
+        get() {
+            val publicDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                "MasterWave"
+            )
+            if (!publicDir.exists()) {
+                try {
+                    publicDir.mkdirs()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not mkdirs public music dir", e)
+                }
             }
-        } catch (ignored: Exception) {}
-
-        if (chosenDir == null) {
-            val appDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "MasterWave")
-            if (!appDir.exists()) appDir.mkdirs()
-            chosenDir = appDir
-        }
-        chosenDir
-    }
-
-    private fun registeredDownloadPaths(): Set<String> = synchronized(downloadRegistryLock) {
-        downloadPreferences.getStringSet(KEY_COMPLETED_DOWNLOADS, emptySet())?.toSet().orEmpty()
-    }
-
-    private fun registerDownload(file: File, sourceTrackId: String) {
-        synchronized(downloadRegistryLock) {
-            downloadPreferences.edit()
-                .putStringSet(KEY_COMPLETED_DOWNLOADS, registeredDownloadPaths() + file.absolutePath)
-                .putString(trackIdPreferenceKey(file), sourceTrackId)
-                .apply()
-        }
-    }
-
-    private fun unregisterDownload(file: File) {
-        synchronized(downloadRegistryLock) {
-            downloadPreferences.edit()
-                .putStringSet(KEY_COMPLETED_DOWNLOADS, registeredDownloadPaths() - file.absolutePath)
-                .remove(trackIdPreferenceKey(file))
-                .apply()
-        }
-    }
-
-    private fun finalizeAudioDownload(tempFile: File, requestedFile: File, sourceTrackId: String): File =
-        synchronized(downloadRegistryLock) {
-            var file = requestedFile
-            while (file.exists() || file.absolutePath in registeredDownloadPaths()) {
-                file = File(
-                    requestedFile.parentFile,
-                    "${requestedFile.nameWithoutExtension}-${System.nanoTime()}.${requestedFile.extension}"
-                )
-            }
-            if (!tempFile.renameTo(file)) {
-                throw IOException("Could not finalize downloaded audio file")
-            }
-            registerDownload(file, sourceTrackId)
-            file
+            return publicDir
         }
 
     init {
+        migrateLegacyDownloads()
         scanDownloadedFiles()
     }
 
@@ -135,88 +104,167 @@ class MusicDownloadManager(
             .replace(Regex("/hqdefault\\.jpg$"), "/maxresdefault.jpg")
     }
 
-    fun scanDownloadedFiles() {
+    /**
+     * Move any previously saved downloads from app-private storage
+     * to public internal storage (/storage/emulated/0/Music/MasterWave/).
+     */
+    private fun migrateLegacyDownloads() {
         scope.launch {
-            val existingPaths = synchronized(downloadRegistryLock) {
-                val registeredPaths = registeredDownloadPaths()
-                val existing = registeredPaths.filter { File(it).isFile }.toSet()
-                if (existing != registeredPaths) {
-                    val editor = downloadPreferences.edit()
-                        .putStringSet(KEY_COMPLETED_DOWNLOADS, existing)
-                    (registeredPaths - existing).forEach { stalePath ->
-                        editor.remove(KEY_TRACK_ID_PREFIX + stalePath)
-                    }
-                    editor.apply()
-                }
-                existing
-            }
-
-            val ids = mutableSetOf<String>()
-            val tracks = mutableListOf<Track>()
-            val retriever = MediaMetadataRetriever()
-
             try {
-                for (path in existingPaths) {
-                    val file = File(path)
-                    val baseName = file.nameWithoutExtension
-                    val parent = file.parentFile ?: continue
-                    ids.add(baseName)
-
-                    val artFile = File(parent, "$baseName.jpg").let {
-                        if (it.exists() && it.length() > 0) it else File(parent, "$baseName.png")
-                    }
-                    val sourceTrackId = downloadPreferences.getString(trackIdPreferenceKey(file), null)
-                    if (!sourceTrackId.isNullOrBlank()) ids.add(sourceTrackId)
-                    var title = baseName
-                    var artist = "Downloaded Track"
-                    var durationMs = 0L
-
-                    try {
-                        retriever.setDataSource(file.absolutePath)
-                        val metaTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-                        val metaArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                        val metaDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                        if (!metaTitle.isNullOrBlank()) title = metaTitle
-                        if (!metaArtist.isNullOrBlank()) artist = metaArtist
-                        if (!metaDuration.isNullOrBlank()) durationMs = metaDuration.toLongOrNull() ?: 0L
-
-                        if (!artFile.exists() || artFile.length() == 0L) {
-                            retriever.embeddedPicture?.takeIf { it.isNotEmpty() }?.let { embedded ->
-                                FileOutputStream(File(parent, "$baseName.jpg")).use { it.write(embedded) }
+                val legacyDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "MasterWave")
+                if (legacyDir.exists() && legacyDir.isDirectory) {
+                    val legacyFiles = legacyDir.listFiles().orEmpty()
+                    for (file in legacyFiles) {
+                        if (file.isFile && !file.name.endsWith(".part")) {
+                            try {
+                                val isAudio = file.extension.equals("m4a", true) ||
+                                        file.extension.equals("opus", true) ||
+                                        file.extension.equals("mp3", true)
+                                if (isAudio) {
+                                    insertAudioToMediaStore(file.nameWithoutExtension, file.extension, file)
+                                }
+                                file.delete()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Could not migrate legacy file ${file.name}", e)
                             }
                         }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not read metadata for ${file.name}", e)
-                        if (baseName.contains(" - ")) {
-                            val parts = baseName.split(" - ", limit = 2)
-                            title = parts[0].trim()
-                            artist = parts[1].trim()
-                        }
                     }
-
-                    val finalArt = File(parent, "$baseName.jpg").let {
-                        if (it.exists() && it.length() > 0) it else File(parent, "$baseName.png")
-                    }
-                    val artworkPath = if (finalArt.exists() && finalArt.length() > 0) {
-                        "file://${finalArt.absolutePath}"
-                    } else {
-                        null
-                    }
-                    tracks.add(
-                        Track(
-                            id = "download_${file.name}",
-                            title = title,
-                            artist = artist,
-                            durationSeconds = durationMs / 1000L,
-                            artworkUrl = artworkPath,
-                            streamUrl = file.absolutePath,
-                            isLocal = true,
-                            localUri = file.absolutePath
-                        )
-                    )
                 }
-            } finally {
-                retriever.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Legacy migration error", e)
+            }
+        }
+    }
+
+    fun scanDownloadedFiles() {
+        scope.launch {
+            val tracks = mutableListOf<Track>()
+            val ids = mutableSetOf<String>()
+
+            // 1. Query Android MediaStore for files under Music/MasterWave
+            try {
+                val projection = arrayOf(
+                    MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.DISPLAY_NAME,
+                    MediaStore.Audio.Media.TITLE,
+                    MediaStore.Audio.Media.ARTIST,
+                    MediaStore.Audio.Media.DURATION,
+                    MediaStore.Audio.Media.DATA
+                )
+
+                val selection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ? OR ${MediaStore.Audio.Media.DATA} LIKE ?"
+                } else {
+                    "${MediaStore.Audio.Media.DATA} LIKE ?"
+                }
+
+                val selectionArgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    arrayOf("%Music/MasterWave%", "%/Music/MasterWave/%")
+                } else {
+                    arrayOf("%/Music/MasterWave/%")
+                }
+
+                context.contentResolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    "${MediaStore.Audio.Media.DATE_ADDED} DESC"
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                    val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                    val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                    val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                    val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                    val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+
+                    while (cursor.moveToNext()) {
+                        val mediaId = cursor.getLong(idCol)
+                        val displayName = cursor.getString(nameCol) ?: "Track"
+                        val title = cursor.getString(titleCol) ?: displayName.substringBeforeLast(".")
+                        val artist = cursor.getString(artistCol) ?: "MasterWave"
+                        val durationMs = cursor.getLong(durationCol)
+                        val filePath = cursor.getString(dataCol)
+                        val contentUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId)
+
+                        val baseName = displayName.substringBeforeLast(".")
+                        ids.add(baseName)
+                        ids.add(displayName)
+
+                        // Look for companion thumbnail in public musicDir or cache
+                        val companionArt = File(musicDir, "$baseName.jpg").let {
+                            if (it.exists() && it.length() > 0) it else File(context.cacheDir, "art_$baseName.jpg")
+                        }
+
+                        val artworkUrl = if (companionArt.exists() && companionArt.length() > 0) {
+                            "file://${companionArt.absolutePath}"
+                        } else {
+                            findArtworkInMediaStore(baseName)
+                        }
+
+                        val playableUri = if (!filePath.isNullOrBlank() && File(filePath).exists()) {
+                            filePath
+                        } else {
+                            contentUri.toString()
+                        }
+
+                        tracks.add(
+                            Track(
+                                id = "download_$mediaId",
+                                title = title,
+                                artist = artist,
+                                durationSeconds = durationMs / 1000L,
+                                artworkUrl = artworkUrl,
+                                streamUrl = playableUri,
+                                isLocal = true,
+                                localUri = playableUri
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaStore audio query failed", e)
+            }
+
+            // 2. Direct File System Scan Fallback
+            try {
+                val directFiles = musicDir.listFiles { file ->
+                    file.isFile && (file.extension.equals("m4a", true) ||
+                            file.extension.equals("opus", true) ||
+                            file.extension.equals("mp3", true) ||
+                            file.extension.equals("flac", true)) &&
+                            !file.name.startsWith(".pending")
+                }?.toList().orEmpty()
+
+                for (file in directFiles) {
+                    val baseName = file.nameWithoutExtension
+                    ids.add(baseName)
+                    ids.add(file.name)
+
+                    if (tracks.none { it.streamUrl == file.absolutePath || it.title == baseName }) {
+                        val companionArt = File(musicDir, "$baseName.jpg").let {
+                            if (it.exists() && it.length() > 0) it else File(context.cacheDir, "art_$baseName.jpg")
+                        }
+                        val artworkUrl = if (companionArt.exists() && companionArt.length() > 0) {
+                            "file://${companionArt.absolutePath}"
+                        } else null
+
+                        tracks.add(
+                            Track(
+                                id = "download_${file.name}",
+                                title = if (baseName.contains(" - ")) baseName.split(" - ", limit = 2)[0] else baseName,
+                                artist = if (baseName.contains(" - ")) baseName.split(" - ", limit = 2)[1] else "MasterWave",
+                                durationSeconds = 0L,
+                                artworkUrl = artworkUrl,
+                                streamUrl = file.absolutePath,
+                                isLocal = true,
+                                localUri = file.absolutePath
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Direct disk scan fallback error", e)
             }
 
             val deduplicatedTracks = tracks.distinctBy {
@@ -226,10 +274,33 @@ class MusicDownloadManager(
                     deduplicatedTracks.map { it.title.trim().lowercase() }.toSet() +
                     deduplicatedTracks.mapNotNull { track ->
                         track.streamUrl?.let { File(it).nameWithoutExtension }
-                    }.toSet()
+                    }.toSet() + ids
 
             _downloadedIds.value = deduplicatedIds
             _downloadedTracks.value = deduplicatedTracks
+        }
+    }
+
+    private fun findArtworkInMediaStore(baseName: String): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return try {
+            val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME)
+            val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND ${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
+            val selectionArgs = arrayOf("$baseName.jpg", "%Music/MasterWave%")
+            context.contentResolver.query(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID))
+                    ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id).toString()
+                } else null
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -239,13 +310,14 @@ class MusicDownloadManager(
 
     /**
      * Downloads genuine audio stream + maximum resolution thumbnail directly
-     * to device internal storage (/Music/MasterWave/).
+     * to device public internal storage (/Music/MasterWave/).
      */
     fun downloadTrack(track: Track) {
         if (isDownloaded(track.id) || !activeDownloadIds.add(track.id)) return
 
         scope.launch {
-            var temporaryAudioFile: File? = null
+            var tempAudioFile: File? = null
+            var tempArtFile: File? = null
             var lastNotifiedPercent = -1
 
             fun updateProgress(progress: Float, indeterminate: Boolean = false) {
@@ -260,32 +332,41 @@ class MusicDownloadManager(
 
             try {
                 updateProgress(0f, indeterminate = true)
-                val streamUrl = repository.resolveStreamUrl(track)
+                val (streamUrl, preferredExt) = try {
+                    repository.resolveDownloadStream(track)
+                } catch (_: Exception) {
+                    Pair(repository.resolveStreamUrl(track), if (track.codec.contains("AAC", ignoreCase = true)) "m4a" else "m4a")
+                }
+                val ext = preferredExt
+
                 val request = Request.Builder()
                     .url(streamUrl)
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .build()
+
+                val safeTitle = sanitizeFilename(track.title).ifBlank { "Track" }
+                val safeArtist = sanitizeFilename(track.artist)
+                val baseName = if (safeArtist.isNotBlank() && safeArtist != "Unknown") {
+                    "$safeTitle - $safeArtist"
+                } else {
+                    safeTitle
+                }
+
+                // Stage 1: Download audio stream safely into cacheDir without EPERM
+                val tempAudio = File(context.cacheDir, "dl_${System.nanoTime()}.$ext")
+                tempAudioFile = tempAudio
+
                 okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        throw IOException("Audio request failed with HTTP ${response.code}")
+                        throw IOException("Audio stream request failed with HTTP ${response.code}")
                     }
                     val body = response.body ?: throw IOException("Audio response was empty")
                     val contentLength = body.contentLength()
-                    val ext = if (track.codec.contains("AAC", ignoreCase = true)) "m4a" else "opus"
-                    val safeTitle = sanitizeFilename(track.title).ifBlank { "Track" }
-                    val safeArtist = sanitizeFilename(track.artist)
-                    val baseName = if (safeArtist.isNotBlank() && safeArtist != "Unknown") {
-                        "$safeTitle - $safeArtist"
-                    } else {
-                        safeTitle
-                    }
-                    val requestedAudioFile = File(musicDir, "$baseName.$ext")
-                    val tempFile = File(musicDir, "${requestedAudioFile.name}.${System.nanoTime()}.part")
-                    temporaryAudioFile = tempFile
                     var totalRead = 0L
+
                     body.byteStream().use { input ->
-                        FileOutputStream(tempFile).buffered().use { output ->
-                            val buffer = ByteArray(8192)
+                        FileOutputStream(tempAudio).buffered().use { output ->
+                            val buffer = ByteArray(16384)
                             while (true) {
                                 val bytesRead = input.read(buffer)
                                 if (bytesRead == -1) break
@@ -296,93 +377,184 @@ class MusicDownloadManager(
                                 } else {
                                     0f
                                 }
-                                updateProgress(progress, indeterminate = contentLength <= 0)
+                                updateProgress(progress * 0.90f, indeterminate = contentLength <= 0)
                             }
                         }
                     }
+
                     if (totalRead == 0L) {
-                        throw IOException("Audio response contained no data")
-                    }
-                    val audioFile = finalizeAudioDownload(tempFile, requestedAudioFile, track.id)
-                    temporaryAudioFile = null
-                    val artworkFile = File(musicDir, "${audioFile.nameWithoutExtension}.jpg")
-
-                    val highResUrl = getHighResArtworkUrl(track.artworkUrl) ?: track.artworkUrl
-                    if (!highResUrl.isNullOrBlank()) {
-                        try {
-                            val artRequest = Request.Builder().url(highResUrl).build()
-                            okHttpClient.newCall(artRequest).execute().use { artResponse ->
-                                if (artResponse.isSuccessful) {
-                                    artResponse.body?.byteStream()?.use { artInput ->
-                                        FileOutputStream(artworkFile).use { artOutput ->
-                                            artInput.copyTo(artOutput)
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Could not download artwork for ${track.title}", e)
-                        }
-                    }
-
-                    try {
-                        MediaScannerConnection.scanFile(
-                            context,
-                            if (artworkFile.exists()) {
-                                arrayOf(audioFile.absolutePath, artworkFile.absolutePath)
-                            } else {
-                                arrayOf(audioFile.absolutePath)
-                            },
-                            if (artworkFile.exists()) arrayOf("audio/*", "image/jpeg") else arrayOf("audio/*")
-                        ) { _, _ -> }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not index downloaded audio ${audioFile.name}", e)
-                    }
-
-                    val downloadedTrack = track.copy(
-                        id = "download_${audioFile.name}",
-                        streamUrl = audioFile.absolutePath,
-                        artworkUrl = if (artworkFile.exists()) {
-                            "file://${artworkFile.absolutePath}"
-                        } else {
-                            track.artworkUrl
-                        },
-                        isLocal = true,
-                        localUri = audioFile.absolutePath
-                    )
-                    _downloadedIds.value = _downloadedIds.value +
-                        setOf(track.id, audioFile.nameWithoutExtension, downloadedTrack.id)
-                    _downloadedTracks.value = (_downloadedTracks.value + downloadedTrack).distinctBy {
-                        "${it.title.trim().lowercase()}_${it.artist.trim().lowercase()}"
-                    }
-                    updateProgress(1f)
-                    showDownloadComplete(track)
-
-                    try {
-                        withContext(Dispatchers.Main) {
-                            repository.addCustomPlaylist(
-                                repository.playlists.value.find { it.id == "local_songs" }?.let { playlist ->
-                                    playlist.copy(
-                                        trackCount = playlist.trackCount + 1,
-                                        tracks = playlist.tracks + downloadedTrack
-                                    )
-                                } ?: return@withContext
-                            )
-                            repository.loadLocalTracks()
-                        }
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.e(TAG, "Downloaded track could not be added to the local playlist", e)
+                        throw IOException("Zero bytes received for audio stream")
                     }
                 }
+
+                // Stage 2: Download high-resolution thumbnail artwork
+                val highResUrl = getHighResArtworkUrl(track.artworkUrl) ?: track.artworkUrl
+                var artworkBytes: ByteArray? = null
+                if (!highResUrl.isNullOrBlank()) {
+                    try {
+                        val artRequest = Request.Builder().url(highResUrl).build()
+                        okHttpClient.newCall(artRequest).execute().use { artResponse ->
+                            if (artResponse.isSuccessful) {
+                                artworkBytes = artResponse.body?.bytes()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Could not fetch artwork for ${track.title}", e)
+                    }
+                }
+
+                // Stage 2.5: Physically compile & embed metadata and artwork into the audio container!
+                AudioTagCompiler.embedMetadataAndArtwork(tempAudio, track, artworkBytes)
+
+                // Stage 3: Insert Audio with permanently compiled artwork into Public Internal Storage (/Music/MasterWave/)
+                val (audioUri, publicAudioPath) = insertAudioToMediaStore(baseName, ext, tempAudio)
+                tempAudio.delete()
+                tempAudioFile = null
+
+                // Stage 4: Insert Artwork into Public Internal Storage (/Music/MasterWave/$baseName.jpg)
+                var localArtworkUri: String? = null
+                if (artworkBytes != null && artworkBytes!!.isNotEmpty()) {
+                    val artFileInPublic = File(musicDir, "$baseName.jpg")
+                    try {
+                        FileOutputStream(artFileInPublic).use { it.write(artworkBytes) }
+                        localArtworkUri = "file://${artFileInPublic.absolutePath}"
+                    } catch (_: Exception) {}
+
+                    // Also save companion copy in cache for instant local coil rendering
+                    try {
+                        val cachedArt = File(context.cacheDir, "art_$baseName.jpg")
+                        FileOutputStream(cachedArt).use { it.write(artworkBytes) }
+                        if (localArtworkUri == null) {
+                            localArtworkUri = "file://${cachedArt.absolutePath}"
+                        }
+                    } catch (_: Exception) {}
+
+                    // Insert to MediaStore Images
+                    insertArtworkToMediaStore(baseName, artworkBytes!!)
+                }
+
+                // Stage 5: Scan with MediaScannerConnection for external file managers and system music player indexing
+                val scanPaths = mutableListOf<String>()
+                if (publicAudioPath != null) scanPaths.add(publicAudioPath)
+                val artPath = File(musicDir, "$baseName.jpg")
+                if (artPath.exists()) scanPaths.add(artPath.absolutePath)
+
+                if (scanPaths.isNotEmpty()) {
+                    MediaScannerConnection.scanFile(
+                        context,
+                        scanPaths.toTypedArray(),
+                        arrayOf("audio/*", "image/jpeg")
+                    ) { path, uri ->
+                        Log.d(TAG, "Indexed $path -> $uri")
+                    }
+                }
+
+                val finalStreamPath = publicAudioPath ?: audioUri.toString()
+                val downloadedTrack = track.copy(
+                    id = "download_${baseName}",
+                    streamUrl = finalStreamPath,
+                    artworkUrl = localArtworkUri ?: track.artworkUrl,
+                    isLocal = true,
+                    localUri = finalStreamPath
+                )
+
+                _downloadedIds.value = _downloadedIds.value + setOf(track.id, baseName, downloadedTrack.id)
+                _downloadedTracks.value = (_downloadedTracks.value + downloadedTrack).distinctBy {
+                    "${it.title.trim().lowercase()}_${it.artist.trim().lowercase()}"
+                }
+                updateProgress(1f)
+                showDownloadComplete(track)
+
+                try {
+                    withContext(Dispatchers.Main) {
+                        repository.addCustomPlaylist(
+                            repository.playlists.value.find { it.id == "local_songs" }?.let { playlist ->
+                                playlist.copy(
+                                    trackCount = playlist.trackCount + 1,
+                                    tracks = playlist.tracks + downloadedTrack
+                                )
+                            } ?: return@withContext
+                        )
+                        repository.loadLocalTracks()
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.e(TAG, "Downloaded track could not be added to the local playlist", e)
+                }
+
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Log.e(TAG, "Download failed for ${track.title}", e)
-                temporaryAudioFile?.delete()
+                tempAudioFile?.delete()
+                tempArtFile?.delete()
                 showDownloadFailure(track)
             } finally {
                 _downloadProgress.value = _downloadProgress.value - track.id
                 activeDownloadIds.remove(track.id)
+            }
+        }
+    }
+
+    private fun insertAudioToMediaStore(baseName: String, ext: String, sourceFile: File): Pair<Uri, String?> {
+        val mime = if (ext == "m4a") "audio/mp4" else "audio/ogg"
+        val values = ContentValues().apply {
+            put(MediaStore.Audio.Media.DISPLAY_NAME, "$baseName.$ext")
+            put(MediaStore.Audio.Media.TITLE, if (baseName.contains(" - ")) baseName.split(" - ", limit = 2)[0] else baseName)
+            put(MediaStore.Audio.Media.ARTIST, if (baseName.contains(" - ")) baseName.split(" - ", limit = 2)[1] else "MasterWave")
+            put(MediaStore.Audio.Media.ALBUM, "MasterWave")
+            put(MediaStore.Audio.Media.MIME_TYPE, mime)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/MasterWave/")
+                put(MediaStore.Audio.Media.IS_PENDING, 1)
+            }
+        }
+
+        val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+            ?: throw IOException("Could not insert track into MediaStore")
+
+        context.contentResolver.openOutputStream(uri)?.use { out ->
+            FileInputStream(sourceFile).use { input -> input.copyTo(out) }
+        } ?: throw IOException("Could not open output stream for audio MediaStore entry")
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.clear()
+            values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+            context.contentResolver.update(uri, values, null, null)
+        }
+
+        // Query physical data path
+        val path = try {
+            val projection = arrayOf(MediaStore.Audio.Media.DATA)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        } catch (_: Exception) {
+            null
+        } ?: File(musicDir, "$baseName.$ext").absolutePath
+
+        return Pair(uri, path)
+    }
+
+    private fun insertArtworkToMediaStore(baseName: String, imageBytes: ByteArray) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, "$baseName.jpg")
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Music/MasterWave/")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) {
+                    context.contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(imageBytes)
+                    }
+                    values.clear()
+                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not insert thumbnail into MediaStore Images", e)
             }
         }
     }
@@ -450,24 +622,37 @@ class MusicDownloadManager(
         scope.launch {
             try {
                 val stream = track.streamUrl ?: return@launch
+
+                // 1. If it's a content URI, delete via ContentResolver
+                if (stream.startsWith("content://")) {
+                    try {
+                        context.contentResolver.delete(Uri.parse(stream), null, null)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Could not delete MediaStore URI $stream", e)
+                    }
+                }
+
+                // 2. If it's a file path, delete file directly
                 val file = File(stream)
-                if (file.exists() && !file.delete()) {
-                    throw IOException("Could not delete downloaded file ${file.name}")
+                if (file.exists()) {
+                    file.delete()
                 }
-                val sourceTrackId = downloadPreferences.getString(trackIdPreferenceKey(file), null)
-                val artFile = File(stream.substringBeforeLast(".") + ".jpg")
-                if (artFile.exists()) {
-                    if (!artFile.delete()) Log.w(TAG, "Could not delete artwork for ${file.name}")
-                }
-                unregisterDownload(file)
+
+                // 3. Delete companion artwork
+                val baseName = file.nameWithoutExtension
+                val artFile = File(musicDir, "$baseName.jpg")
+                if (artFile.exists()) artFile.delete()
+
+                val cachedArt = File(context.cacheDir, "art_$baseName.jpg")
+                if (cachedArt.exists()) cachedArt.delete()
+
                 _downloadedIds.value = _downloadedIds.value - setOfNotNull(
                     track.id,
-                    sourceTrackId,
-                    file.nameWithoutExtension,
-                    file.nameWithoutExtension.lowercase()
+                    baseName,
+                    baseName.lowercase()
                 )
                 _downloadedTracks.value = _downloadedTracks.value.filterNot {
-                    it.streamUrl == stream
+                    it.streamUrl == stream || it.id == track.id
                 }
                 scanDownloadedFiles()
             } catch (e: Exception) {
@@ -479,11 +664,7 @@ class MusicDownloadManager(
     companion object {
         private const val TAG = "MusicDownloadManager"
         private const val DOWNLOADS_PREFERENCES = "masterwave_downloads"
-        private const val KEY_COMPLETED_DOWNLOADS = "completed_download_paths"
-        private const val KEY_TRACK_ID_PREFIX = "source_track_id:"
         private const val DOWNLOAD_NOTIFICATION_ID_BASE = 10_000
-
-        private fun trackIdPreferenceKey(file: File) = KEY_TRACK_ID_PREFIX + file.absolutePath
 
         @Volatile
         private var INSTANCE: MusicDownloadManager? = null

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -67,7 +68,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
-import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
@@ -75,10 +75,8 @@ import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * Statistics Screen with:
- * - Free Google Sign-In with user avatar & cloud sync.
- * - Dynamic reactive accent colors.
- * - AMOLED Dark & Light mode adaptivity.
+ * Statistics Screen:
+ * Comprehensive listening metrics, track analytics, top artists, and scrobble insights.
  */
 @Composable
 fun StatsScreen(
@@ -96,9 +94,6 @@ fun StatsScreen(
     val accentColor by ThemeState.accentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
     val context = LocalContext.current
-
-    val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
-    val userProfile by cloudManager.userProfile.collectAsState()
 
     var selectedFilter by remember { mutableStateOf("Most Played") }
     var showFilterMenu by remember { mutableStateOf(false) }
@@ -195,89 +190,22 @@ fun StatsScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(accentColor),
+                                .background(cardItemBg),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (userProfile.isSignedIn && !userProfile.photoUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = userProfile.photoUrl,
-                                    contentDescription = userProfile.displayName,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Settings",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- 2. User Guest / Last.fm Banner Card (Reference Page 5) ---
-        item {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = cardItemBg,
-                border = BorderStroke(1.dp, Color(0xFFE2E8E1)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .bouncyClickable(onClick = onNavigateToSettings)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(accentColor),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (userProfile.isSignedIn && !userProfile.photoUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = userProfile.photoUrl,
-                                contentDescription = userProfile.displayName,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
                             Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = textPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (userProfile.isSignedIn) userProfile.displayName else "Guest",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            ),
-                            color = textPrimary
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Connect Last.fm in Settings to sync global scrobbles",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),
-                            color = textSecondary
-                        )
                     }
                 }
             }
         }
 
-        // --- 3. 2x2 Metric Grid (Reference Page 5) ---
+        // --- 2. 2x2 Metric Grid (Reference Page 5) ---
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Row 1: Plays (Sage Green Card) & Tracks (White Card)

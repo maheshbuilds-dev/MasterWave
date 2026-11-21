@@ -10,3 +10,9 @@ local.properties
 # Research directory (keep original repo separate)
 research/
 *.apk
+*.jks
+*.keystore
+.codex/
+.impeccable/
+screenshot_*.png
+screenshots/

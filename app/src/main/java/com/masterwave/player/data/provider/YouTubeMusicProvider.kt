@@ -301,6 +301,40 @@ class YouTubeMusicProvider(
         audioStreams.firstOrNull()?.content ?: throw IOException("No playable audio stream found for $trackId")
     }
 
+    /**
+     * Resolves an optimal downloadable stream URL and format extension.
+     * Prefers M4A (AAC-LC) for standard embedded metadata/artwork compatibility across
+     * all media players, Android lockscreen, and desktop systems.
+     */
+    suspend fun resolveDownloadStream(trackId: String): Pair<String, String> = withContext(Dispatchers.IO) {
+        initNewPipe()
+        val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$trackId")
+        val audioStreams = info.audioStreams
+
+        // 1. Try to find highest-bitrate M4A stream
+        val m4aStream = audioStreams
+            .filter { it.format?.name == "M4A" || it.codec?.contains("mp4a", ignoreCase = true) == true }
+            .maxByOrNull { it.bitrate }
+
+        if (m4aStream != null && !m4aStream.content.isNullOrBlank() && probeStream(m4aStream.content)) {
+            return@withContext Pair(m4aStream.content, "m4a")
+        }
+
+        // 2. Try probe on any stream sorted by bitrate
+        for (stream in audioStreams.sortedByDescending { it.bitrate }) {
+            val url = stream.content
+            if (!url.isNullOrBlank() && probeStream(url)) {
+                val ext = if (stream.format?.name == "M4A" || stream.codec?.contains("mp4a", ignoreCase = true) == true) "m4a" else "opus"
+                return@withContext Pair(url, ext)
+            }
+        }
+
+        // 3. Fallback to first stream
+        val fallback = audioStreams.firstOrNull() ?: throw IOException("No audio streams for $trackId")
+        val ext = if (fallback.format?.name == "M4A" || fallback.codec?.contains("mp4a", ignoreCase = true) == true) "m4a" else "opus"
+        Pair(fallback.content, ext)
+    }
+
     private fun probeStream(url: String): Boolean {
         return try {
             val request = Request.Builder()

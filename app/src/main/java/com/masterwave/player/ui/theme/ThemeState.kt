@@ -131,9 +131,13 @@ object ThemeState {
     private val _artworkColor = MutableStateFlow<Color?>(null)
     val artworkColor: StateFlow<Color?> = _artworkColor.asStateFlow()
 
-    // Dynamic artwork tinting is opt-in so the default look stays Apple Music red.
+    // Full multi-tone dynamic palette extracted from current song thumbnail
+    private val _currentArtworkPalette = MutableStateFlow<ArtworkColorPalette?>(null)
+    val currentArtworkPalette: StateFlow<ArtworkColorPalette?> = _currentArtworkPalette.asStateFlow()
+
+    // Dynamic artwork tinting is enabled by default so ambient bleed reflects song thumbnail colors.
     private val _dynamicColorEnabled = MutableStateFlow(
-        prefs.getBoolean(KEY_DYNAMIC_COLOR, false)
+        prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
     )
     val dynamicColorEnabled: StateFlow<Boolean> = _dynamicColorEnabled.asStateFlow()
 
@@ -166,6 +170,12 @@ object ThemeState {
         } else {
             preset.primaryColor
         }
+    }
+
+    fun setArtworkPalette(palette: ArtworkColorPalette?) {
+        _currentArtworkPalette.value = palette
+        _artworkColor.value = palette?.vibrantColor ?: palette?.dominantColor
+        _effectiveAccentColor.value = computeEffectiveAccent()
     }
 
     fun setArtworkColor(color: Color?) {

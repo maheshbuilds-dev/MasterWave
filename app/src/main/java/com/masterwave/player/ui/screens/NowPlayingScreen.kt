@@ -156,21 +156,29 @@ fun NowPlayingScreen(
     val context = LocalContext.current
     val reduceMotion = rememberReduceMotion()
     val accentColor by ThemeState.accentColor.collectAsState()
-    val artworkColor by ThemeState.artworkColor.collectAsState()
-    val dynamicColorEnabled by ThemeState.dynamicColorEnabled.collectAsState()
+    val currentArtworkPalette by ThemeState.currentArtworkPalette.collectAsState()
 
-    // Base color extracted from the track's artwork
-    val baseArtworkColor = if (dynamicColorEnabled && artworkColor != null) artworkColor!! else accentColor
+    // Dynamic Artwork Bleed & Ambient Pool Colors:
+    // Uses the actual bottom slice color of the current track's thumbnail for a seamless downward bleed,
+    // and lively ambient glow pool behind controls.
+    val targetBottomBleed = currentArtworkPalette?.bottomBleedColor ?: Color(
+        red = (accentColor.red * 0.28f + 0.03f).coerceIn(0f, 1f),
+        green = (accentColor.green * 0.28f + 0.03f).coerceIn(0f, 1f),
+        blue = (accentColor.blue * 0.28f + 0.03f).coerceIn(0f, 1f),
+        alpha = 1f
+    )
+    val targetAmbientGlow = currentArtworkPalette?.ambientGlowColor ?: accentColor
 
-    // Downward bleed background color tuned for warm rich depth & contrast
-    val bottomBleedColor = remember(baseArtworkColor) {
-        Color(
-            red = (baseArtworkColor.red * 0.32f + 0.04f).coerceIn(0f, 1f),
-            green = (baseArtworkColor.green * 0.32f + 0.04f).coerceIn(0f, 1f),
-            blue = (baseArtworkColor.blue * 0.32f + 0.04f).coerceIn(0f, 1f),
-            alpha = 1f
-        )
-    }
+    val animatedBottomBleed by animateColorAsState(
+        targetValue = targetBottomBleed,
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 500, easing = FastOutSlowInEasing),
+        label = "animatedBottomBleed"
+    )
+    val animatedAmbientGlow by animateColorAsState(
+        targetValue = targetAmbientGlow,
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 500, easing = FastOutSlowInEasing),
+        label = "animatedAmbientGlow"
+    )
 
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
@@ -182,7 +190,7 @@ fun NowPlayingScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(bottomBleedColor)
+            .background(animatedBottomBleed)
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount ->
                     if (dragAmount > 45f) {
@@ -201,9 +209,9 @@ fun NowPlayingScreen(
             // Base top-to-bottom gradient
             drawRect(
                 brush = Brush.verticalGradient(
-                    0.0f to Color(0xFF0A0B0E),
-                    0.45f to bottomBleedColor.copy(alpha = 0.70f),
-                    1.0f to bottomBleedColor
+                    0.0f to Color(0xFF07080B),
+                    0.45f to animatedBottomBleed.copy(alpha = 0.75f),
+                    1.0f to animatedBottomBleed
                 )
             )
 
@@ -212,14 +220,14 @@ fun NowPlayingScreen(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        baseArtworkColor.copy(alpha = 0.32f),
-                        bottomBleedColor.copy(alpha = 0.15f),
+                        animatedAmbientGlow.copy(alpha = 0.32f),
+                        animatedBottomBleed.copy(alpha = 0.16f),
                         Color.Transparent
                     ),
                     center = glowCenter,
-                    radius = w * 0.85f
+                    radius = w * 0.88f
                 ),
-                radius = w * 0.85f,
+                radius = w * 0.88f,
                 center = glowCenter
             )
         }
@@ -254,7 +262,7 @@ fun NowPlayingScreen(
                             .fillMaxSize()
                             .background(
                                 Brush.verticalGradient(
-                                    listOf(Color(0xFF161822), bottomBleedColor)
+                                    listOf(Color(0xFF161822), animatedBottomBleed)
                                 )
                             ),
                         contentAlignment = Alignment.Center
@@ -283,19 +291,19 @@ fun NowPlayingScreen(
             )
 
             // The Downward Bleed Gradient:
-            // Smoothly and gradually bleeds the lower portion of the artwork down into the background tone
+            // Smoothly and gradually bleeds the lower portion of the artwork down into the matching background tone
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             0.00f to Color.Transparent,
-                            0.36f to Color.Transparent,
-                            0.56f to bottomBleedColor.copy(alpha = 0.28f),
-                            0.72f to bottomBleedColor.copy(alpha = 0.65f),
-                            0.88f to bottomBleedColor.copy(alpha = 0.90f),
-                            0.98f to bottomBleedColor,
-                            1.00f to bottomBleedColor
+                            0.34f to Color.Transparent,
+                            0.54f to animatedBottomBleed.copy(alpha = 0.30f),
+                            0.70f to animatedBottomBleed.copy(alpha = 0.70f),
+                            0.86f to animatedBottomBleed.copy(alpha = 0.92f),
+                            0.96f to animatedBottomBleed,
+                            1.00f to animatedBottomBleed
                         )
                     )
             )

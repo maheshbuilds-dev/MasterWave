@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -210,13 +211,13 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     val positionMs by player.positionMs.collectAsState()
     val durationMs by player.durationMs.collectAsState()
 
-    // Dynamic Artwork Color Extraction - Isolated to Now Playing ambient backdrop
+    // Dynamic Artwork Color Extraction - Isolated to Now Playing ambient backdrop & dynamic theme
     LaunchedEffect(currentTrack?.id, currentTrack?.artworkUrl) {
         if (currentTrack != null) {
-            val extracted = com.masterwave.player.ui.theme.ArtworkColorExtractor.extractVibrantColor(context, currentTrack?.artworkUrl)
-            com.masterwave.player.ui.theme.ThemeState.setArtworkColor(extracted)
+            val palette = com.masterwave.player.ui.theme.ArtworkColorExtractor.extractArtworkPalette(context, currentTrack?.artworkUrl)
+            com.masterwave.player.ui.theme.ThemeState.setArtworkPalette(palette)
         } else {
-            com.masterwave.player.ui.theme.ThemeState.setArtworkColor(null)
+            com.masterwave.player.ui.theme.ThemeState.setArtworkPalette(null)
         }
     }
 
@@ -248,6 +249,21 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     // two compact, detached glass islands so it stops covering the list.
     var isDockSplit by remember { mutableStateOf(false) }
     var scrollToTopTrigger by remember { mutableStateOf(0L) }
+
+    // Live In-App Update System
+    val updateManager = remember {
+        com.masterwave.player.data.update.AppUpdateManager.getInstance(
+            context,
+            com.masterwave.player.MasterWaveApp.instance.okHttpClient
+        )
+    }
+    val availableUpdate by updateManager.availableUpdate.collectAsState()
+    val isUpdateDismissed by updateManager.isDismissed.collectAsState()
+    var showUpdateDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        updateManager.checkForUpdate(silent = true)
+    }
 
     LaunchedEffect(currentTab) {
         isDockSplit = false
@@ -371,6 +387,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                         onNavigateToDownloads = { isDownloadsOpen = true },
                         onNavigateToSearch = { isSearchOpen = true },
                         onNavigateToSettings = { isSettingsOpen = true },
+                        onNavigateToYouTubeSync = { isYouTubeSyncOpen = true },
                         onScrollStateChanged = { isDockSplit = it },
                         scrollToTopTrigger = scrollToTopTrigger
                     )
@@ -487,7 +504,10 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             enter = slideInHorizontally(initialOffsetX = { it }),
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
-            AppUpdateScreen(onBack = { isAppUpdateOpen = false })
+            AppUpdateScreen(
+                onBack = { isAppUpdateOpen = false },
+                updateManager = updateManager
+            )
         }
 
         // Sub-screen: Support & Community
@@ -722,6 +742,33 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                     }
                 }
             }
+        }
+
+        // Live In-App Update Floating Notification Banner
+        AnimatedVisibility(
+            visible = availableUpdate != null && !isUpdateDismissed && !isNowPlayingExpanded,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+        ) {
+            availableUpdate?.let { update ->
+                com.masterwave.player.ui.components.InAppUpdateBanner(
+                    update = update,
+                    onUpdateClick = { showUpdateDialog = true },
+                    onDismiss = { updateManager.dismissUpdate() }
+                )
+            }
+        }
+
+        // Live In-App Update Modal Dialog
+        if (showUpdateDialog && availableUpdate != null) {
+            com.masterwave.player.ui.components.InAppUpdateModal(
+                update = availableUpdate!!,
+                updateManager = updateManager,
+                onDismiss = { showUpdateDialog = false }
+            )
         }
     }
 }

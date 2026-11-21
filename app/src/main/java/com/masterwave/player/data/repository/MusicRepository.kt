@@ -551,6 +551,38 @@ class MusicRepository(private val context: Context) {
         throw IllegalStateException("Unable to resolve a playable stream for ${track.title}.")
     }
 
+    /**
+     * Resolves stream URL for downloading with preferred container format (e.g., M4A for universal artwork/metadata support).
+     */
+    suspend fun resolveDownloadStream(track: Track): Pair<String, String> {
+        val ytId = when {
+            track.id.startsWith("yt_") -> track.id.removePrefix("yt_")
+            track.providerId == "youtube" -> track.id
+            track.id.startsWith("sp_") -> {
+                val match = ytProvider.search("${track.title} ${track.artist}").songs.firstOrNull()
+                match?.id
+            }
+            else -> null
+        }
+
+        if (ytId != null) {
+            try {
+                return ytProvider.resolveDownloadStream(ytId)
+            } catch (_: Exception) {}
+        }
+
+        // Fallback to general stream URL resolver
+        val resolved = resolveStreamUrl(track)
+        val ext = if (track.codec.contains("AAC", ignoreCase = true) || resolved.endsWith(".m4a", ignoreCase = true)) {
+            "m4a"
+        } else if (resolved.endsWith(".mp3", ignoreCase = true)) {
+            "mp3"
+        } else {
+            "m4a"
+        }
+        return Pair(resolved, ext)
+    }
+
     suspend fun getLyrics(track: Track): LyricsResult? {
         return lyricsProvider.getLyrics(
             trackId = track.id,

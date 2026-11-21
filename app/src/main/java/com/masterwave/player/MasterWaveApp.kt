@@ -17,6 +17,7 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
     companion object {
         const val PLAYBACK_CHANNEL_ID = "masterwave_playback_v1"
         const val DOWNLOAD_CHANNEL_ID = "masterwave_downloads_v1"
+        const val UPDATE_CHANNEL_ID = "masterwave_updates_v1"
         lateinit var instance: MasterWaveApp
             private set
     }
@@ -72,9 +73,18 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
                 enableVibration(false)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
             }
+            val updateChannel = NotificationChannel(
+                UPDATE_CHANNEL_ID,
+                "MasterWave App Updates",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for new MasterWave stable releases and features"
+                setShowBadge(true)
+            }
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager?.createNotificationChannel(channel)
             notificationManager?.createNotificationChannel(downloadChannel)
+            notificationManager?.createNotificationChannel(updateChannel)
         }
     }
 

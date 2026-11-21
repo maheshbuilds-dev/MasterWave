@@ -5,3 +5,5 @@
 }
 -dontwarn org.schabi.newpipe.extractor.**
 -dontwarn io.ktor.**
+-dontwarn org.jaudiotagger.**
+-keep class org.jaudiotagger.** { *; }

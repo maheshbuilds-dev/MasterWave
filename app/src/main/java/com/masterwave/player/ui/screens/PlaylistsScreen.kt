@@ -27,7 +27,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
@@ -38,12 +40,14 @@ import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,6 +57,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -70,10 +75,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
+import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.components.WebAuthDialog
 import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.theme.ThemeState
 
@@ -93,6 +101,7 @@ fun PlaylistsScreen(
     onNavigateToGenerator: () -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToYouTubeSync: () -> Unit = {},
     onScrollStateChanged: (Boolean) -> Unit = {},
     scrollToTopTrigger: Long = 0L,
     modifier: Modifier = Modifier
@@ -102,6 +111,12 @@ fun PlaylistsScreen(
     val localTracks by repository.localTracks.collectAsState()
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
+    val userProfile by cloudManager.userProfile.collectAsState()
+    var isSyncingCloud by remember { mutableStateOf(false) }
+    var showGoogleAuth by remember { mutableStateOf(false) }
+
     val downloadManager = remember {
         MusicDownloadManager.getInstance(context, repository.okHttpClient, repository)
     }
@@ -121,6 +136,9 @@ fun PlaylistsScreen(
     val fieldBg = MaterialTheme.colorScheme.surface
     val cardBg = MaterialTheme.colorScheme.surface
     val borderColor = if (isAmoled) Color(0x18FFFFFF) else Color(0xFF0A0A0A)
+    val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
+    val brandCyan = com.masterwave.player.ui.theme.MasterWaveCyan
+    val ytRed = Color(0xFFFF0000)
 
     val playCounts by repository.playCounts.collectAsState()
     val userPlaylists = playlists.filter { it.id != "liked_songs" && it.id != "local_songs" }
@@ -340,6 +358,249 @@ fun PlaylistsScreen(
             }
         }
 
+        // --- Smart Collections: Liked Songs & Local Audio Hero Cards ---
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SmartCollectionCard(
+                    title = "Liked Songs",
+                    subtitle = "${favorites.size} tracks",
+                    icon = Icons.Default.Favorite,
+                    tint = brandTurquoise,
+                    background = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = onNavigateToLikedSongs,
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                )
+
+                SmartCollectionCard(
+                    title = "Local Audio",
+                    subtitle = "${downloadedTracks.size + localTracks.size} offline",
+                    icon = Icons.Default.Download,
+                    tint = brandCyan,
+                    background = cardBg,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onClick = onNavigateToDownloads,
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                )
+            }
+        }
+
+        // --- Google Sign-In & YouTube Music Cloud Sync Section ---
+        item {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = cardBg,
+                border = BorderStroke(1.dp, borderColor),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    if (cloudManager.isYtAuthenticated) Color(0x1810B981) else Color(0x18FF0000),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (cloudManager.isYtAuthenticated) Color(0xFF10B981).copy(alpha = 0.2f) else ytRed.copy(alpha = 0.2f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (cloudManager.isYtAuthenticated && !userProfile.photoUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = userProfile.photoUrl,
+                                        contentDescription = userProfile.displayName,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = if (cloudManager.isYtAuthenticated) Icons.Default.CheckCircle else Icons.Default.CloudSync,
+                                        contentDescription = null,
+                                        tint = if (cloudManager.isYtAuthenticated) Color(0xFF10B981) else ytRed,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (cloudManager.isYtAuthenticated) userProfile.displayName else "Google & YouTube Music Sync",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.5.sp
+                                    ),
+                                    color = textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = if (cloudManager.isYtAuthenticated) "Connected with Google account" else "Sign in to sync your YouTube Music playlists",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (!cloudManager.isYtAuthenticated) {
+                            Button(
+                                onClick = { showGoogleAuth = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = ytRed),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Sign In with Google", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            OutlinedButton(
+                                onClick = onNavigateToYouTubeSync,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(0.85f)
+                            ) {
+                                Text("Import Link", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    if (!isSyncingCloud) {
+                                        isSyncingCloud = true
+                                        scope.launch {
+                                            val synced = cloudManager.syncRealYouTubeMusicLibrary()
+                                            isSyncingCloud = false
+                                            if (synced.isNotEmpty()) {
+                                                Toast.makeText(context, "Synced ${synced.size} playlists!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Playlists up to date", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (isSyncingCloud) {
+                                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
+                                Text(if (isSyncingCloud) "Syncing..." else "Sync Playlists", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            OutlinedButton(
+                                onClick = onNavigateToYouTubeSync,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(0.75f)
+                            ) {
+                                Text("Manage", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Generator Action Banner ---
+        item {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = cardBg,
+                border = BorderStroke(1.dp, borderColor),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bouncyClickable(onClick = onNavigateToGenerator)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(brandTurquoise.copy(alpha = 0.12f), brandCyan.copy(alpha = 0.06f))
+                            )
+                        )
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(brandTurquoise.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = brandTurquoise,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "✦ Music Generator",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Algorithmic playlists, song radio & acoustic DNA",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = textSecondary
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = null,
+                            tint = textSecondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+        }
+
 
         // --- Playlists header ---
         item {
@@ -483,6 +744,21 @@ fun PlaylistsScreen(
                 TextButton(onClick = { showCreateDialog = false }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+
+    if (showGoogleAuth) {
+        WebAuthDialog(
+            isOpen = showGoogleAuth,
+            providerTitle = "Google / YouTube Music",
+            initialUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com%2F",
+            successDomain = "music.youtube.com",
+            onDismiss = { showGoogleAuth = false },
+            onAuthCaptured = { cookies ->
+                cloudManager.saveYouTubeAuth(cookies)
+                showGoogleAuth = false
+                Toast.makeText(context, "Google Account Authorized!", Toast.LENGTH_SHORT).show()
             }
         )
     }

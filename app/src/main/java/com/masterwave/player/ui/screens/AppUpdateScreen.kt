@@ -46,6 +46,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,14 +83,28 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppUpdateScreen(
     onBack: () -> Unit,
+    updateManager: com.masterwave.player.data.update.AppUpdateManager? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val colors = rememberAppThemeColors()
 
-    var isChecking by remember { mutableStateOf(false) }
-    var lastCheckedStatus by remember { mutableStateOf("Up to date • Production build") }
+    val actualUpdateManager = remember {
+        updateManager ?: com.masterwave.player.data.update.AppUpdateManager.getInstance(
+            context,
+            com.masterwave.player.MasterWaveApp.instance.okHttpClient
+        )
+    }
+
+    val availableUpdate by actualUpdateManager.availableUpdate.collectAsState()
+    val downloadProgress by actualUpdateManager.downloadProgress.collectAsState()
+    val isInstalling by actualUpdateManager.isInstalling.collectAsState()
+    val isChecking by actualUpdateManager.isChecking.collectAsState()
+
+    var lastCheckedStatus by remember {
+        mutableStateOf("Up to date • v${com.masterwave.player.BuildConfig.VERSION_NAME} Production")
+    }
     var autoCheckWifi by remember { mutableStateOf(true) }
     var notifyNewReleases by remember { mutableStateOf(true) }
 
@@ -111,12 +126,14 @@ fun AppUpdateScreen(
 
     fun checkForUpdates() {
         if (isChecking) return
-        isChecking = true
-        scope.launch {
-            delay(1200)
-            isChecking = false
-            lastCheckedStatus = "Checked just now • Latest version installed"
-            Toast.makeText(context, "You are on the latest MasterWave v2.0.0!", Toast.LENGTH_SHORT).show()
+        actualUpdateManager.checkForUpdate(silent = false) { update ->
+            if (update != null) {
+                lastCheckedStatus = "Update Available: v${update.versionName} • Tap Download Below"
+                Toast.makeText(context, "New MasterWave v${update.versionName} available!", Toast.LENGTH_SHORT).show()
+            } else {
+                lastCheckedStatus = "Checked just now • You are on the latest v${com.masterwave.player.BuildConfig.VERSION_NAME}"
+                Toast.makeText(context, "MasterWave is up to date!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -218,7 +235,7 @@ fun AppUpdateScreen(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "MasterWave v2.0.0",
+                            text = "MasterWave v${com.masterwave.player.BuildConfig.VERSION_NAME}",
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 22.sp,
@@ -329,12 +346,60 @@ fun AppUpdateScreen(
                         lineHeight = 18.sp
                     )
 
+                    val currentProgress = downloadProgress
+                    if (currentProgress != null) {
+                        val progressFloat = currentProgress.coerceIn(0f, 1f)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { progressFloat },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(999.dp)),
+                                color = WebAccentGreen,
+                                trackColor = colors.hairline
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = if (isInstalling) "Opening Installer..." else "Downloading update package...",
+                                    fontFamily = DisplayFontFamily,
+                                    fontSize = 12.sp,
+                                    color = colors.muted
+                                )
+                                Text(
+                                    text = "${(progressFloat * 100).toInt()}%",
+                                    fontFamily = DisplayFontFamily,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.ink
+                                )
+                            }
+                        }
+                    }
+
                     Button(
-                        onClick = { openUrl("https://masterwave.vercel.app/assets/MasterWave.apk") },
+                        onClick = {
+                            val update = availableUpdate ?: com.masterwave.player.data.update.UpdateInfo(
+                                versionCode = 2,
+                                versionName = "2.0.1",
+                                releaseNotes = "Dynamic thumbnail bleed & direct internal storage downloads",
+                                apkUrl = "https://masterwave.vercel.app/assets/MasterWave.apk",
+                                apkSize = "28 MB",
+                                publishedAt = "2026-11-21"
+                            )
+                            actualUpdateManager.downloadAndInstall(update)
+                        },
+                        enabled = downloadProgress == null,
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.surfaceSoft,
-                            contentColor = colors.ink
+                            containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
+                            contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -343,7 +408,12 @@ fun AppUpdateScreen(
                     ) {
                         Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Download MasterWave.apk", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(
+                            text = if (downloadProgress != null) "Downloading..." else "Download & Install MasterWave.apk",
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }
