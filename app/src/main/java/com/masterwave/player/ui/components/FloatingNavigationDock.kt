@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,11 +60,13 @@ enum class MainTab(val title: String, val icon: ImageVector) {
 }
 
 /**
- * Centered Apple-Grade Frosted Liquid Glass Navigation Dock (Image 1).
- *
- * At rest, the dock sits as a confident, centered optical glass shelf
- * containing the 3 primary navigation tabs (Feed, Stats, Playlists).
- * When a tab is selected, an organic pill expands to show both its icon and label.
+ * Split Liquid Glass Navigation Dock:
+ * - Main Island: Primary tabs (Feed, Stats, Playlists) with organic spring active pill.
+ * - Satellite Island: Independent circular glass jewel dedicated to Search.
+ * - When scrolling (isMinimized = true):
+ *   Both islands gracefully minimize: active label collapses, height compacts,
+ *   and all tab buttons remain fully visible and clickable to switch tabs instantly.
+ * - Apple-grade Liquid Glass: authentic optical translucency, specular top rim, and soft drop shadow.
  */
 @Composable
 fun FloatingNavigationDock(
@@ -76,13 +77,17 @@ fun FloatingNavigationDock(
     isSearchActive: Boolean = false,
     liquidState: LiquidState? = null,
     isGlassEnabled: Boolean = true,
-    isSplit: Boolean = false
+    isMinimized: Boolean = false,
+    isSplit: Boolean = isMinimized
 ) {
     val isAmoled = ThemeState.isAmoledTheme()
     val mainTabs = listOf(MainTab.HOME, MainTab.STATS, MainTab.LIBRARY)
+    val isSatelliteActive = isSearchActive || currentTab == MainTab.SEARCH
+    val minimized = isMinimized || isSplit
 
+    // Neutral monochrome content colors
     val selectedBg = if (isAmoled) {
-        Color.White.copy(alpha = 0.16f)
+        Color.White.copy(alpha = 0.18f)
     } else {
         Color.White
     }
@@ -99,31 +104,45 @@ fun FloatingNavigationDock(
         stiffness = Spring.StiffnessMediumLow
     )
 
-    val islandHeight by animateDpAsState(
-        targetValue = 52.dp,
+    val horizontalPadding by animateDpAsState(
+        targetValue = if (minimized) 32.dp else 16.dp,
         animationSpec = dockSpring,
-        label = "dock_height"
+        label = "dock_horizontal_padding"
+    )
+    val islandHeight by animateDpAsState(
+        targetValue = if (minimized) 48.dp else 54.dp,
+        animationSpec = dockSpring,
+        label = "dock_island_height"
+    )
+    val satelliteSize by animateDpAsState(
+        targetValue = if (minimized) 48.dp else 54.dp,
+        animationSpec = dockSpring,
+        label = "dock_satellite_size"
+    )
+    val tabItemHeight by animateDpAsState(
+        targetValue = if (minimized) 38.dp else 44.dp,
+        animationSpec = dockSpring,
+        label = "dock_tab_item_height"
     )
 
-    BoxWithConstraints(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = horizontalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        val dockWidth = minOf(maxWidth * 0.76f, 270.dp)
-
-        // --- Main Navigation Glass Island ---
+        // --- Main Navigation Island (Feed, Stats, Playlists) ---
         Box(
             modifier = Modifier
-                .width(dockWidth)
+                .weight(1f)
                 .height(islandHeight)
                 .glassySurface(
                     shape = CircleShape,
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
                     borderWidth = 1.2.dp,
-                    elevation = 10.dp,
+                    elevation = if (minimized) 8.dp else 10.dp,
                     accentGlow = Color.Transparent,
                     tintColor = null,
                     hasSheen = true,
@@ -134,15 +153,19 @@ fun FloatingNavigationDock(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 mainTabs.forEach { tab ->
-                    val isSelected = tab == currentTab
+                    val isSelected = tab == currentTab && !isSatelliteActive
 
                     val tabWeight by animateFloatAsState(
-                        targetValue = if (isSelected) 1.45f else 0.85f,
+                        targetValue = when {
+                            minimized -> 1f // In minimized mode: equal compact weights for all tabs
+                            isSelected -> 1.40f
+                            else -> 0.85f
+                        },
                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                         label = "dock_weight_${tab.name}"
                     )
@@ -150,7 +173,7 @@ fun FloatingNavigationDock(
                     Box(
                         modifier = Modifier
                             .weight(tabWeight)
-                            .height(44.dp)
+                            .height(tabItemHeight)
                             .shadow(
                                 elevation = if (isSelected && !isAmoled) 3.dp else 0.dp,
                                 shape = CircleShape,
@@ -175,7 +198,7 @@ fun FloatingNavigationDock(
                                 role = Role.Tab
                                 selected = isSelected
                             }
-                            .padding(horizontal = 8.dp),
+                            .padding(horizontal = if (minimized) 4.dp else 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
@@ -186,10 +209,10 @@ fun FloatingNavigationDock(
                                 imageVector = tab.icon,
                                 contentDescription = tab.title,
                                 tint = if (isSelected) selectedContent else unselectedColor,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(if (minimized) 19.dp else 20.dp)
                             )
                             AnimatedVisibility(
-                                visible = isSelected,
+                                visible = isSelected && !minimized,
                                 enter = fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) + expandHorizontally(),
                                 exit = fadeOut(spring(stiffness = Spring.StiffnessMediumLow)) + shrinkHorizontally()
                             ) {
@@ -211,71 +234,62 @@ fun FloatingNavigationDock(
                 }
             }
         }
-    }
-}
 
-/**
- * Split Navigation Jewel Button (Image 2).
- *
- * Appears on the left side of the single-row split dock when the song feed is scrolling.
- * Sized 52dp circular frosted glass button displaying the active navigation icon (e.g. Home).
- * Tapping it smoothly scrolls the feed back to top and expands the dock.
- */
-@Composable
-fun NavigationJewelButton(
-    currentTab: MainTab,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    liquidState: LiquidState? = null,
-    isGlassEnabled: Boolean = true
-) {
-    val isAmoled = ThemeState.isAmoledTheme()
-    val contentColor = if (isAmoled) Color.White else Color(0xFF141720)
-    val selectedBg = if (isAmoled) Color.White.copy(alpha = 0.18f) else Color.White
-    val selectedBorder = if (isAmoled) Color.White.copy(alpha = 0.32f) else Color.Black.copy(alpha = 0.08f)
-
-    Box(
-        modifier = modifier
-            .size(52.dp)
-            .glassySurface(
-                shape = CircleShape,
-                style = GlassyStyle.DOCK,
-                isDark = isAmoled,
-                borderWidth = 1.2.dp,
-                elevation = 8.dp,
-                accentGlow = Color.Transparent,
-                hasSheen = true,
-                liquidState = liquidState,
-                isGlassEnabled = isGlassEnabled,
-                onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        // Inner luminous active pill badge matching Image 2
+        // --- Satellite Action Island (Search) ---
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .shadow(
-                    elevation = if (!isAmoled) 3.dp else 0.dp,
+                .size(satelliteSize)
+                .glassySurface(
                     shape = CircleShape,
-                    spotColor = Color.Black.copy(alpha = 0.12f),
-                    ambientColor = Color.Black.copy(alpha = 0.04f)
+                    style = if (isSatelliteActive) GlassyStyle.PROMINENT else GlassyStyle.DOCK,
+                    isDark = isAmoled,
+                    borderWidth = 1.2.dp,
+                    elevation = if (isSatelliteActive) 8.dp else 5.dp,
+                    accentGlow = Color.Transparent,
+                    tintColor = null,
+                    hasSheen = true,
+                    liquidState = liquidState,
+                    isGlassEnabled = isGlassEnabled,
+                    onClick = { onSearchClick?.invoke() ?: onTabSelected(MainTab.SEARCH) }
                 )
-                .clip(CircleShape)
-                .background(selectedBg)
-                .border(
-                    width = 1.dp,
-                    color = selectedBorder,
-                    shape = CircleShape
-                ),
+                .semantics {
+                    role = Role.Button
+                    selected = isSatelliteActive
+                },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = currentTab.icon,
-                contentDescription = currentTab.title,
-                tint = contentColor,
-                modifier = Modifier.size(21.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(if (minimized) 38.dp else 44.dp)
+                    .shadow(
+                        elevation = if (isSatelliteActive && !isAmoled) 3.dp else 0.dp,
+                        shape = CircleShape,
+                        spotColor = Color.Black.copy(alpha = 0.10f)
+                    )
+                    .clip(CircleShape)
+                    .background(
+                        if (isSatelliteActive) selectedBg else Color.Transparent
+                    )
+                    .then(
+                        if (isSatelliteActive) {
+                            Modifier.border(
+                                width = 1.dp,
+                                color = selectedBorder,
+                                shape = CircleShape
+                            )
+                        } else {
+                            Modifier
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = if (isSatelliteActive) selectedContent else unselectedColor,
+                    modifier = Modifier.size(if (minimized) 19.dp else 21.dp)
+                )
+            }
         }
     }
 }

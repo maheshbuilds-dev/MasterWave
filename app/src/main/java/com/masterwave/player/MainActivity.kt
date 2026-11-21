@@ -70,7 +70,6 @@ import com.masterwave.player.ui.components.FirstStartPermissionsDialog
 import com.masterwave.player.ui.components.FloatingNavigationDock
 import com.masterwave.player.ui.components.MainTab
 import com.masterwave.player.ui.components.MiniPlayerDock
-import com.masterwave.player.ui.components.NavigationJewelButton
 import com.masterwave.player.ui.components.hasRequiredPermissions
 import com.masterwave.player.ui.screens.AlbumDetailScreen
 import com.masterwave.player.ui.screens.AppUpdateScreen
@@ -674,96 +673,52 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                     .padding(bottom = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val shouldSplit = isDockSplit && currentTrack != null && !isSecondaryScreenOpen && !isSettingsRelatedOpen
+                val dockGap by animateDpAsState(
+                    targetValue = if (isDockSplit) 6.dp else 8.dp,
+                    animationSpec = spring(
+                        dampingRatio = 0.86f,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "dock_split_gap"
+                )
 
-                AnimatedContent(
-                    targetState = shouldSplit,
-                    transitionSpec = {
-                        (fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
-                         scaleIn(initialScale = 0.94f, animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)))
-                            .togetherWith(
-                                fadeOut(spring(stiffness = Spring.StiffnessMediumLow)) +
-                                scaleOut(targetScale = 0.94f, animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow))
-                            )
-                    },
-                    label = "dock_split_morph"
-                ) { isSplitMode ->
-                    if (isSplitMode) {
-                        // SPLIT DOCK (Image 2): Single Horizontal Row when scrolling songs
-                        // Left: Navigation Jewel (Home icon), Right: Compact MiniPlayer
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            NavigationJewelButton(
-                                currentTab = currentTab,
-                                onClick = {
-                                    scrollToTopTrigger = System.currentTimeMillis()
-                                    isDockSplit = false
-                                },
-                                liquidState = liquidState,
-                                isGlassEnabled = liquidGlassEnabled
-                            )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(dockGap)
+                ) {
+                    if (currentTrack != null && !isSettingsRelatedOpen) {
+                        MiniPlayerDock(
+                            track = currentTrack!!,
+                            isPlaying = isPlaying,
+                            isLoading = isLoading,
+                            positionMs = positionMs,
+                            durationMs = durationMs,
+                            onExpand = { isNowPlayingExpanded = true },
+                            onPlayPause = { player.togglePlayPause() },
+                            onNext = { player.skipToNext() },
+                            liquidState = liquidState,
+                            isGlassEnabled = liquidGlassEnabled,
+                            isCompact = isDockSplit
+                        )
+                    }
 
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            MiniPlayerDock(
-                                track = currentTrack!!,
-                                isPlaying = isPlaying,
-                                isLoading = isLoading,
-                                positionMs = positionMs,
-                                durationMs = durationMs,
-                                onExpand = { isNowPlayingExpanded = true },
-                                onPlayPause = { player.togglePlayPause() },
-                                onNext = { player.skipToNext() },
-                                liquidState = liquidState,
-                                isGlassEnabled = liquidGlassEnabled,
-                                isCompact = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    } else {
-                        // STACKED DOCK (Image 1): Full-width MiniPlayer above, NavigationDock below
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (currentTrack != null && !isSettingsRelatedOpen) {
-                                MiniPlayerDock(
-                                    track = currentTrack!!,
-                                    isPlaying = isPlaying,
-                                    isLoading = isLoading,
-                                    positionMs = positionMs,
-                                    durationMs = durationMs,
-                                    onExpand = { isNowPlayingExpanded = true },
-                                    onPlayPause = { player.togglePlayPause() },
-                                    onNext = { player.skipToNext() },
-                                    liquidState = liquidState,
-                                    isGlassEnabled = liquidGlassEnabled,
-                                    isCompact = false
-                                )
-                            }
-
-                            if (!isSecondaryScreenOpen) {
-                                FloatingNavigationDock(
-                                    currentTab = currentTab,
-                                    onTabSelected = { selected ->
-                                        if (selected == MainTab.SEARCH) {
-                                            isSearchOpen = true
-                                        } else {
-                                            currentTab = selected
-                                        }
-                                    },
-                                    liquidState = liquidState,
-                                    isGlassEnabled = liquidGlassEnabled,
-                                    isSplit = false
-                                )
-                            }
-                        }
+                    if (!isSecondaryScreenOpen) {
+                        FloatingNavigationDock(
+                            currentTab = currentTab,
+                            onTabSelected = { selected ->
+                                if (selected == MainTab.SEARCH) {
+                                    isSearchOpen = true
+                                } else {
+                                    currentTab = selected
+                                }
+                            },
+                            onSearchClick = { isSearchOpen = true },
+                            isSearchActive = isSearchOpen || currentTab == MainTab.SEARCH,
+                            liquidState = liquidState,
+                            isGlassEnabled = liquidGlassEnabled,
+                            isMinimized = isDockSplit
+                        )
                     }
                 }
             }

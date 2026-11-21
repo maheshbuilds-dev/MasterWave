@@ -106,27 +106,27 @@ fun MiniPlayerDock(
         stiffness = Spring.StiffnessMediumLow
     )
     val outerPadding by animateDpAsState(
-        targetValue = if (isCompact) 0.dp else 14.dp,
+        targetValue = if (isCompact) 26.dp else 14.dp,
         animationSpec = compactSpring,
         label = "mini_outer_padding"
     )
     val artworkSize by animateDpAsState(
-        targetValue = if (isCompact) 38.dp else 44.dp,
+        targetValue = if (isCompact) 36.dp else 44.dp,
         animationSpec = compactSpring,
         label = "mini_artwork"
     )
     val playSize by animateDpAsState(
-        targetValue = if (isCompact) 38.dp else 42.dp,
+        targetValue = if (isCompact) 36.dp else 42.dp,
         animationSpec = compactSpring,
         label = "mini_play"
     )
     val nextSize by animateDpAsState(
-        targetValue = if (isCompact) 34.dp else 38.dp,
+        targetValue = if (isCompact) 32.dp else 38.dp,
         animationSpec = compactSpring,
         label = "mini_next"
     )
     val rowVertical by animateDpAsState(
-        targetValue = if (isCompact) 5.dp else 7.dp,
+        targetValue = if (isCompact) 4.5.dp else 7.dp,
         animationSpec = compactSpring,
         label = "mini_row_vertical"
     )
