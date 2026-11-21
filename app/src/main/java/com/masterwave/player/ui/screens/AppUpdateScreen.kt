@@ -41,6 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -186,7 +187,7 @@ fun AppUpdateScreen(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "v2.0.0 STABLE",
+                                text = "v${com.masterwave.player.BuildConfig.VERSION_NAME} STABLE",
                                 fontFamily = DisplayFontFamily,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -288,6 +289,127 @@ fun AppUpdateScreen(
                             fontSize = 15.sp,
                             color = Color.White
                         )
+                    }
+                }
+            }
+        }
+
+        // --- Live Available Update Action Card ---
+        if (availableUpdate != null) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = colors.surfaceCard,
+                    border = androidx.compose.foundation.BorderStroke(2.dp, WebAccentGreen),
+                    shadowElevation = if (colors.isDark) 0.dp else 6.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(WebAccentGreen)
+                                        .border(1.5.dp, colors.border, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color(0xFF0A0A0A), modifier = Modifier.size(20.dp))
+                                }
+                                Text(
+                                    text = "Update Available",
+                                    fontFamily = DisplayFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = colors.ink
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(WebAccentGreen)
+                                    .border(1.dp, colors.border, RoundedCornerShape(999.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "v${availableUpdate!!.versionName}",
+                                    fontFamily = DisplayFontFamily,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF0A0A0A)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = availableUpdate!!.releaseNotes,
+                            fontFamily = DisplayFontFamily,
+                            fontSize = 13.sp,
+                            color = colors.body,
+                            lineHeight = 18.sp
+                        )
+
+                        Text(
+                            text = "Download size: ${availableUpdate!!.apkSize}",
+                            fontFamily = DisplayFontFamily,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.muted
+                        )
+
+                        val progress = downloadProgress
+                        if (progress != null) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                LinearProgressIndicator(
+                                    progress = { progress.coerceIn(0f, 1f) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(999.dp)),
+                                    color = WebAccentGreen,
+                                    trackColor = colors.hairline
+                                )
+                                Text(
+                                    text = if (progress >= 1f) "Preparing installation..." else "Downloading update: ${(progress * 100).toInt()}%",
+                                    fontFamily = DisplayFontFamily,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.ink
+                                )
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    availableUpdate?.let { actualUpdateManager.downloadAndInstall(it) }
+                                },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF0A0A0A),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Download & Install v${availableUpdate!!.versionName}",
+                                    fontFamily = DisplayFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -399,7 +521,7 @@ fun AppUpdateScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = "What's New in v2.0.0",
+                        text = "What's New in v${com.masterwave.player.BuildConfig.VERSION_NAME}",
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
@@ -407,11 +529,11 @@ fun AppUpdateScreen(
                     )
 
                     val changelog = listOf(
-                        Triple("Apple Music Master Audio", "Tuned DSP acoustic profile with 32-bit float output & wide binaural soundstage.", WebAccentViolet),
-                        Triple("100% Ad-Free Forever", "Zero audio ads, zero banners, zero promotional trackers.", WebAccentEmerald),
-                        Triple("Real-Time Synced Lyrics", "Integrated LRCLIB synchronized lyrics with verse seek.", WebAccentPink),
-                        Triple("Adaptive Bento UI System", "Smooth tactile surfaces with dynamic dark and light mode adaptation.", WebAccentOchre),
-                        Triple("Listen Together Mesh Sync", "Real-time party broadcast with sub-millisecond clock sync.", WebAccentSky)
+                        Triple("Authentic YouTube Liked Sync", "Direct sync with genuine YouTube Music Liked Songs & playlists with zero dummy tracks.", WebAccentEmerald),
+                        Triple("Smart In-App Update Engine", "Updates silently in background when confirmed, auto-relaunches, and suppresses notifications until next release.", WebAccentSky),
+                        Triple("Apple HIG Touch Architecture", "44dp minimum hit-targets across scrubbers, dock icons, utility buttons, and tactile spring physics.", WebAccentViolet),
+                        Triple("Studio DSP Audio Quality", "Bit-perfect 48 kHz / 32-bit float audio engine with studio acoustic headroom.", WebAccentPink),
+                        Triple("Real-Time Synced Lyrics", "Integrated LRCLIB synchronized lyrics with verse seek.", WebAccentOchre)
                     )
 
                     changelog.forEach { (title, desc, accent) ->

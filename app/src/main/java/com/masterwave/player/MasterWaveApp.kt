@@ -94,7 +94,7 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
             val updateChannel = NotificationChannel(
                 UPDATE_CHANNEL_ID,
                 "MasterWave App Updates",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifications for new MasterWave stable releases and features"
                 setShowBadge(true)

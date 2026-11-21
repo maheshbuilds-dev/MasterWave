@@ -286,7 +286,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     var showUpdateDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        updateManager.checkForUpdate(silent = true)
+        updateManager.checkForUpdate(silent = false)
     }
 
     LaunchedEffect(currentTab) {
