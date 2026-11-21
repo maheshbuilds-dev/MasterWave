@@ -1,10 +1,12 @@
 package com.masterwave.player.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -68,7 +71,7 @@ fun TrackItem(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(if (isPlaying) accent.copy(alpha = 0.12f) else Color.Transparent)
-                .clickable(onClick = onClick)
+                .bouncyClickable(scaleDown = 0.98f, onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -77,7 +80,16 @@ fun TrackItem(
                     .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(thumbBg)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.22f),
+                                Color.White.copy(alpha = 0.04f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 if (!track.artworkUrl.isNullOrBlank()) {
@@ -191,15 +203,22 @@ fun TrackItem(
             }
 
             if (onFavoriteToggle != null) {
-                IconButton(
-                    onClick = onFavoriteToggle,
-                    modifier = Modifier.size(38.dp)
+                val animatedHeartColor by animateColorAsState(
+                    targetValue = if (isFavorite) accent else textSecondary.copy(alpha = 0.55f),
+                    label = "track_fav_color"
+                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .bouncyClickable(scaleDown = 0.88f, onClick = onFavoriteToggle),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Favorite",
-                        tint = if (isFavorite) accent else textSecondary,
-                        modifier = Modifier.size(19.dp)
+                        tint = animatedHeartColor,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

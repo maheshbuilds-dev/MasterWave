@@ -1,5 +1,6 @@
 package com.masterwave.player.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -11,6 +12,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -342,22 +348,31 @@ fun MiniPlayerDock(
                                 ),
                                 shape = CircleShape
                             )
-                            .bouncyClickable(scaleDown = 0.90f, onClick = onPlayPause),
+                            .bouncyClickable(scaleDown = 0.94f, onClick = onPlayPause),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
+                        AnimatedContent(
+                            targetState = Pair(isLoading, isPlaying),
+                            transitionSpec = {
+                                (scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(130)))
+                                    .togetherWith(scaleOut(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(90)))
+                            },
+                            label = "mini_play_pause_state"
+                        ) { (loading, playing) ->
+                            if (loading) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (playing) "Pause" else "Play",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
 
@@ -386,7 +401,7 @@ fun MiniPlayerDock(
                                 ),
                                 shape = CircleShape
                             )
-                            .bouncyClickable(scaleDown = 0.90f, onClick = onNext),
+                            .bouncyClickable(scaleDown = 0.93f, onClick = onNext),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

@@ -526,10 +526,17 @@ fun Modifier.bouncyClickable(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.80f,
-            stiffness = 500f
-        ),
+        animationSpec = if (isPressed) {
+            spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium
+            )
+        } else {
+            spring(
+                dampingRatio = 0.72f,
+                stiffness = 850f
+            )
+        },
         label = "bouncy_scale"
     )
     return this

@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Real Offline Music Download Manager:
  * - Downloads audio streams (Opus/AAC/M4A).
- * - Saves directly to Public Internal Storage under /Music/MarshallMusic/ (accessible to user file managers).
+ * - Saves directly to Public Internal Storage under /Music/MasterWave/ (accessible to user file managers).
  * - Downloads maximum-resolution artwork thumbnail (.jpg) alongside each track.
  * - Registers files with Android MediaScannerConnection so external file managers show artwork thumbnails.
  * - Exposes live downloadedTracks StateFlow.
@@ -59,11 +59,11 @@ class MusicDownloadManager(
     private val activeDownloadIds = ConcurrentHashMap.newKeySet<String>()
     private val downloadRegistryLock = Any()
 
-    // Public Internal Storage /Music/MarshallMusic/ or App External Files Dir
+    // Public Internal Storage /Music/MasterWave/ or App External Files Dir
     val musicDir: File by lazy {
         var chosenDir: File? = null
         try {
-            val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "MarshallMusic")
+            val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "MasterWave")
             if (!publicDir.exists()) publicDir.mkdirs()
             val testFile = File(publicDir, ".test_${System.currentTimeMillis()}")
             if (testFile.createNewFile()) {
@@ -73,7 +73,7 @@ class MusicDownloadManager(
         } catch (ignored: Exception) {}
 
         if (chosenDir == null) {
-            val appDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "MarshallMusic")
+            val appDir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "MasterWave")
             if (!appDir.exists()) appDir.mkdirs()
             chosenDir = appDir
         }
@@ -239,7 +239,7 @@ class MusicDownloadManager(
 
     /**
      * Downloads genuine audio stream + maximum resolution thumbnail directly
-     * to device internal storage (/Music/MarshallMusic/).
+     * to device internal storage (/Music/MasterWave/).
      */
     fun downloadTrack(track: Track) {
         if (isDownloaded(track.id) || !activeDownloadIds.add(track.id)) return

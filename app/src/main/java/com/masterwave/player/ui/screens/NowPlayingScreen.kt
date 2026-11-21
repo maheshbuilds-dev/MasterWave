@@ -6,17 +6,31 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -324,27 +338,45 @@ fun NowPlayingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentTrack.title,
-                        fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 24.sp,
-                        letterSpacing = (-0.5).sp,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    AnimatedContent(
+                        targetState = currentTrack.title,
+                        transitionSpec = {
+                            (fadeIn(tween(220, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f))) + slideInVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { it / 4 })
+                                .togetherWith(fadeOut(tween(140)) + slideOutVertically { -it / 4 })
+                        },
+                        label = "track_title_anim"
+                    ) { title ->
+                        Text(
+                            text = title,
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 24.sp,
+                            letterSpacing = (-0.5).sp,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = currentTrack.artist,
-                        fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 16.sp,
-                        letterSpacing = (-0.1).sp,
-                        color = Color.White.copy(alpha = 0.75f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    AnimatedContent(
+                        targetState = currentTrack.artist,
+                        transitionSpec = {
+                            (fadeIn(tween(220, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f))) + slideInVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { it / 4 })
+                                .togetherWith(fadeOut(tween(140)) + slideOutVertically { -it / 4 })
+                        },
+                        label = "track_artist_anim"
+                    ) { artist ->
+                        Text(
+                            text = artist,
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 16.sp,
+                            letterSpacing = (-0.1).sp,
+                            color = Color.White.copy(alpha = 0.75f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -354,7 +386,30 @@ fun NowPlayingScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Star (Favorite) Button
+                    // Star (Favorite) Button with dynamic spring pop
+                    var starPulse by remember { mutableFloatStateOf(1f) }
+                    var lastFavoriteState by remember { mutableStateOf(isFavorite) }
+                    LaunchedEffect(isFavorite) {
+                        if (isFavorite != lastFavoriteState) {
+                            lastFavoriteState = isFavorite
+                            if (isFavorite) {
+                                starPulse = 1.30f
+                                delay(120)
+                                starPulse = 1f
+                            }
+                        }
+                    }
+                    val animatedStarScale by animateFloatAsState(
+                        targetValue = starPulse,
+                        animationSpec = spring(dampingRatio = 0.52f, stiffness = Spring.StiffnessMediumLow),
+                        label = "star_pop"
+                    )
+                    val animatedStarColor by animateColorAsState(
+                        targetValue = if (isFavorite) Color(0xFFFFD54F) else Color.White,
+                        animationSpec = tween(durationMillis = 180),
+                        label = "star_color"
+                    )
+
                     Box(
                         modifier = Modifier
                             .size(44.dp)
@@ -371,15 +426,32 @@ fun NowPlayingScreen(
                                 ),
                                 shape = RoundedCornerShape(16.dp)
                             )
-                            .bouncyClickable(scaleDown = 0.88f, onClick = { repository.toggleFavorite(currentTrack) }),
+                            .bouncyClickable(scaleDown = 0.94f, onClick = { repository.toggleFavorite(currentTrack) }),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
-                            contentDescription = "Favorite",
-                            tint = if (isFavorite) Color(0xFFFFD54F) else Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Box(
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = animatedStarScale
+                                scaleY = animatedStarScale
+                            },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AnimatedContent(
+                                targetState = isFavorite,
+                                transitionSpec = {
+                                    (scaleIn(spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(120)))
+                                        .togetherWith(scaleOut(tween(90)) + fadeOut(tween(90)))
+                                },
+                                label = "star_icon_swap"
+                            ) { fav ->
+                                Icon(
+                                    imageVector = if (fav) Icons.Filled.Star else Icons.Filled.StarBorder,
+                                    contentDescription = "Favorite",
+                                    tint = animatedStarColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
                     }
 
                     // 3-Dots Options Menu Button
@@ -399,7 +471,7 @@ fun NowPlayingScreen(
                                 ),
                                 shape = RoundedCornerShape(16.dp)
                             )
-                            .bouncyClickable(scaleDown = 0.88f, onClick = { showMenu = true }),
+                            .bouncyClickable(scaleDown = 0.94f, onClick = { showMenu = true }),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -592,12 +664,17 @@ fun NowPlayingScreen(
                             )
                     )
 
-                    // Dynamic Floating Thumb Knob when scrubbing
-                    if (isDragging) {
+                    // Dynamic Floating Thumb Knob when scrubbing with organic spring pop
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = isDragging,
+                        enter = scaleIn(spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(120)),
+                        exit = scaleOut(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)),
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progressFraction.coerceIn(0.01f, 1f))
+                            .height(28.dp)
+                    ) {
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction = progressFraction.coerceIn(0.01f, 1f))
-                                .height(28.dp),
+                            modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             Box(
@@ -648,23 +725,38 @@ fun NowPlayingScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Shuffle Button (Tactile Squircle)
+                val animatedShuffleTint by animateColorAsState(
+                    targetValue = if (isShuffle) accentColor else Color.White.copy(alpha = 0.65f),
+                    animationSpec = tween(180),
+                    label = "shuffle_tint"
+                )
+                val animatedShuffleBg by animateColorAsState(
+                    targetValue = if (isShuffle) accentColor.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+                    animationSpec = tween(180),
+                    label = "shuffle_bg"
+                )
+                val animatedShuffleBorder by animateColorAsState(
+                    targetValue = if (isShuffle) accentColor.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.15f),
+                    animationSpec = tween(180),
+                    label = "shuffle_border"
+                )
                 Box(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(if (isShuffle) accentColor.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f))
+                        .background(animatedShuffleBg)
                         .border(
                             width = 1.dp,
-                            color = if (isShuffle) accentColor.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.15f),
+                            color = animatedShuffleBorder,
                             shape = RoundedCornerShape(14.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.88f) { player.toggleShuffle() },
+                        .bouncyClickable(scaleDown = 0.94f) { player.toggleShuffle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffle) accentColor else Color.White.copy(alpha = 0.65f),
+                        tint = animatedShuffleTint,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -686,7 +778,7 @@ fun NowPlayingScreen(
                             ),
                             shape = RoundedCornerShape(16.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.88f) { player.skipToPrevious() },
+                        .bouncyClickable(scaleDown = 0.93f) { player.skipToPrevious() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -698,13 +790,18 @@ fun NowPlayingScreen(
                 }
 
                 // Play / Pause (Large Frosted Liquid Glass Pod with Ambient Glow)
+                val playShadowElevation by animateDpAsState(
+                    targetValue = if (isPlaying) 18.dp else 12.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "play_shadow"
+                )
                 Box(
                     modifier = Modifier
                         .size(74.dp)
                         .shadow(
-                            elevation = 14.dp,
+                            elevation = playShadowElevation,
                             shape = RoundedCornerShape(26.dp),
-                            spotColor = accentColor.copy(alpha = 0.50f),
+                            spotColor = accentColor.copy(alpha = if (isPlaying) 0.60f else 0.35f),
                             ambientColor = Color.Black.copy(alpha = 0.35f)
                         )
                         .clip(RoundedCornerShape(26.dp))
@@ -727,22 +824,31 @@ fun NowPlayingScreen(
                             ),
                             shape = RoundedCornerShape(26.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.88f) { player.togglePlayPause() },
+                        .bouncyClickable(scaleDown = 0.92f) { player.togglePlayPause() },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            color = Color.White,
-                            modifier = Modifier.size(34.dp),
-                            strokeWidth = 3.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
-                        )
+                    AnimatedContent(
+                        targetState = Pair(isLoading, isPlaying),
+                        transitionSpec = {
+                            (scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(140)))
+                                .togetherWith(scaleOut(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)))
+                        },
+                        label = "play_pause_content"
+                    ) { (loading, playing) ->
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(34.dp),
+                                strokeWidth = 3.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = if (playing) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
                     }
                 }
 
@@ -763,7 +869,7 @@ fun NowPlayingScreen(
                             ),
                             shape = RoundedCornerShape(16.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.88f) { player.skipToNext() },
+                        .bouncyClickable(scaleDown = 0.93f) { player.skipToNext() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -776,25 +882,49 @@ fun NowPlayingScreen(
 
                 // Repeat Button (Tactile Squircle)
                 val repeatActive = repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF
+                val animatedRepeatTint by animateColorAsState(
+                    targetValue = if (repeatActive) accentColor else Color.White.copy(alpha = 0.65f),
+                    animationSpec = tween(180),
+                    label = "repeat_tint"
+                )
+                val animatedRepeatBg by animateColorAsState(
+                    targetValue = if (repeatActive) accentColor.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+                    animationSpec = tween(180),
+                    label = "repeat_bg"
+                )
+                val animatedRepeatBorder by animateColorAsState(
+                    targetValue = if (repeatActive) accentColor.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.15f),
+                    animationSpec = tween(180),
+                    label = "repeat_border"
+                )
                 Box(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(if (repeatActive) accentColor.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f))
+                        .background(animatedRepeatBg)
                         .border(
                             width = 1.dp,
-                            color = if (repeatActive) accentColor.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.15f),
+                            color = animatedRepeatBorder,
                             shape = RoundedCornerShape(14.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.88f) { player.toggleRepeat() },
+                        .bouncyClickable(scaleDown = 0.94f) { player.toggleRepeat() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                        contentDescription = "Repeat",
-                        tint = if (repeatActive) accentColor else Color.White.copy(alpha = 0.65f),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    AnimatedContent(
+                        targetState = repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE,
+                        transitionSpec = {
+                            (scaleIn(spring(dampingRatio = 0.70f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(120)))
+                                .togetherWith(scaleOut(tween(90)) + fadeOut(tween(90)))
+                        },
+                        label = "repeat_icon_swap"
+                    ) { isOne ->
+                        Icon(
+                            imageVector = if (isOne) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                            contentDescription = "Repeat",
+                            tint = animatedRepeatTint,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -829,7 +959,7 @@ fun NowPlayingScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .bouncyClickable(scaleDown = 0.88f) { onOpenLyrics() },
+                            .bouncyClickable(scaleDown = 0.92f) { onOpenLyrics() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -845,7 +975,7 @@ fun NowPlayingScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .bouncyClickable(scaleDown = 0.88f) { showAudioPlaybackModal = true },
+                            .bouncyClickable(scaleDown = 0.92f) { showAudioPlaybackModal = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -861,7 +991,7 @@ fun NowPlayingScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .bouncyClickable(scaleDown = 0.88f) { onOpenQueue() },
+                            .bouncyClickable(scaleDown = 0.92f) { onOpenQueue() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
