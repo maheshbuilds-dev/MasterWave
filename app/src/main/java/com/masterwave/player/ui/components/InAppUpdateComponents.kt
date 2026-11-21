@@ -145,17 +145,18 @@ fun InAppUpdateBanner(
                 onClick = onUpdateClick,
                 shape = RoundedCornerShape(999.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
-                    contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
+                    containerColor = Color(0xFF165B33),
+                    contentColor = Color.White
                 ),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                 modifier = Modifier.height(36.dp)
             ) {
                 Text(
                     text = "Update",
                     fontFamily = DisplayFontFamily,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
                 )
             }
 
@@ -371,18 +372,18 @@ fun InAppUpdateModal(
                         enabled = downloadProgress == null || isInstalling,
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
-                            contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
+                            containerColor = Color(0xFF165B33),
+                            contentColor = Color.White
                         ),
                         modifier = Modifier
                             .weight(if (downloadProgress == null) 1.5f else 1f)
-                            .border(1.5.dp, colors.border, RoundedCornerShape(999.dp))
                             .height(46.dp)
                     ) {
                         if (downloadProgress != null) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = null,
+                                tint = Color.White,
                                 modifier = Modifier
                                     .size(16.dp)
                                     .rotate(rotation)
@@ -392,12 +393,14 @@ fun InAppUpdateModal(
                                 text = if (isInstalling) "Installing..." else "Downloading...",
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
+                                color = Color.White
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.CloudDownload,
                                 contentDescription = null,
+                                tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -405,7 +408,8 @@ fun InAppUpdateModal(
                                 text = "Update Now",
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.5.sp
+                                fontSize = 13.5.sp,
+                                color = Color.White
                             )
                         }
                     }

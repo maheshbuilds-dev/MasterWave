@@ -263,14 +263,10 @@ class YouTubeMusicProvider(
         if (url.isNullOrBlank()) return null
         var upgraded = url
         if (upgraded.contains("=w") || upgraded.contains("=s")) {
-            upgraded = upgraded.replace(Regex("=w\\d+-h\\d+.*"), "=w1080-h1080-l90-rj")
-                .replace(Regex("=s\\d+.*"), "=s1080")
+            upgraded = upgraded.replace(Regex("=w\\d+-h\\d+.*"), "=w600-h600-l90-rj")
+                .replace(Regex("=s\\d+.*"), "=s600")
         }
-        if (upgraded.contains("i.ytimg.com") || upgraded.contains("img.youtube.com")) {
-            upgraded = upgraded.replace("/default.jpg", "/maxresdefault.jpg")
-                .replace("/mqdefault.jpg", "/maxresdefault.jpg")
-                .replace("/hqdefault.jpg", "/maxresdefault.jpg")
-        }
+        // Do not blindly change hqdefault to maxresdefault because maxresdefault returns 404 for non-HD uploads
         return upgraded
     }
 

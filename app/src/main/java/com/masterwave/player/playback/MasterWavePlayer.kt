@@ -390,6 +390,19 @@ class MasterWavePlayer(
         }
     }
 
+    /** Explicit play / resume used by sync and remote controls. */
+    fun play() {
+        if (!exoPlayer.isPlaying) {
+            if (exoPlayer.playbackState == Player.STATE_IDLE && _currentTrack.value != null) {
+                playTrack(_currentTrack.value!!)
+            } else {
+                exoPlayer.play()
+            }
+        }
+    }
+
+    fun resume() = play()
+
     /** Explicit pause used by the sleep timer and other UI affordances. */
     fun pause() {
         if (exoPlayer.isPlaying) {

@@ -89,5 +89,14 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".data.cache.AppCacheCleanReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.masterwave.player.ACTION_HOURLY_CACHE_CLEAN" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

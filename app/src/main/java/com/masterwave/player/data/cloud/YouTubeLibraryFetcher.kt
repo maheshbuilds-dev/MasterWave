@@ -40,6 +40,7 @@ class YouTubeLibraryFetcher(
         private const val TAG = "YouTubeLibraryFetcher"
         private const val INNERTUBE_API_KEY = "AIzaSyAO_FJ2Slqaeuk43AZA"
         private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+        private const val MOBILE_USER_AGENT = "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.107 Mobile Safari/537.36"
         private const val ORIGIN = "https://music.youtube.com"
     }
 
@@ -47,9 +48,14 @@ class YouTubeLibraryFetcher(
      * Computes the official Google SAPISIDHASH authentication header.
      */
     fun generateSapisidHash(cookies: String, origin: String = ORIGIN): String? {
-        val sapisidRegex = Regex("(?:SAPISID|__Secure-3PAPISID|__Secure-1PAPISID)=([^;\\s]+)")
-        val match = sapisidRegex.find(cookies) ?: return null
-        val sapisid = match.groupValues[1].trim()
+        val secure3Match = Regex("__Secure-3PAPISID=([^;\\s]+)").find(cookies)
+        val secure1Match = Regex("__Secure-1PAPISID=([^;\\s]+)").find(cookies)
+        val plainMatch = Regex("(?:^|[;\\s])SAPISID=([^;\\s]+)").find(cookies)
+
+        val sapisid = secure3Match?.groupValues?.get(1)?.trim()
+            ?: plainMatch?.groupValues?.get(1)?.trim()
+            ?: secure1Match?.groupValues?.get(1)?.trim()
+            ?: return null
 
         val timestamp = System.currentTimeMillis() / 1000
         val payload = "$timestamp $sapisid $origin"
@@ -72,6 +78,8 @@ class YouTubeLibraryFetcher(
             .header("Origin", ORIGIN)
             .header("Referer", "$ORIGIN/")
             .header("X-Origin", ORIGIN)
+            .header("X-YouTube-Client-Name", "67")
+            .header("X-YouTube-Client-Version", "1.20241113.01.00")
             .header("X-Goog-AuthUser", "0")
             .header("Cookie", cookies)
             .post(payloadJson.toString().toRequestBody("application/json".toMediaType()))
@@ -131,48 +139,119 @@ class YouTubeLibraryFetcher(
     }
 
     /**
-     * Fetches the user's REAL Liked Songs playlist ("VLLM" / "FEmusic_liked_videos").
+     * Fetches the user's REAL Liked Songs playlist ("FEmusic_liked_videos", "VLLM", "LM", "VLLL").
+     * Uses authentic multi-strategy retrieval:
+     * 1. Direct authenticated HTML extraction from https://music.youtube.com/playlist?list=LM
+     * 2. Direct authenticated HTML extraction from https://www.youtube.com/playlist?list=LL
+     * 3. InnerTube WEB_REMIX & WEB browse endpoints
+     * NEVER falls back to trending or dummy songs. Returns strictly genuine user tracks.
      */
     suspend fun fetchRealLikedSongs(cookies: String): List<Track> = withContext(Dispatchers.IO) {
-        val likedEndpoints = listOf("VLLM", "FEmusic_liked_videos")
         val tracks = mutableListOf<Track>()
 
-        for (browseId in likedEndpoints) {
+        // Strategy 1: Authenticated direct HTML extraction for YouTube Music Liked Music (LM)
+        try {
+            val musicLiked = fetchFromHtmlPlaylist("https://music.youtube.com/playlist?list=LM", cookies)
+            if (musicLiked.isNotEmpty()) {
+                tracks.addAll(musicLiked)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in HTML Liked Music extraction", e)
+        }
+
+        // Strategy 2: Authenticated direct HTML extraction for standard YouTube Liked playlist (LL)
+        if (tracks.isEmpty()) {
             try {
-                val payload = JSONObject().apply {
-                    put("context", JSONObject().apply {
-                        put("client", JSONObject().apply {
-                            put("clientName", "WEB_REMIX")
-                            put("clientVersion", "1.20241113.01.00")
-                            put("hl", "en")
-                            put("gl", "US")
-                        })
-                    })
-                    put("browseId", browseId)
-                }
-
-                val request = buildInnerTubeRequest(
-                    url = "https://music.youtube.com/youtubei/v1/browse?key=$INNERTUBE_API_KEY&prettyPrint=false",
-                    payloadJson = payload,
-                    cookies = cookies
-                )
-
-                val response = okHttpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: ""
-                    val parsed = parseTracksFromInnerTube(body)
-                    if (parsed.isNotEmpty()) {
-                        tracks.addAll(parsed)
-                        break
-                    }
+                val ytLiked = fetchFromHtmlPlaylist("https://www.youtube.com/playlist?list=LL", cookies)
+                if (ytLiked.isNotEmpty()) {
+                    tracks.addAll(ytLiked)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching liked songs with $browseId", e)
+                Log.e(TAG, "Error in HTML YouTube Liked extraction", e)
             }
         }
 
-        // Return distinct tracks marked as favorite
-        tracks.distinctBy { it.id }.map { it.copy(isFavorite = true) }
+        // Strategy 3: InnerTube JSON browse endpoints (FEmusic_liked_videos, VLLM, LM, VLLL)
+        if (tracks.isEmpty()) {
+            val likedEndpoints = listOf("FEmusic_liked_videos", "VLLM", "LM", "VLLL")
+            for (browseId in likedEndpoints) {
+                try {
+                    val payload = JSONObject().apply {
+                        put("context", JSONObject().apply {
+                            put("client", JSONObject().apply {
+                                put("clientName", "WEB_REMIX")
+                                put("clientVersion", "1.20241113.01.00")
+                                put("hl", "en")
+                                put("gl", "US")
+                            })
+                        })
+                        put("browseId", browseId)
+                    }
+
+                    val request = buildInnerTubeRequest(
+                        url = "https://music.youtube.com/youtubei/v1/browse?key=$INNERTUBE_API_KEY&prettyPrint=false",
+                        payloadJson = payload,
+                        cookies = cookies
+                    )
+
+                    val response = okHttpClient.newCall(request).execute()
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: ""
+                        val parsed = parseTracksFromInnerTube(body)
+                        if (parsed.isNotEmpty()) {
+                            tracks.addAll(parsed)
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching liked songs with $browseId", e)
+                }
+            }
+        }
+
+        // Strictly genuine user liked tracks: zero fake fallback!
+        val result = tracks.distinctBy { it.id }.map { it.copy(isFavorite = true) }
+        if (result.isNotEmpty()) {
+            val today = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
+            val ytLikedPlaylist = Playlist(
+                id = "yt_liked_songs",
+                title = "YouTube Liked",
+                description = "Your favorite tracks from YouTube Music",
+                trackCount = result.size,
+                tracks = result,
+                artworkUrl = result.firstOrNull()?.artworkUrl,
+                source = "YouTube Music",
+                isPinned = true,
+                createdAt = today
+            )
+            repository.addCustomPlaylist(ytLikedPlaylist)
+        }
+
+        result
+    }
+
+    private suspend fun fetchFromHtmlPlaylist(url: String, cookies: String): List<Track> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", MOBILE_USER_AGENT)
+                .header("Cookie", cookies)
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .header("Referer", "https://music.youtube.com/")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val body = response.body?.string() ?: ""
+                val tracks = parseTracksFromInnerTube(body)
+                if (tracks.isNotEmpty()) {
+                    return@withContext tracks
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching HTML playlist from $url", e)
+        }
+        emptyList()
     }
 
     /**
@@ -310,11 +389,16 @@ class YouTubeLibraryFetcher(
     }
 
     /**
-     * Parses tracks out of InnerTube JSON response.
+     * Parses tracks out of InnerTube JSON response or embedded HTML page (ytInitialData).
      */
-    fun parseTracksFromInnerTube(jsonStr: String): List<Track> {
+    fun parseTracksFromInnerTube(jsonOrHtml: String): List<Track> {
         val tracks = mutableListOf<Track>()
         try {
+            val jsonStr = if (jsonOrHtml.trimStart().startsWith("<")) {
+                extractJsonFromHtml(jsonOrHtml) ?: return emptyList()
+            } else {
+                jsonOrHtml
+            }
             val root = JSONObject(jsonStr)
 
             fun scanObject(obj: JSONObject) {
@@ -465,7 +549,7 @@ class YouTubeLibraryFetcher(
     }
 
     private fun findVideoIdRecursively(obj: JSONObject): String? {
-        val nav = obj.optJSONObject("navigationEndpoint")
+        val nav = obj.optJSONObject("navigationEndpoint") ?: obj.optJSONObject("playNavigationEndpoint")
         val watch = nav?.optJSONObject("watchEndpoint")
         val vId = watch?.optString("videoId")
         if (!vId.isNullOrBlank()) return vId
@@ -473,10 +557,24 @@ class YouTubeLibraryFetcher(
         val keys = obj.keys()
         while (keys.hasNext()) {
             val key = keys.next()
-            val value = obj.opt(key)
-            if (value is JSONObject) {
-                val found = findVideoIdRecursively(value)
-                if (found != null) return found
+            if (key == "videoId") {
+                val direct = obj.optString("videoId")
+                if (direct.isNotBlank()) return direct
+            }
+            when (val value = obj.opt(key)) {
+                is JSONObject -> {
+                    val found = findVideoIdRecursively(value)
+                    if (found != null) return found
+                }
+                is JSONArray -> {
+                    for (i in 0 until value.length()) {
+                        val item = value.opt(i)
+                        if (item is JSONObject) {
+                            val found = findVideoIdRecursively(item)
+                            if (found != null) return found
+                        }
+                    }
+                }
             }
         }
         return null
@@ -485,9 +583,22 @@ class YouTubeLibraryFetcher(
     private fun upgradeToHighResArtwork(url: String?): String? {
         if (url.isNullOrBlank()) return null
         return url
-            .replace(Regex("=w\\d+-h\\d+.*"), "=w1200-h1200-l90-rj")
-            .replace(Regex("=s\\d+.*"), "=s1200")
-            .replace("hqdefault.jpg", "maxresdefault.jpg")
+            .replace(Regex("=w\\d+-h\\d+.*"), "=w600-h600-l90-rj")
+            .replace(Regex("=s\\d+.*"), "=s600")
+    }
+
+    private fun extractJsonFromHtml(html: String): String? {
+        val patterns = listOf(
+            Regex("(?:var\\s+ytInitialData|window\\[\"ytInitialData\"\\]|ytInitialData)\\s*=\\s*(\\{.+?\\});?\\s*<\\/script>", RegexOption.DOT_MATCHES_ALL),
+            Regex("ytInitialData\\s*=\\s*(\\{.+?\\});", RegexOption.DOT_MATCHES_ALL)
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(html)
+            if (match != null) {
+                return match.groupValues[1]
+            }
+        }
+        return null
     }
 
     /**

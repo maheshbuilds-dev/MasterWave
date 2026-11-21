@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -35,12 +34,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,8 +49,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
-import com.masterwave.player.ui.theme.SleekSmallFont
-import com.masterwave.player.ui.theme.ThemeState
+import com.masterwave.player.ui.theme.DisplayFontFamily
+import com.masterwave.player.ui.theme.WebAccentEmerald
+import com.masterwave.player.ui.theme.WebAccentGreen
+import com.masterwave.player.ui.theme.WebAccentPeach
+import com.masterwave.player.ui.theme.WebAccentSky
+import com.masterwave.player.ui.theme.rememberAppThemeColors
 
 /**
  * Checks if all permissions required for a complete music app experience are granted.
@@ -85,9 +82,9 @@ fun getRequiredPermissions(): Array<String> {
 }
 
 /**
- * Elegant First-Start Permissions Dialog:
- * Welcomes the user on app first launch, clearly explains required permissions,
- * and requests all permissions simultaneously in one cohesive step.
+ * Supercool First-Start Permissions Dialog:
+ * Styled with MasterWave Tactile Bento & Liquid Glass Aesthetic.
+ * Welcomes the user, explains permissions transparently, and asks with 1 high-contrast tap.
  */
 @Composable
 fun FirstStartPermissionsDialog(
@@ -95,8 +92,7 @@ fun FirstStartPermissionsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val accentColor by ThemeState.accentColor.collectAsState()
-    val isAmoled = ThemeState.isAmoledTheme()
+    val colors = rememberAppThemeColors()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -109,29 +105,6 @@ fun FirstStartPermissionsDialog(
         }
     }
 
-    val glassBg = if (isAmoled) {
-        Brush.verticalGradient(
-            listOf(Color(0xF5181724), Color(0xEB0E0D14), Color(0xF50A0910))
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(Color(0xFDFDFE), Color(0xF7F4F7), Color(0xEEEDF2))
-        )
-    }
-
-    val specularBorder = if (isAmoled) {
-        Brush.verticalGradient(
-            listOf(Color(0x60FFFFFF), Color(0x20FFFFFF), Color(0x05FFFFFF))
-        )
-    } else {
-        Brush.verticalGradient(
-            listOf(Color(0xFFFFFFFF), Color(0xCCFFFFFF), Color(0x40165B33))
-        )
-    }
-
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF141316)
-    val textSecondary = if (isAmoled) Color(0xFFA0A0B2) else Color(0xFF656470)
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -143,108 +116,108 @@ fun FirstStartPermissionsDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.60f))
-                .padding(24.dp),
+                .background(Color.Black.copy(alpha = 0.65f))
+                .padding(20.dp),
             contentAlignment = Alignment.Center
         ) {
             Surface(
-                shape = RoundedCornerShape(32.dp),
-                color = Color.Transparent,
-                shadowElevation = 24.dp,
+                shape = RoundedCornerShape(28.dp),
+                color = colors.surfaceCard,
+                border = androidx.compose.foundation.BorderStroke(2.dp, colors.border),
+                shadowElevation = if (colors.isDark) 0.dp else 12.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(
-                        elevation = 24.dp,
-                        shape = RoundedCornerShape(32.dp),
-                        spotColor = if (isAmoled) Color.Black else Color(0x35000000)
-                    )
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(glassBg)
-                    .border(1.5.dp, specularBorder, RoundedCornerShape(32.dp))
-                    .padding(24.dp)
+                    .padding(vertical = 12.dp)
             ) {
                 Column(
+                    modifier = Modifier.padding(22.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // App Logo Badge
+                    // App Logo Badge with Waveform
                     Box(
                         modifier = Modifier
-                            .size(68.dp)
-                            .shadow(8.dp, CircleShape, spotColor = accentColor.copy(alpha = 0.4f))
+                            .size(64.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(accentColor, accentColor.copy(alpha = 0.85f))
-                                )
-                            )
-                            .border(1.2.dp, Color(0x60FFFFFF), CircleShape),
+                            .background(WebAccentGreen)
+                            .border(2.dp, colors.border, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.GraphicEq,
                             contentDescription = "MasterWave",
-                            tint = Color.White,
+                            tint = Color(0xFF0A0A0A),
                             modifier = Modifier.size(34.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "Welcome to MasterWave",
-                        style = MaterialTheme.typography.titleLarge.copy(
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Welcome to MasterWave",
+                            fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 22.sp
-                        ),
-                        color = textPrimary,
-                        textAlign = TextAlign.Center
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
+                            fontSize = 22.sp,
+                            color = colors.ink,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(WebAccentEmerald)
+                                .border(1.dp, colors.border, RoundedCornerShape(999.dp))
+                                .padding(horizontal = 10.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "STUDIO HI-FI SOUND • ZERO ADS",
+                                fontFamily = DisplayFontFamily,
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0A0A0A)
+                            )
+                        }
+                    }
 
                     Text(
-                        text = "To enable lossless playback, local library scanning, and lock-screen controls, MasterWave requires standard permissions:",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp),
-                        color = textSecondary,
+                        text = "To enable lossless playback, offline storage downloads, and lock-screen controls, MasterWave requires standard audio permissions:",
+                        fontFamily = DisplayFontFamily,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = colors.body,
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    // Permission Items in tactile bento cards
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        PermissionBentoRow(
+                            icon = Icons.Default.MusicNote,
+                            title = "Music & Internal Storage",
+                            desc = "Download high-fidelity songs & scan local audio files",
+                            badgeColor = WebAccentGreen,
+                            colors = colors
+                        )
 
-                    // Permission Items
-                    PermissionFeatureRow(
-                        icon = Icons.Default.MusicNote,
-                        title = "Music & Audio Files",
-                        desc = "Scan device storage & play downloaded offline tracks",
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        accentColor = accentColor
-                    )
+                        PermissionBentoRow(
+                            icon = Icons.Default.Image,
+                            title = "Cover Art & Artwork",
+                            desc = "Display HD album thumbnails & save embedded art",
+                            badgeColor = WebAccentPeach,
+                            colors = colors
+                        )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        PermissionBentoRow(
+                            icon = Icons.Default.NotificationsActive,
+                            title = "Player & Download Alerts",
+                            desc = "Lock screen media controls & real-time download status",
+                            badgeColor = WebAccentSky,
+                            colors = colors
+                        )
+                    }
 
-                    PermissionFeatureRow(
-                        icon = Icons.Default.Image,
-                        title = "Cover Art & Visuals",
-                        desc = "Display high-res album covers & atmospheric blurred aurora",
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        accentColor = accentColor
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    PermissionFeatureRow(
-                        icon = Icons.Default.NotificationsActive,
-                        title = "Player Notifications",
-                        desc = "Lock screen controls, notification widget & download alerts",
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        accentColor = accentColor
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     // Grant All Button
                     Button(
@@ -252,41 +225,33 @@ fun FirstStartPermissionsDialog(
                             permissionLauncher.launch(getRequiredPermissions())
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isAmoled) accentColor else Color(0xFF165B33)
+                            containerColor = Color(0xFF165B33),
+                            contentColor = Color.White
                         ),
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(999.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
-                            .shadow(
-                                elevation = 6.dp,
-                                shape = CircleShape,
-                                spotColor = Color(0x35165B33)
-                            )
+                            .height(50.dp)
                     ) {
                         Text(
-                            text = "Grant All Permissions",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            ),
+                            text = "Grant Permissions & Start",
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
                             color = Color.White
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier.height(40.dp)
+                        modifier = Modifier.height(36.dp)
                     ) {
                         Text(
                             text = "Continue with Basic Features",
-                            style = SleekSmallFont.copy(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = textSecondary
+                            fontFamily = DisplayFontFamily,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.muted
                         )
                     }
                 }
@@ -296,48 +261,54 @@ fun FirstStartPermissionsDialog(
 }
 
 @Composable
-private fun PermissionFeatureRow(
+private fun PermissionBentoRow(
     icon: ImageVector,
     title: String,
     desc: String,
-    textPrimary: Color,
-    textSecondary: Color,
-    accentColor: Color
+    badgeColor: Color,
+    colors: com.masterwave.player.ui.theme.AppThemeColors
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.canvas)
+            .border(1.5.dp, colors.hairline, RoundedCornerShape(16.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(38.dp)
                 .clip(CircleShape)
-                .background(accentColor.copy(alpha = 0.14f)),
+                .background(badgeColor)
+                .border(1.5.dp, colors.border, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(20.dp)
+                tint = Color(0xFF0A0A0A),
+                modifier = Modifier.size(19.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                ),
-                color = textPrimary
+                fontFamily = DisplayFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.5.sp,
+                color = colors.ink
             )
             Text(
                 text = desc,
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = textSecondary
+                fontFamily = DisplayFontFamily,
+                fontSize = 11.5.sp,
+                lineHeight = 15.sp,
+                color = colors.muted
             )
         }
     }

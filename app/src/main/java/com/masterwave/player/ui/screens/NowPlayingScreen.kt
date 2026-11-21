@@ -325,7 +325,7 @@ fun NowPlayingScreen(
                 .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top Collapse Drag Handle with Generous Touch Target
+            // Top Collapse Touch Area (Clean Edge-to-Edge Artwork without any line artifact)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -333,13 +333,7 @@ fun NowPlayingScreen(
                     .bouncyClickable(scaleDown = 0.95f, onClick = onCollapse),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(5.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.45f))
-                )
+                // Keep touch target and collapse gesture active without drawing a line over the artwork
             }
 
             // Spacer allocating visual presence for the upper artwork bleed

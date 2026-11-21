@@ -487,6 +487,49 @@ fun HomeScreen(
                     val activeFlowTracks = if (flowTracks.isNotEmpty()) flowTracks else heroTracks
                     val heroTrack = activeFlowTracks.firstOrNull()
 
+                    // Ensure Smart Sonic Flow recommendations accurately contain EXACTLY 7 tracks every time
+                    val flowCarousel = remember(activeFlowTracks, madeForYouTracks, trendingTracks, dailyMixTracks) {
+                        val initial = activeFlowTracks.drop(1).toMutableList()
+                        val heroId = activeFlowTracks.firstOrNull()?.id
+                        val seenIds = mutableSetOf<String>().apply {
+                            heroId?.let { add(it) }
+                            initial.forEach { add(it.id) }
+                        }
+
+                        if (initial.size < 7) {
+                            for (track in madeForYouTracks) {
+                                if (track.id !in seenIds) {
+                                    seenIds.add(track.id)
+                                    initial.add(track)
+                                    if (initial.size == 7) break
+                                }
+                            }
+                        }
+                        if (initial.size < 7) {
+                            for (track in trendingTracks) {
+                                if (track.id !in seenIds) {
+                                    seenIds.add(track.id)
+                                    initial.add(track)
+                                    if (initial.size == 7) break
+                                }
+                            }
+                        }
+                        if (initial.size < 7) {
+                            for (track in dailyMixTracks) {
+                                if (track.id !in seenIds) {
+                                    seenIds.add(track.id)
+                                    initial.add(track)
+                                    if (initial.size == 7) break
+                                }
+                            }
+                        }
+                        initial.take(7)
+                    }
+
+                    val completeFlowTracks = remember(heroTrack, flowCarousel) {
+                        listOfNotNull(heroTrack) + flowCarousel
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -515,8 +558,8 @@ fun HomeScreen(
                                 shape = RoundedCornerShape(50),
                                 color = accentColor,
                                 modifier = Modifier.bouncyClickable(scaleDown = 0.92f) {
-                                    if (activeFlowTracks.isNotEmpty()) {
-                                        player.playPlaylist(activeFlowTracks, 0)
+                                    if (completeFlowTracks.isNotEmpty()) {
+                                        player.playPlaylist(completeFlowTracks, 0)
                                         Toast.makeText(context, "Playing Smart Sonic Flow", Toast.LENGTH_SHORT).show()
                                     }
                                 }
@@ -571,7 +614,7 @@ fun HomeScreen(
                                         shape = RoundedCornerShape(26.dp)
                                     )
                                     .bouncyClickable(scaleDown = 0.98f) {
-                                        player.playPlaylist(activeFlowTracks, 0)
+                                        player.playPlaylist(completeFlowTracks, 0)
                                     }
                             ) {
                                 // Background Artwork
@@ -644,7 +687,7 @@ fun HomeScreen(
                                                 .background(accentColor)
                                                 .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
                                                 .bouncyClickable(scaleDown = 0.90f) {
-                                                    player.playPlaylist(activeFlowTracks, 0)
+                                                    player.playPlaylist(completeFlowTracks, 0)
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -660,8 +703,7 @@ fun HomeScreen(
                             }
                         }
 
-                        // Large Carousel of Remaining Flow Recommendations (Big 150dp Cards)
-                        val flowCarousel = activeFlowTracks.drop(1).take(10)
+                        // Large Carousel of Exactly 7 Flow Recommendations (Big 150dp Cards)
                         if (flowCarousel.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             LazyRow(
@@ -669,12 +711,12 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 items(flowCarousel) { track ->
-                                    val trackIndex = activeFlowTracks.indexOf(track)
+                                    val trackIndex = completeFlowTracks.indexOf(track)
                                     Column(
                                         modifier = Modifier
                                             .width(150.dp)
                                             .bouncyClickable(scaleDown = 0.96f) {
-                                                player.playPlaylist(activeFlowTracks, trackIndex)
+                                                player.playPlaylist(completeFlowTracks, if (trackIndex >= 0) trackIndex else 0)
                                             }
                                     ) {
                                         Box(

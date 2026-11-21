@@ -25,6 +25,11 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
+data class PlayHistoryItem(
+    val track: Track,
+    val playedAt: Long = System.currentTimeMillis()
+)
+
 class MusicRepository(private val context: Context) {
 
     val okHttpClient = MasterWaveApp.instance.okHttpClient
@@ -56,6 +61,10 @@ class MusicRepository(private val context: Context) {
     // Recent History
     private val _recentTracks = MutableStateFlow<List<Track>>(emptyList())
     val recentTracks: StateFlow<List<Track>> = _recentTracks.asStateFlow()
+
+    // 3-Day Playback History
+    private val _playHistory = MutableStateFlow<List<PlayHistoryItem>>(emptyList())
+    val playHistory: StateFlow<List<PlayHistoryItem>> = _playHistory.asStateFlow()
 
     // Local Tracks
     private val _localTracks = MutableStateFlow<List<Track>>(emptyList())
@@ -123,6 +132,7 @@ class MusicRepository(private val context: Context) {
         loadCachedFavorites()
         loadCachedPlaylists()
         loadCachedFollowedArtists()
+        loadPlayHistory()
     }
 
     // Listening Stats
@@ -244,16 +254,88 @@ class MusicRepository(private val context: Context) {
     }
 
     fun recordRecentTrack(track: Track) {
+        val now = System.currentTimeMillis()
+        val threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000L)
+
         val list = _recentTracks.value.toMutableList()
         list.removeAll { it.id == track.id }
         list.add(0, track)
-        _recentTracks.value = list.take(50)
+        _recentTracks.value = list.take(100)
+
+        // 3-Day History List
+        val history = _playHistory.value.toMutableList()
+        history.add(0, PlayHistoryItem(track, now))
+        _playHistory.value = history.filter { it.playedAt >= threeDaysAgo }
 
         // Increment stats
         _totalPlays.value += 1
         val currentMap = _playCounts.value.toMutableMap()
         currentMap[track.id] = (currentMap[track.id] ?: 0) + 1
         _playCounts.value = currentMap
+
+        savePlayHistory()
+    }
+
+    private fun savePlayHistory() {
+        try {
+            val threeDaysAgo = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000L)
+            val valid = _playHistory.value.filter { it.playedAt >= threeDaysAgo }
+            val arr = JSONArray()
+            valid.forEach { item ->
+                arr.put(
+                    JSONObject().apply {
+                        put("playedAt", item.playedAt)
+                        put("id", item.track.id)
+                        put("title", item.track.title)
+                        put("artist", item.track.artist)
+                        put("album", item.track.album)
+                        put("durationSeconds", item.track.durationSeconds)
+                        put("artworkUrl", item.track.artworkUrl ?: "")
+                        put("streamUrl", item.track.streamUrl ?: "")
+                        put("isLocal", item.track.isLocal)
+                    }
+                )
+            }
+            cachePrefs.edit()
+                .putString("cached_play_history", arr.toString())
+                .putInt("cached_total_plays", _totalPlays.value)
+                .apply()
+        } catch (_: Exception) {}
+    }
+
+    private fun loadPlayHistory() {
+        try {
+            _totalPlays.value = cachePrefs.getInt("cached_total_plays", 0)
+            val json = cachePrefs.getString("cached_play_history", null) ?: return
+            val arr = JSONArray(json)
+            val threeDaysAgo = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000L)
+            val list = mutableListOf<PlayHistoryItem>()
+            val counts = mutableMapOf<String, Int>()
+
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val playedAt = o.optLong("playedAt", 0L)
+                if (playedAt >= threeDaysAgo) {
+                    val track = Track(
+                        id = o.optString("id"),
+                        title = o.optString("title"),
+                        artist = o.optString("artist"),
+                        album = o.optString("album"),
+                        durationSeconds = o.optLong("durationSeconds"),
+                        artworkUrl = o.optString("artworkUrl").takeIf { it.isNotBlank() },
+                        streamUrl = o.optString("streamUrl").takeIf { it.isNotBlank() },
+                        isLocal = o.optBoolean("isLocal", false)
+                    )
+                    list.add(PlayHistoryItem(track, playedAt))
+                    counts[track.id] = (counts[track.id] ?: 0) + 1
+                }
+            }
+            _playHistory.value = list
+            _playCounts.value = counts
+            if (list.isNotEmpty()) {
+                _recentTracks.value = list.map { it.track }.distinctBy { it.id }.take(50)
+            }
+        } catch (_: Exception) {}
     }
 
     suspend fun loadLocalTracks(): List<Track> {

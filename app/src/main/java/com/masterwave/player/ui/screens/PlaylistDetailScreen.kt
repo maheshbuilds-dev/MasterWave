@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
@@ -104,6 +105,8 @@ fun PlaylistDetailScreen(
     val pillBg = if (isAmoled) Color(0xFF181824) else Color(0xFFFAF5E8)
 
     var showMenu by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var showGoogleAuth by remember { mutableStateOf(false) }
 
     val isCustomPlaylist = playlist.source == "Custom" || playlist.source == "User" || playlist.id.startsWith("custom_") || playlist.id.startsWith("user_")
     var tracksList by remember(playlist.id, playlist.tracks) { mutableStateOf(playlist.tracks) }
@@ -124,10 +127,19 @@ fun PlaylistDetailScreen(
         if (tracksList.isEmpty() && !isCustomPlaylist && (playlist.description.isNotBlank() || playlist.title.isNotBlank())) {
             isLoadingTracks = true
             try {
-                val q = playlist.description.ifBlank { playlist.title }
-                val results = repository.search(q).songs
-                if (results.isNotEmpty()) {
-                    tracksList = results
+                if (playlist.id == "yt_liked_songs") {
+                    val cloudManager = com.masterwave.player.data.cloud.CloudAccountManager.getInstance(context, repository)
+                    val synced = cloudManager.syncRealYouTubeMusicLibrary()
+                    val ytLiked = synced.find { it.id == "yt_liked_songs" } ?: repository.playlists.value.find { it.id == "yt_liked_songs" }
+                    if (ytLiked != null && ytLiked.tracks.isNotEmpty()) {
+                        tracksList = ytLiked.tracks
+                    }
+                } else {
+                    val q = playlist.description.ifBlank { playlist.title }
+                    val results = repository.search(q).songs
+                    if (results.isNotEmpty()) {
+                        tracksList = results
+                    }
                 }
             } catch (_: Exception) {}
             isLoadingTracks = false
@@ -368,33 +380,86 @@ fun PlaylistDetailScreen(
                             .padding(vertical = 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.MusicNote,
-                                contentDescription = null,
-                                tint = textSecondary.copy(alpha = 0.5f),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "No tracks in this playlist yet",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = textSecondary
-                            )
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Button(
-                                onClick = { showAddSongsDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
+                        if (playlist.id == "yt_liked_songs") {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
+                                    imageVector = Icons.Default.Favorite,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    tint = accentColor,
+                                    modifier = Modifier.size(54.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Add Songs", fontWeight = FontWeight.Bold, color = Color.White)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "No YouTube Liked Songs Synced",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = textPrimary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Connect your Google account or tap below to sync your real liked tracks from YouTube Music.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = textSecondary,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 32.dp)
+                                )
+                                Spacer(modifier = Modifier.height(18.dp))
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            isLoadingTracks = true
+                                            val cloudManager = com.masterwave.player.data.cloud.CloudAccountManager.getInstance(context, repository)
+                                            val synced = cloudManager.syncRealYouTubeMusicLibrary()
+                                            val ytLiked = synced.find { it.id == "yt_liked_songs" } ?: repository.playlists.value.find { it.id == "yt_liked_songs" }
+                                            if (ytLiked != null && ytLiked.tracks.isNotEmpty()) {
+                                                tracksList = ytLiked.tracks
+                                            } else {
+                                                showGoogleAuth = true
+                                            }
+                                            isLoadingTracks = false
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Sync / Connect Google Account", fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    tint = textSecondary.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "No tracks in this playlist yet",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = textSecondary
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Button(
+                                    onClick = { showAddSongsDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Add Songs", fontWeight = FontWeight.Bold, color = Color.White)
+                                }
                             }
                         }
                     }
@@ -515,6 +580,31 @@ fun PlaylistDetailScreen(
                 if (tracksList.none { it.id == newTrack.id }) {
                     tracksList = tracksList + newTrack
                 }
+            }
+        )
+    }
+
+    if (showGoogleAuth) {
+        com.masterwave.player.ui.components.WebAuthDialog(
+            isOpen = showGoogleAuth,
+            providerTitle = "Google / YouTube Music",
+            initialUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com%2F",
+            successDomain = "music.youtube.com",
+            onDismiss = { showGoogleAuth = false },
+            onAuthCaptured = { cookies ->
+                val cloudManager = com.masterwave.player.data.cloud.CloudAccountManager.getInstance(context, repository)
+                cloudManager.saveYouTubeAuth(cookies)
+                showGoogleAuth = false
+                scope.launch {
+                    isLoadingTracks = true
+                    val synced = cloudManager.syncRealYouTubeMusicLibrary()
+                    val ytLiked = synced.find { it.id == "yt_liked_songs" } ?: repository.playlists.value.find { it.id == "yt_liked_songs" }
+                    if (ytLiked != null && ytLiked.tracks.isNotEmpty()) {
+                        tracksList = ytLiked.tracks
+                    }
+                    isLoadingTracks = false
+                }
+                android.widget.Toast.makeText(context, "Google Account Authorized!", android.widget.Toast.LENGTH_SHORT).show()
             }
         )
     }

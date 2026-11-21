@@ -39,7 +39,23 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
                 } else {
                     request
                 }
-                chain.proceed(requestWithUserAgent)
+                var response = chain.proceed(requestWithUserAgent)
+                val urlStr = request.url.toString()
+                // Automatic 404 recovery: YouTube maxresdefault.jpg / hq720.jpg fallback to hqdefault.jpg
+                if (!response.isSuccessful && response.code == 404) {
+                    if (urlStr.contains("maxresdefault.jpg")) {
+                        response.close()
+                        val fallbackUrl = urlStr.replace("maxresdefault.jpg", "hqdefault.jpg")
+                        val fallbackRequest = requestWithUserAgent.newBuilder().url(fallbackUrl).build()
+                        response = chain.proceed(fallbackRequest)
+                    } else if (urlStr.contains("hq720.jpg")) {
+                        response.close()
+                        val fallbackUrl = urlStr.replace("hq720.jpg", "hqdefault.jpg")
+                        val fallbackRequest = requestWithUserAgent.newBuilder().url(fallbackUrl).build()
+                        response = chain.proceed(fallbackRequest)
+                    }
+                }
+                response
             }
             .build()
     }
@@ -48,6 +64,8 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
         super.onCreate()
         instance = this
         createNotificationChannels()
+        // Automated cache clean engine (every 1 hour)
+        com.masterwave.player.data.cache.CacheCleanManager.getInstance(this).startAutoCleanup()
     }
 
     private fun createNotificationChannels() {

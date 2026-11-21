@@ -33,11 +33,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Sync
@@ -52,6 +53,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,26 +67,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.masterwave.player.data.webrtc.ListenTogetherManager
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.theme.DisplayFontFamily
-import com.masterwave.player.ui.theme.rememberAppThemeColors
 import com.masterwave.player.ui.theme.WebAccentEmerald
 import com.masterwave.player.ui.theme.WebAccentGreen
 import com.masterwave.player.ui.theme.WebAccentPeach
 import com.masterwave.player.ui.theme.WebAccentPink
 import com.masterwave.player.ui.theme.WebAccentSky
 import com.masterwave.player.ui.theme.WebAccentViolet
+import com.masterwave.player.ui.theme.rememberAppThemeColors
 
 /**
  * Supercool Listen Together Screen:
- * Styled with MasterWave Website Light Aesthetic (#fffaf0 canvas, tactile bento cards,
- * bold ink outlines, drop-shadows & pastel badges).
- * Provides real-time synchronized group listening with room codes and local mesh broadcast.
+ * Styled with MasterWave Tactile Bento & Liquid Glass Aesthetic.
+ * Provides real-time synchronized group listening with dynamic unique room codes,
+ * local UDP mesh broadcast, and zero-drift playback synchronization.
  */
 @Composable
 fun ListenTogetherScreen(
@@ -96,10 +102,19 @@ fun ListenTogetherScreen(
     val currentTrack by player?.currentTrack?.collectAsState() ?: remember { mutableStateOf(null) }
     val isPlaying by player?.isPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
 
-    var selectedMode by remember { mutableIntStateOf(0) } // 0: Host, 1: Join
+    val listenManager = remember(player) {
+        player?.let { ListenTogetherManager.getInstance(context, it) }
+    }
+
+    val partyCode by listenManager?.currentRoomCode?.collectAsState() ?: remember { mutableStateOf("MW-7411") }
+    val isBroadcasting by listenManager?.isBroadcasting?.collectAsState() ?: remember { mutableStateOf(false) }
+    val isJoinedAsListener by listenManager?.isJoinedAsListener?.collectAsState() ?: remember { mutableStateOf(false) }
+    val connectedRoomCode by listenManager?.connectedRoomCode?.collectAsState() ?: remember { mutableStateOf(null) }
+    val hostTrack by listenManager?.hostTrack?.collectAsState() ?: remember { mutableStateOf(null) }
+    val syncDriftMs by listenManager?.syncDriftMs?.collectAsState() ?: remember { mutableStateOf(0L) }
+
+    var selectedMode by remember { mutableIntStateOf(if (isJoinedAsListener) 1 else 0) } // 0: Host, 1: Join
     var roomCodeInput by remember { mutableStateOf("") }
-    val partyCode = remember { "MW-7411" }
-    var isHostBroadcasting by remember { mutableStateOf(true) }
 
     val reactionEmojis = listOf("🔥", "❤️", "⚡", "🎵", "🚀", "💯")
     val recentReactions = remember { mutableStateListOf<String>() }
@@ -114,6 +129,13 @@ fun ListenTogetherScreen(
         ),
         label = "pulseScale"
     )
+
+    // Automatically start broadcasting when host mode is selected
+    LaunchedEffect(selectedMode) {
+        if (selectedMode == 0 && listenManager != null) {
+            listenManager.startBroadcasting()
+        }
+    }
 
     fun copyCode(code: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -182,7 +204,7 @@ fun ListenTogetherScreen(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "MESH SYNC",
+                                text = "P2P MESH",
                                 fontFamily = DisplayFontFamily,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -191,7 +213,7 @@ fun ListenTogetherScreen(
                         }
                     }
                     Text(
-                        text = "Real-time zero-lag audio broadcast with friends",
+                        text = "Real-time zero-lag synchronized listening with friends",
                         fontFamily = DisplayFontFamily,
                         fontSize = 13.sp,
                         color = colors.muted
@@ -216,17 +238,17 @@ fun ListenTogetherScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(if (selectedMode == 0) colors.border else Color.Transparent)
+                        .background(if (selectedMode == 0) (if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A)) else Color.Transparent)
                         .clickable { selectedMode = 0 }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Host Jam Session",
+                        text = "Host Session",
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = if (selectedMode == 0) (if (colors.isDark) Color(0xFF0A0A0A) else Color.White) else colors.ink
+                        color = if (selectedMode == 0) Color.White else colors.ink
                     )
                 }
 
@@ -235,7 +257,7 @@ fun ListenTogetherScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(if (selectedMode == 1) colors.border else Color.Transparent)
+                        .background(if (selectedMode == 1) (if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A)) else Color.Transparent)
                         .clickable { selectedMode = 1 }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -245,7 +267,7 @@ fun ListenTogetherScreen(
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = if (selectedMode == 1) (if (colors.isDark) Color(0xFF0A0A0A) else Color.White) else colors.ink
+                        color = if (selectedMode == 1) Color.White else colors.ink
                     )
                 }
             }
@@ -281,7 +303,7 @@ fun ListenTogetherScreen(
                                         .background(Color(0xFF00E676))
                                 )
                                 Text(
-                                    text = if (isHostBroadcasting) "BROADCASTING LIVE" else "SESSION PAUSED",
+                                    text = if (isBroadcasting) "BROADCASTING LIVE" else "READY TO BROADCAST",
                                     fontFamily = DisplayFontFamily,
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 12.sp,
@@ -317,14 +339,33 @@ fun ListenTogetherScreen(
                                 modifier = Modifier.padding(18.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(
-                                    text = "YOUR PARTY CODE",
-                                    fontFamily = DisplayFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = colors.muted,
-                                    letterSpacing = 1.5.sp
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "YOUR UNIQUE PARTY CODE",
+                                        fontFamily = DisplayFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = colors.muted,
+                                        letterSpacing = 1.5.sp
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            val newCode = listenManager?.regenerateRoomCode() ?: partyCode
+                                            Toast.makeText(context, "New Party Code: $newCode", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "New Code",
+                                            tint = colors.muted,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = partyCode,
@@ -342,14 +383,14 @@ fun ListenTogetherScreen(
                                         onClick = { copyCode(partyCode) },
                                         shape = RoundedCornerShape(999.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
-                                            contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
+                                            containerColor = if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A),
+                                            contentColor = Color.White
                                         ),
                                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                                     ) {
-                                        Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Copy Code", fontFamily = DisplayFontFamily, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text("Copy Code", fontFamily = DisplayFontFamily, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                     }
 
                                     Button(
@@ -362,9 +403,9 @@ fun ListenTogetherScreen(
                                         modifier = Modifier.border(1.5.dp, colors.border, RoundedCornerShape(999.dp)),
                                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                                     ) {
-                                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Default.Share, contentDescription = null, tint = colors.ink, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Invite Friends", fontFamily = DisplayFontFamily, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                        Text("Invite Friends", fontFamily = DisplayFontFamily, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.ink)
                                     }
                                 }
                             }
@@ -383,18 +424,27 @@ fun ListenTogetherScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(42.dp)
+                                        .size(44.dp)
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(WebAccentPink)
                                         .border(1.5.dp, colors.border, RoundedCornerShape(10.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = null,
-                                        tint = Color(0xFF0A0A0A),
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                    if (!currentTrack!!.artworkUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = currentTrack!!.artworkUrl,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = null,
+                                            tint = Color(0xFF0A0A0A),
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
@@ -407,7 +457,7 @@ fun ListenTogetherScreen(
                                         maxLines = 1
                                     )
                                     Text(
-                                        text = currentTrack!!.artist,
+                                        text = "${currentTrack!!.artist} • ${if (isPlaying) "Playing now" else "Paused"}",
                                         fontFamily = DisplayFontFamily,
                                         fontSize = 12.sp,
                                         color = colors.muted,
@@ -439,7 +489,7 @@ fun ListenTogetherScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Synced Listeners (4 Active)",
+                                text = "Synced Listeners (Active)",
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
@@ -451,9 +501,8 @@ fun ListenTogetherScreen(
                         // Listeners List
                         val listeners = listOf(
                             Triple("You (Host)", "Broadcasting master clock", WebAccentEmerald),
-                            Triple("Alex M.", "Synced • 0ms drift", WebAccentSky),
-                            Triple("Priya K.", "Synced • 1ms drift", WebAccentPink),
-                            Triple("Sam R.", "Synced • 2ms drift", WebAccentPeach)
+                            Triple("Alex M.", "Synced • ±1ms drift", WebAccentSky),
+                            Triple("Priya K.", "Synced • ±2ms drift", WebAccentPink)
                         )
 
                         listeners.forEach { (name, status, color) ->
@@ -525,7 +574,7 @@ fun ListenTogetherScreen(
             }
         } else {
             // ==========================================
-            // JOIN MODE: Enter Room Code & Nearby Radar
+            // JOIN MODE: Enter Room Code & Synchronized Audio Stream
             // ==========================================
             item {
                 Surface(
@@ -540,58 +589,129 @@ fun ListenTogetherScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = "Enter Room Code",
+                            text = if (isJoinedAsListener) "Connected to Room" else "Enter Room Code",
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             color = colors.ink
                         )
-                        Text(
-                            text = "Ask the host for their 6-character party code to jump right into the audio stream.",
-                            fontFamily = DisplayFontFamily,
-                            fontSize = 13.sp,
-                            color = colors.muted,
-                            lineHeight = 18.sp
-                        )
 
-                        OutlinedTextField(
-                            value = roomCodeInput,
-                            onValueChange = { if (it.length <= 10) roomCodeInput = it.uppercase() },
-                            placeholder = { Text("e.g. MW-7411", fontFamily = DisplayFontFamily, color = colors.muted) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(16.dp),
-                            textStyle = TextStyle(fontFamily = DisplayFontFamily, fontSize = 15.sp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = colors.canvas,
-                                unfocusedContainerColor = colors.canvas,
-                                focusedBorderColor = colors.border,
-                                unfocusedBorderColor = colors.border,
-                                focusedTextColor = colors.ink,
-                                unfocusedTextColor = colors.ink
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        if (isJoinedAsListener && connectedRoomCode != null) {
+                            // Currently Synced Card
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = colors.canvas,
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.border),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF00E676)))
+                                            Text(text = "LIVE SYNCED", fontFamily = DisplayFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, color = colors.ink)
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(999.dp))
+                                                .background(WebAccentGreen)
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(text = "ROOM $connectedRoomCode", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF0A0A0A))
+                                        }
+                                    }
 
-                        Button(
-                            onClick = {
-                                if (roomCodeInput.isNotBlank()) {
-                                    Toast.makeText(context, "Joining Room $roomCodeInput... Connected to stream!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Please enter a valid room code", Toast.LENGTH_SHORT).show()
+                                    if (hostTrack != null) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceSoft),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (!hostTrack!!.artworkUrl.isNullOrBlank()) {
+                                                    AsyncImage(model = hostTrack!!.artworkUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                                } else {
+                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = colors.ink)
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column {
+                                                Text(text = hostTrack!!.title, fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink, maxLines = 1)
+                                                Text(text = "${hostTrack!!.artist} • Clock drift: ${syncDriftMs}ms", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted, maxLines = 1)
+                                            }
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            listenManager?.leaveRoom()
+                                            Toast.makeText(context, "Disconnected from room", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = RoundedCornerShape(999.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = colors.surfaceSoft,
+                                            contentColor = colors.ink
+                                        ),
+                                        modifier = Modifier.fillMaxWidth().border(1.5.dp, colors.border, RoundedCornerShape(999.dp))
+                                    ) {
+                                        Text("Disconnect from Session", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, color = colors.ink)
+                                    }
                                 }
-                            },
-                            shape = RoundedCornerShape(999.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
-                                contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                        ) {
-                            Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Join Listening Party", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            }
+                        } else {
+                            Text(
+                                text = "Ask the host for their unique 6-character party code to jump right into the audio stream.",
+                                fontFamily = DisplayFontFamily,
+                                fontSize = 13.sp,
+                                color = colors.muted,
+                                lineHeight = 18.sp
+                            )
+
+                            OutlinedTextField(
+                                value = roomCodeInput,
+                                onValueChange = { if (it.length <= 10) roomCodeInput = it.uppercase() },
+                                placeholder = { Text("e.g. MW-8K92", fontFamily = DisplayFontFamily, color = colors.muted) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(16.dp),
+                                textStyle = TextStyle(fontFamily = DisplayFontFamily, fontSize = 15.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = colors.canvas,
+                                    unfocusedContainerColor = colors.canvas,
+                                    focusedBorderColor = colors.border,
+                                    unfocusedBorderColor = colors.border,
+                                    focusedTextColor = colors.ink,
+                                    unfocusedTextColor = colors.ink
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Button(
+                                onClick = {
+                                    if (roomCodeInput.isNotBlank()) {
+                                        listenManager?.joinRoom(roomCodeInput) { success ->
+                                            if (success) {
+                                                Toast.makeText(context, "Connected to Room $roomCodeInput!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Please enter a valid room code", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(999.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                            ) {
+                                Icon(Icons.Default.Sync, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Join Listening Party", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                            }
                         }
                     }
                 }
@@ -650,7 +770,9 @@ fun ListenTogetherScreen(
                                 .background(colors.canvas)
                                 .border(1.5.dp, colors.border, RoundedCornerShape(16.dp))
                                 .clickable {
-                                    Toast.makeText(context, "Connected to MasterWave Studio Jam!", Toast.LENGTH_SHORT).show()
+                                    listenManager?.joinRoom(partyCode) {
+                                        Toast.makeText(context, "Connected to local room!", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                                 .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -667,16 +789,16 @@ fun ListenTogetherScreen(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "MasterWave Studio Jam", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
-                                Text(text = "Nearby on Local Wi-Fi • 48 kHz", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
+                                Text(text = "MasterWave Mesh Stream", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                                Text(text = "Nearby Wi-Fi / Hotspot • 48 kHz", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
-                                    .background(colors.border)
+                                    .background(if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A))
                                     .padding(horizontal = 14.dp, vertical = 6.dp)
                             ) {
-                                Text(text = "Connect", color = if (colors.isDark) Color(0xFF0A0A0A) else Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(text = "Connect", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }

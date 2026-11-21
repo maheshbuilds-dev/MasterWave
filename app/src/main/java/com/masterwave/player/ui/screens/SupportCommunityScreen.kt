@@ -362,20 +362,21 @@ fun SupportCommunityScreen(
                         onClick = { openUpiIntent(selectedTierAmount) },
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (colors.isDark) colors.ink else Color(0xFF0A0A0A),
-                            contentColor = if (colors.isDark) Color(0xFF0A0A0A) else Color.White
+                            containerColor = Color(0xFF165B33),
+                            contentColor = Color.White
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
                     ) {
-                        Icon(Icons.Default.VolunteerActivism, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.VolunteerActivism, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "Contribute ₹$selectedTierAmount via UPI",
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            fontSize = 15.sp,
+                            color = Color.White
                         )
                     }
                 }
