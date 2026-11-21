@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,14 +19,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,27 +43,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeAccentPreset
 import com.masterwave.player.ui.theme.ThemeMode
 import com.masterwave.player.ui.theme.ThemeState
 
 /**
- * MasterWave 2.0 Curated Theme Studio & Appearance Screen:
- * Zero raw HEX codes. Replaced by a professional, curated design studio:
- * - Automatic: dynamically adapts interactive accents to current album artwork.
- * - Ocean: Pacific deep blue & marine teal.
- * - Berry: Muted velvet rose & deep burgundy.
- * - Forest: Natural emerald & calm woodland pine.
- * - Sunset: Warm amber glow & dusk coral.
- * - Monochrome: Pure minimalist white, silver & slate.
- * - Theme Mode: AMOLED Pitch Black, Layered Dark, and Light Mode.
+ * MasterWave Appearance Screen:
+ * - Theme Style: Exclusively Dark (AMOLED pitch black) & Light mode.
+ * - Accent Colours: Curated palette presets & dynamic art.
+ * - High Refresh Rate: Toggle 120Hz display refresh mode.
+ * - Liquid Glass: Toggle shader-powered frosted acrylic glass dock.
  */
 @Composable
 fun AppearanceScreen(
@@ -69,379 +70,360 @@ fun AppearanceScreen(
     val themeMode by ThemeState.themeMode.collectAsState()
     val activeAccentPreset by ThemeState.accentPreset.collectAsState()
     val effectiveAccent by ThemeState.effectiveAccentColor.collectAsState()
+    val dynamicColorEnabled by ThemeState.dynamicColorEnabled.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
     val liquidGlassEnabled by ThemeState.liquidGlassEnabled.collectAsState()
-    val wavySeekbarEnabled by ThemeState.wavySeekbarEnabled.collectAsState()
+    val highRefreshRateEnabled by ThemeState.highRefreshRateEnabled.collectAsState()
     val context = LocalContext.current
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
-    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFFFFFFF)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF14171E)
-    val textSecondary = if (isAmoled) Color(0xFFA0A5B8) else Color(0xFF6B7285)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFAF0)
+    val cardBg = if (isAmoled) Color(0xFF101118) else Color(0xFFF5F0E0)
+    val cardBorder = if (isAmoled) Color(0x1FFFFFFF) else Color(0xFF0A0A0A)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val textSecondary = if (isAmoled) Color(0xFFA0A5B8) else Color(0xFF6A6A6A)
+    val dividerColor = if (isAmoled) Color(0x14FFFFFF) else Color(0xFFE5E5E5)
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // --- 1. Top App Bar ---
+        // --- Top App Bar ---
         item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (isAmoled) Color(0xFF14151E) else Color(0xFFE5E7EB))
+                        .size(38.dp)
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = textPrimary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Column {
                     Text(
-                        text = "Appearance & Theme",
-                        fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
+                        text = "Appearance",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp,
+                            letterSpacing = (-0.4).sp
+                        ),
                         color = textPrimary
                     )
                     Text(
-                        text = "Curated visual aesthetics & dynamic styling",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "Theme, colours, high refresh rate, and liquid glass",
+                        fontSize = 12.sp,
                         color = textSecondary
                     )
                 }
             }
         }
 
-        // --- 2. Curated Theme Studio (No Raw HEX codes) ---
+        // --- 1. Theme & Colours ---
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Palette,
-                        contentDescription = null,
-                        tint = effectiveAccent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Curated Theme Studio",
-                        fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = textPrimary
-                    )
-                }
-
-                Text(
-                    text = activeAccentPreset.title.uppercase(),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
-                        fontSize = 11.sp
-                    ),
-                    color = effectiveAccent
-                )
-            }
-        }
-
-        // List of 6 curated presets
-        items(ThemeAccentPreset.entries) { preset ->
-            val isSelected = preset == activeAccentPreset
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = if (isSelected) effectiveAccent.copy(alpha = 0.12f) else cardBg,
-                border = if (isSelected) androidx.compose.foundation.BorderStroke(1.5.dp, effectiveAccent) else null,
-                shadowElevation = if (isSelected) 4.dp else 1.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .clickable {
-                        ThemeState.setAccentPreset(preset)
-                        Toast.makeText(context, "${preset.title} palette activated", Toast.LENGTH_SHORT).show()
-                    }
-            ) {
-                Row(
+            AppearanceCardSection(title = "Theme and Colours", textSecondary = textSecondary) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Visual Palette Preview Swatch
-                    if (preset == ThemeAccentPreset.AUTOMATIC) {
-                        // Multi-color dynamic gradient ring
+                    // Theme Style Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.sweepGradient(
-                                        listOf(
-                                            Color(0xFF00D4B2),
-                                            Color(0xFF0EA5E9),
-                                            Color(0xFFE11D48),
-                                            Color(0xFFF59E0B),
-                                            Color(0xFF10B981),
-                                            Color(0xFF00D4B2)
-                                        )
-                                    )
-                                ),
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(effectiveAccent.copy(alpha = 0.16f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(cardBg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = null,
-                                    tint = effectiveAccent,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-                        }
-                    } else {
-                        // Dual-tone circular swatches
-                        Box(
-                            modifier = Modifier.size(44.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .align(Alignment.TopStart)
-                                    .clip(CircleShape)
-                                    .background(preset.primaryColor)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .align(Alignment.BottomEnd)
-                                    .clip(CircleShape)
-                                    .background(preset.secondaryColor)
-                                    .border(2.dp, cardBg, CircleShape)
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                tint = effectiveAccent,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column {
                             Text(
-                                text = preset.title,
-                                fontFamily = DisplayFontFamily,
+                                text = "Theme Style",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = textPrimary
                             )
-                            if (preset == ThemeAccentPreset.AUTOMATIC) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
+                            Text(
+                                text = if (themeMode == ThemeMode.LIGHT) "Clean Studio Light" else "AMOLED Pure Dark",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = textSecondary
+                            )
+                        }
+                    }
+
+                    // Strict Dark (AMOLED) & Light Capsule Only
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (isAmoled) Color(0xFF181A24) else Color(0xFFEFF1F5),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val themes = listOf(
+                                ThemeMode.DARK to ("Dark (AMOLED)" to Icons.Default.DarkMode),
+                                ThemeMode.LIGHT to ("Light" to Icons.Default.LightMode)
+                            )
+                            themes.forEach { (mode, pair) ->
+                                val (label, icon) = pair
+                                val isSelected = when (mode) {
+                                    ThemeMode.LIGHT -> themeMode == ThemeMode.LIGHT
+                                    else -> themeMode != ThemeMode.LIGHT
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = if (isSelected) effectiveAccent else Color.Transparent,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(effectiveAccent.copy(alpha = 0.2f))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .weight(1f)
+                                        .bouncyClickable {
+                                            ThemeState.setThemeMode(if (mode == ThemeMode.LIGHT) ThemeMode.LIGHT else ThemeMode.AMOLED)
+                                            Toast.makeText(context, "$label Theme applied", Toast.LENGTH_SHORT).show()
+                                        }
                                 ) {
-                                    Text(
-                                        text = "ADAPTIVE",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 9.sp,
-                                            letterSpacing = 0.5.sp
-                                        ),
-                                        color = effectiveAccent
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            tint = if (isSelected) Color.White else textSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = label,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    AppearanceDivider(dividerColor)
+
+                    // Accent Colors Title
+                    Text(
+                        text = "ACCENT COLOURS",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                        color = textSecondary
+                    )
+
+                    // Interactive Color Swatches
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val presets = listOf(
+                            ThemeAccentPreset.APPLE_MUSIC to Color(0xFFFA2D48),
+                            ThemeAccentPreset.OCEAN to Color(0xFF00D4B2),
+                            ThemeAccentPreset.BERRY to Color(0xFF8B5CF6),
+                            ThemeAccentPreset.FOREST to Color(0xFF10B981),
+                            ThemeAccentPreset.SUNSET to Color(0xFFF59E0B),
+                            ThemeAccentPreset.MONOCHROME to Color(0xFFE2E8F0)
+                        )
+                        presets.forEach { (preset, color) ->
+                            val isSelected = activeAccentPreset == preset && !dynamicColorEnabled
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .border(
+                                        width = if (isSelected) 3.dp else 0.dp,
+                                        color = if (isSelected) (if (isAmoled) Color.White else Color.Black) else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .clickable {
+                                        ThemeState.setDynamicColorEnabled(false)
+                                        ThemeState.setAccentPreset(preset)
+                                        Toast.makeText(context, "Accent: ${preset.title}", Toast.LENGTH_SHORT).show()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = if (color == Color(0xFFE2E8F0)) Color.Black else Color.White,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = preset.subtitle,
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = textSecondary,
-                            maxLines = 1
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(effectiveAccent),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Active",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
                     }
                 }
             }
         }
 
-        // --- 3. Surface & Theme Mode ---
+        // --- 2. High Refresh Rate ---
         item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Surface & Display Mode",
-                fontFamily = DisplayFontFamily,
+            AppearanceCardSection(title = "Display Refresh Rate", textSecondary = textSecondary) {
+                AppearanceToggleRow(
+                    icon = Icons.Default.Speed,
+                    tint = Color(0xFF38BDF8),
+                    title = "Enable High Refresh Rate",
+                    subtitle = "Force 120Hz display refresh mode for fluid animations and silky scrolling",
+                    checked = highRefreshRateEnabled,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onCheckedChange = {
+                        ThemeState.setHighRefreshRateEnabled(it)
+                        Toast.makeText(context, if (it) "120Hz High Refresh Rate enabled" else "Standard Refresh Rate enabled", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+
+        // --- 3. Liquid Glass ---
+        item {
+            AppearanceCardSection(title = "Visual Materials", textSecondary = textSecondary) {
+                AppearanceToggleRow(
+                    icon = Icons.Default.AutoAwesome,
+                    tint = effectiveAccent,
+                    title = "Liquid Glass",
+                    subtitle = "Shader-powered frosted acrylic glass dock and controls",
+                    checked = liquidGlassEnabled,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onCheckedChange = {
+                        ThemeState.setLiquidGlassEnabled(it)
+                        Toast.makeText(context, if (it) "Liquid Glass enabled" else "Liquid Glass disabled", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceCardSection(
+    title: String,
+    textSecondary: Color,
+    content: @Composable () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
+                fontSize = 11.5.sp,
+                letterSpacing = 0.9.sp
+            ),
+            color = textSecondary,
+            modifier = Modifier.padding(start = 6.dp)
+        )
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column { content() }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceDivider(color: Color) {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 6.dp),
+        thickness = 0.6.dp,
+        color = color
+    )
+}
+
+@Composable
+private fun AppearanceToggleRow(
+    icon: ImageVector,
+    tint: Color,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    textPrimary: Color,
+    textSecondary: Color,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(tint.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.5.sp
+                ),
                 color = textPrimary
             )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = cardBg,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    listOf(
-                        ThemeMode.AMOLED to "AMOLED Pitch Black (#000000 • Infinite OLED)",
-                        ThemeMode.DARK to "Studio Charcoal (#090A0F • Smooth Layering)",
-                        ThemeMode.LIGHT to "Editorial White (#F6F5F3 • Crisp High-Contrast)"
-                    ).forEach { (mode, label) ->
-                        val isSelected = mode == themeMode
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) effectiveAccent.copy(alpha = 0.15f) else Color.Transparent)
-                                .clickable {
-                                    ThemeState.setThemeMode(mode)
-                                    Toast.makeText(context, "$label active", Toast.LENGTH_SHORT).show()
-                                }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = label,
-                                fontFamily = DisplayFontFamily,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 13.5.sp,
-                                color = if (isSelected) effectiveAccent else textPrimary
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = effectiveAccent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- 4. Ergonomic Visual Toggles ---
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Interface Physics & Motion",
-                fontFamily = DisplayFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = textPrimary
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                color = textSecondary,
+                maxLines = 2
             )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = cardBg,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    // Liquid Glass Switch
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Liquid Glass Dock & MiniPlayer",
-                                fontFamily = DisplayFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.5.sp,
-                                color = textPrimary
-                            )
-                            Text(
-                                text = "Frosted optical refraction, specular rim highlights & spring depth",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = textSecondary
-                            )
-                        }
-                        Switch(
-                            checked = liquidGlassEnabled,
-                            onCheckedChange = { ThemeState.setLiquidGlassEnabled(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = effectiveAccent
-                            )
-                        )
-                    }
-
-                    // Wavy Seekbar Switch
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Fluid Waveform Seekbar",
-                                fontFamily = DisplayFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.5.sp,
-                                color = textPrimary
-                            )
-                            Text(
-                                text = "Sine-wave live audio reactive seekbar during playback",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = textSecondary
-                            )
-                        }
-                        Switch(
-                            checked = wavySeekbarEnabled,
-                            onCheckedChange = { ThemeState.setWavySeekbarEnabled(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = effectiveAccent
-                            )
-                        )
-                    }
-                }
-            }
         }
+        Spacer(modifier = Modifier.width(8.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = tint
+            )
+        )
     }
 }

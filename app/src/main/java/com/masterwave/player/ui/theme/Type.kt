@@ -1,9 +1,12 @@
 package com.masterwave.player.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.material3.Shapes
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
@@ -15,16 +18,140 @@ import androidx.compose.ui.unit.sp
 val DisplayFontFamily = FontFamily.SansSerif
 val MonoFontFamily = FontFamily.Monospace
 
+val ExpressiveShapes = Shapes(
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(26.dp),
+    extraLarge = RoundedCornerShape(32.dp)
+)
+
+// ==========================================
+// SWISS EDITORIAL TYPOGRAPHY TOKENS
+// International Typographic Neo-Grotesque & Monospaced Metadata Architecture
+// ==========================================
+val SwissDisplayLarge = TextStyle(
+    fontFamily = DisplayFontFamily,
+    fontWeight = FontWeight.ExtraBold,
+    fontSize = 38.sp,
+    lineHeight = 44.sp,
+    letterSpacing = (-0.8).sp,
+    color = TextPrimary
+)
+
+val SwissDisplayMedium = TextStyle(
+    fontFamily = DisplayFontFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 28.sp,
+    lineHeight = 34.sp,
+    letterSpacing = (-0.6).sp,
+    color = TextPrimary
+)
+
+val SwissHeadline = TextStyle(
+    fontFamily = DisplayFontFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 22.sp,
+    lineHeight = 28.sp,
+    letterSpacing = (-0.4).sp,
+    color = TextPrimary
+)
+
+val SwissSectionEyebrow = TextStyle(
+    fontFamily = DisplayFontFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 11.sp,
+    lineHeight = 15.sp,
+    letterSpacing = 1.3.sp,
+    color = TextSecondary
+)
+
+val SwissSectionHeader = TextStyle(
+    fontFamily = DisplayFontFamily,
+    fontWeight = FontWeight.Bold,
+    fontSize = 21.sp,
+    lineHeight = 27.sp,
+    letterSpacing = (-0.3).sp,
+    color = TextPrimary
+)
+
+val SwissMono = TextStyle(
+    fontFamily = MonoFontFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 11.sp,
+    lineHeight = 15.sp,
+    letterSpacing = 0.5.sp,
+    color = TextSecondary
+)
+
+val SwissBody = TextStyle(
+    fontFamily = DisplayFontFamily,
+    fontWeight = FontWeight.Normal,
+    fontSize = 15.sp,
+    lineHeight = 21.sp,
+    letterSpacing = (-0.1).sp,
+    color = TextSecondary
+)
+
+val SwissMeta = TextStyle(
+    fontFamily = DisplayFontFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 12.sp,
+    lineHeight = 16.sp,
+    letterSpacing = 0.2.sp,
+    color = TextTertiary
+)
+
 val Typography = Typography(
-    headlineLarge = TextStyle(
+    displayLarge = TextStyle(
         fontFamily = DisplayFontFamily,
         fontWeight = FontWeight.ExtraBold,
+        fontSize = 48.sp,
+        lineHeight = 54.sp,
+        letterSpacing = (-0.8).sp,
+        color = TextPrimary
+    ),
+    displayMedium = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 40.sp,
+        lineHeight = 46.sp,
+        letterSpacing = (-0.6).sp,
+        color = TextPrimary
+    ),
+    displaySmall = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.5).sp,
+        color = TextPrimary
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.6).sp,
+        color = TextPrimary
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.Bold,
         fontSize = 28.sp,
         lineHeight = 34.sp,
         letterSpacing = (-0.5).sp,
         color = TextPrimary
     ),
-    headlineMedium = TextStyle(
+    headlineSmall = TextStyle(
+        fontFamily = DisplayFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (-0.3).sp,
+        color = TextPrimary
+    ),
+    titleLarge = TextStyle(
         fontFamily = DisplayFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
@@ -32,84 +159,68 @@ val Typography = Typography(
         letterSpacing = (-0.3).sp,
         color = TextPrimary
     ),
-    headlineSmall = TextStyle(
-        fontFamily = DisplayFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-        letterSpacing = (-0.2).sp,
-        color = TextPrimary
-    ),
-    titleLarge = TextStyle(
-        fontFamily = DisplayFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 17.sp,
-        lineHeight = 23.sp,
-        letterSpacing = (-0.2).sp,
-        color = TextPrimary
-    ),
     titleMedium = TextStyle(
         fontFamily = DisplayFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 15.sp,
-        lineHeight = 21.sp,
-        letterSpacing = 0.sp,
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        letterSpacing = (-0.1).sp,
         color = TextPrimary
     ),
     titleSmall = TextStyle(
         fontFamily = DisplayFontFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 13.5.sp,
-        lineHeight = 19.sp,
-        letterSpacing = 0.1.sp,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.sp,
         color = TextPrimary
     ),
     bodyLarge = TextStyle(
         fontFamily = DisplayFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
+        fontSize = 16.sp,
         lineHeight = 22.sp,
-        letterSpacing = 0.1.sp,
+        letterSpacing = 0.sp,
         color = TextSecondary
     ),
     bodyMedium = TextStyle(
         fontFamily = DisplayFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 13.5.sp,
-        lineHeight = 19.sp,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
         letterSpacing = 0.1.sp,
         color = TextSecondary
     ),
     bodySmall = TextStyle(
         fontFamily = DisplayFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.2.sp,
+        letterSpacing = 0.1.sp,
         color = TextSecondary
     ),
     labelLarge = TextStyle(
         fontFamily = DisplayFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
         lineHeight = 18.sp,
-        letterSpacing = 0.2.sp,
+        letterSpacing = 0.1.sp,
         color = TextPrimary
     ),
     labelMedium = TextStyle(
         fontFamily = DisplayFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 11.5.sp,
-        lineHeight = 15.sp,
-        letterSpacing = 0.3.sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.2.sp,
         color = TextPrimary
     ),
     labelSmall = TextStyle(
         fontFamily = DisplayFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 10.5.sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
         lineHeight = 14.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 0.3.sp,
         color = TextTertiary
     )
 )
@@ -142,45 +253,21 @@ val SleekTimestampFont = TextStyle(
 val NothingFontFamily = DisplayFontFamily
 val NothingMonoFamily = MonoFontFamily
 
-val NothingHeadlineLarge = TextStyle(
-    fontFamily = DisplayFontFamily,
-    fontWeight = FontWeight.ExtraBold,
-    fontSize = 24.sp,
-    lineHeight = 30.sp,
-    letterSpacing = (-0.4).sp
-)
+val NothingHeadlineLarge = SwissDisplayMedium
 
-val NothingHeadlineMedium = TextStyle(
-    fontFamily = DisplayFontFamily,
-    fontWeight = FontWeight.Bold,
-    fontSize = 19.sp,
-    lineHeight = 25.sp,
-    letterSpacing = (-0.2).sp
-)
+val NothingHeadlineMedium = SwissHeadline
 
 val NothingHeadlineSmall = TextStyle(
     fontFamily = DisplayFontFamily,
     fontWeight = FontWeight.SemiBold,
-    fontSize = 15.sp,
-    lineHeight = 21.sp,
-    letterSpacing = (-0.1).sp
-)
-
-val NothingSectionHeader = TextStyle(
-    fontFamily = DisplayFontFamily,
-    fontWeight = FontWeight.Bold,
-    fontSize = 18.sp,
-    lineHeight = 24.sp,
+    fontSize = 16.sp,
+    lineHeight = 22.sp,
     letterSpacing = (-0.2).sp
 )
 
-val NothingTechMono = TextStyle(
-    fontFamily = DisplayFontFamily,
-    fontWeight = FontWeight.Medium,
-    fontSize = 10.5.sp,
-    lineHeight = 14.sp,
-    letterSpacing = 0.8.sp
-)
+val NothingSectionHeader = SwissSectionHeader
+
+val NothingTechMono = SwissMono
 
 val NothingDotBadge = TextStyle(
     fontFamily = DisplayFontFamily,
@@ -192,8 +279,8 @@ val NothingDotBadge = TextStyle(
 
 // Aliases mapped cleanly to maintain complete compatibility across all screens
 val EditorialSerifFont = DisplayFontFamily
-val EditorialHeadlineLarge = NothingHeadlineLarge
-val EditorialHeadlineMedium = NothingHeadlineMedium
-val EditorialHeadlineSmall = NothingHeadlineSmall
-val ExpressiveDisplayFont = NothingHeadlineLarge
-val ExpressiveSectionHeader = NothingSectionHeader
+val EditorialHeadlineLarge = SwissDisplayLarge
+val EditorialHeadlineMedium = SwissDisplayMedium
+val EditorialHeadlineSmall = SwissHeadline
+val ExpressiveDisplayFont = SwissDisplayLarge
+val ExpressiveSectionHeader = SwissSectionHeader

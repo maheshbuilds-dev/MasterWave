@@ -1,12 +1,14 @@
 package com.masterwave.player.data.recommendation
 
 import android.content.Context
+import android.util.Log
 import com.masterwave.player.MasterWaveApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
@@ -26,13 +28,14 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object ArtistPhotoProvider {
 
+    private const val TAG = "ArtistPhotoProvider"
     private const val CACHE_FILE_NAME = "masterwave_artist_photos.json"
     private val memoryCache = ConcurrentHashMap<String, String>()
     private var isCacheLoaded = false
 
     private val verifiedArtistPhotoMap: Map<String, String> = mapOf(
         // --- Bollywood & Hindi Mainstream ---
-        "arijit singh" to "https://i.scdn.co/image/ab6761610000e5eb0261696c5df3be99da6ed3f3",
+        "arijit singh" to "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Arijit_singh_in_2026.jpg/960px-Arijit_singh_in_2026.jpg",
         "pritam" to "https://i.scdn.co/image/ab6761610000e5ebcb6926f44f620555ba444fca",
         "vishal mishra" to "https://i.scdn.co/image/ab6761610000e5eb865c1a7741d75f28448f86f5",
         "shashwat sachdev" to "https://i.scdn.co/image/ab6761610000e5ebdc67a7a1498b8a5fc764f6bc",
@@ -72,7 +75,7 @@ object ArtistPhotoProvider {
         "a.r. rahman" to "https://i.scdn.co/image/ab6761610000e5eb46115995cf5804576fe0a379",
         "ar rahman" to "https://i.scdn.co/image/ab6761610000e5eb46115995cf5804576fe0a379",
         "sid sriram" to "https://i.scdn.co/image/ab6761610000e5eb80352ad2d5563914a87a748c",
-        "sai abhyankkar" to "https://i.scdn.co/image/ab6761610000e5eb56e82a6f86b1dc9bca9ffecb",
+        "sai abhyankkar" to "https://yt3.googleusercontent.com/L51IT6vTtvGRiVv0nkR7Zs-i42YGCk5BbGJtMikJE0tDWCF7E4NoIcgFw1HUDBWagvRBZ82c3s_nqkoA=w600-h600-l90-rj",
         "yuvan shankar raja" to "https://i.scdn.co/image/ab6761610000e5eb9816eec28d4001d2ec4d7df6",
         "ilaiyaraaja" to "https://i.scdn.co/image/ab6761610000e5eb6c4290333ba38ae34cb077e6",
         "ilayaraja" to "https://i.scdn.co/image/ab6761610000e5eb6c4290333ba38ae34cb077e6",
@@ -221,7 +224,7 @@ object ArtistPhotoProvider {
 
         // 3. Partial match against verified artists (e.g. "Arijit Singh, Shreya Ghoshal" -> Arijit Singh)
         for ((k, v) in verifiedArtistPhotoMap) {
-            if (clean.contains(k) || (clean.length > 5 && k.contains(clean))) {
+            if ((k.length >= 5 && clean.contains(k)) || (clean.length >= 5 && k.contains(clean))) {
                 return v
             }
         }
@@ -233,14 +236,16 @@ object ArtistPhotoProvider {
      * Asynchronous resolution for unknown artists using official Wikipedia PageImages / Wikimedia Commons API.
      * Caches result to memory and persistent disk file.
      */
-    suspend fun resolvePhotoOnline(context: Context, artistName: String): String? {
+    suspend fun resolvePhotoOnline(
+        context: Context,
+        artistName: String,
+        excludedUrl: String? = null
+    ): String? {
         val clean = artistName.trim().lowercase(Locale.ROOT)
-        getPhotoUrlOrNull(clean)?.let { return it }
-
         ensureDiskCacheLoaded(context)
-        memoryCache[clean]?.let { return it }
+        memoryCache[clean]?.takeIf { it != excludedUrl }?.let { return it }
 
-        return withContext(Dispatchers.IO) {
+        val onlinePhotoUrl = withContext(Dispatchers.IO) {
             try {
                 val encoded = URLEncoder.encode(artistName.trim(), "UTF-8")
                 // Query Wikipedia API PageImages (resolves high-resolution official portrait from Wikimedia Commons)
@@ -251,26 +256,35 @@ object ArtistPhotoProvider {
                     .build()
 
                 val client = MasterWaveApp.instance.okHttpClient
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: return@withContext null
-                    val json = JSONObject(body)
-                    val pages = json.optJSONObject("query")?.optJSONObject("pages") ?: return@withContext null
-                    val keys = pages.keys()
-                    while (keys.hasNext()) {
-                        val pageObj = pages.getJSONObject(keys.next())
-                        val thumb = pageObj.optJSONObject("thumbnail")?.optString("source")
-                        if (!thumb.isNullOrBlank()) {
-                            memoryCache[clean] = thumb
-                            persistToDisk(context)
-                            return@withContext thumb
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: return@withContext null
+                        val json = JSONObject(body)
+                        val pages = json.optJSONObject("query")?.optJSONObject("pages")
+                            ?: return@withContext null
+                        val keys = pages.keys()
+                        while (keys.hasNext()) {
+                            val pageObj = pages.getJSONObject(keys.next())
+                            val thumb = pageObj.optJSONObject("thumbnail")?.optString("source")
+                            if (!thumb.isNullOrBlank() && thumb != excludedUrl) {
+                                memoryCache[clean] = thumb
+                                persistToDisk(context)
+                                return@withContext thumb
+                            }
                         }
+                    } else {
+                        Log.w(TAG, "Photo lookup returned HTTP ${response.code} for '$artistName'")
                     }
                 }
                 null
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                Log.w(TAG, "Photo lookup failed for '$artistName'", e)
+                null
+            } catch (e: org.json.JSONException) {
+                Log.w(TAG, "Photo response was invalid for '$artistName'", e)
                 null
             }
         }
+        return onlinePhotoUrl ?: getPhotoUrlOrNull(clean)?.takeIf { it != excludedUrl }
     }
 }

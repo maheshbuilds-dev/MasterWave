@@ -148,7 +148,7 @@ fun NothingAcousticGraphCard(
 
                 // Format telemetry
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = if (isAmoled) Color(0xFF161720) else Color(0xFFEBEBF0)
                 ) {
                     Text(
@@ -344,7 +344,7 @@ fun NothingAcousticGraphCard(
                         modifier = Modifier
                             .weight(1f)
                             .glassySurface(
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 style = if (isSelected) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
                                 isDark = isAmoled,
                                 tintColor = if (isSelected) accentColor else null,

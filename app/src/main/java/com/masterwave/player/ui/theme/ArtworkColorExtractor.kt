@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 /**
  * Production Artwork Color Extractor for MasterWave Music:
  * - High-performance LRU cache (100 tracks) preventing repeated image decoding.
- * - Downsamples image to 96x96 for low memory & CPU consumption on Moto G45 5G.
+ * - Downsamples image to 96x96 for low memory & CPU consumption.
  * - Enforces minimum and maximum luminance/saturation bounds to preserve contrast & readability.
  * - Intelligent tonal adjustment: clamps colors to aesthetically refined, non-fatiguing accents.
  */

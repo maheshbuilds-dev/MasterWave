@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,12 +24,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,8 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.masterwave.player.data.model.Track
-import com.masterwave.player.ui.theme.ThemeState
+import com.masterwave.player.ui.theme.SwissMono
 
+/**
+ * Swiss Editorial track row with mathematical hairline rule,
+ * crisp architectural corner geometry, and high-contrast typography hierarchy.
+ */
 @Composable
 fun TrackItem(
     track: Track,
@@ -52,171 +57,168 @@ fun TrackItem(
     onFavoriteToggle: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val accentColor by ThemeState.accentColor.collectAsState()
-    val isAmoled = ThemeState.isAmoledTheme()
+    val accent = MaterialTheme.colorScheme.primary
+    val textPrimary = MaterialTheme.colorScheme.onSurface
+    val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val thumbBg = MaterialTheme.colorScheme.surfaceContainerHigh
 
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
-    val thumbBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF)
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isPlaying) accentColor.copy(alpha = 0.08f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Thumbnail
-        Box(
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(thumbBg),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(if (isPlaying) accent.copy(alpha = 0.12f) else Color.Transparent)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!track.artworkUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = track.artworkUrl,
-                    contentDescription = track.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(thumbBg)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!track.artworkUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = track.artworkUrl,
+                        contentDescription = track.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-            if (isPlaying) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(Color.Black.copy(alpha = 0.45f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "track_equalizer")
-                    val bar1 by infiniteTransition.animateFloat(
-                        initialValue = 4f,
-                        targetValue = 18f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(400, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "b1"
-                    )
-                    val bar2 by infiniteTransition.animateFloat(
-                        initialValue = 16f,
-                        targetValue = 6f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(550, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "b2"
-                    )
-                    val bar3 by infiniteTransition.animateFloat(
-                        initialValue = 8f,
-                        targetValue = 20f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(480, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "b3"
-                    )
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(2.5.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        modifier = Modifier.height(20.dp)
+                if (isPlaying) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .width(3.dp)
-                                .height(bar1.dp)
-                                .clip(RoundedCornerShape(1.5.dp))
-                                .background(accentColor)
+                        val infiniteTransition = rememberInfiniteTransition(label = "track_equalizer")
+                        val bar1 by infiniteTransition.animateFloat(
+                            initialValue = 4f,
+                            targetValue = 18f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(400, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "b1"
                         )
-                        Box(
-                            modifier = Modifier
-                                .width(3.dp)
-                                .height(bar2.dp)
-                                .clip(RoundedCornerShape(1.5.dp))
-                                .background(accentColor)
+                        val bar2 by infiniteTransition.animateFloat(
+                            initialValue = 16f,
+                            targetValue = 6f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(550, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "b2"
                         )
-                        Box(
-                            modifier = Modifier
-                                .width(3.dp)
-                                .height(bar3.dp)
-                                .clip(RoundedCornerShape(1.5.dp))
-                                .background(accentColor)
+                        val bar3 by infiniteTransition.animateFloat(
+                            initialValue = 8f,
+                            targetValue = 20f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(480, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "b3"
                         )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(2.5.dp),
+                            verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier.height(18.dp)
+                        ) {
+                            EqualizerBar(bar1, Color.White)
+                            EqualizerBar(bar2, Color.White)
+                            EqualizerBar(bar3, Color.White)
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-        // Title & Artist
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                ),
-                color = if (isPlaying) accentColor else if (!track.isPlayable) textSecondary.copy(alpha = 0.6f) else textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (track.providerId != "youtube" && track.providerId.isNotBlank()) {
-                    Text(
-                        text = when (track.providerId) {
-                            "audius" -> "AUDIUS"
-                            "internet_archive" -> "ARCHIVE"
-                            "jamendo" -> "JAMENDO"
-                            "local" -> "LOCAL"
-                            else -> track.providerId.uppercase()
-                        },
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 8.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = accentColor,
-                        modifier = Modifier.padding(end = 5.dp)
-                    )
-                }
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = track.artist + if (track.album.isNotBlank()) " • ${track.album}" else "",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = textSecondary,
+                    text = track.title,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        letterSpacing = (-0.2).sp
+                    ),
+                    color = when {
+                        isPlaying -> accent
+                        !track.isPlayable -> textSecondary.copy(alpha = 0.55f)
+                        else -> textPrimary
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (track.providerId == "local") {
+                        Text(
+                            text = "LOCAL",
+                            style = SwissMono.copy(
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.8.sp
+                            ),
+                            color = accent,
+                            modifier = Modifier.padding(end = 6.dp)
+                        )
+                    }
+                    Text(
+                        text = track.artist + if (track.album.isNotBlank()) " • ${track.album}" else "",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 12.5.sp,
+                            letterSpacing = (-0.1).sp
+                        ),
+                        color = textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-        }
 
-        // Optional Favorite Button
-        if (onFavoriteToggle != null) {
-            IconButton(
-                onClick = onFavoriteToggle,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) accentColor else textSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
+            if (onFavoriteToggle != null) {
+                IconButton(
+                    onClick = onFavoriteToggle,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = if (isFavorite) accent else textSecondary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
             }
         }
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 70.dp, end = 10.dp),
+            thickness = 0.5.dp,
+            color = Color.White.copy(alpha = 0.06f)
+        )
     }
+}
+
+@Composable
+private fun EqualizerBar(heightDp: Float, color: Color) {
+    Box(
+        modifier = Modifier
+            .width(3.dp)
+            .height(heightDp.dp)
+            .clip(RoundedCornerShape(1.5.dp))
+            .background(color)
+    )
 }

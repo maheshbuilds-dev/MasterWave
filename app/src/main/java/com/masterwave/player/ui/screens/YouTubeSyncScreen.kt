@@ -88,10 +88,10 @@ fun YouTubeSyncScreen(
     var isImportingUrl by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
-    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFEFECEF).copy(alpha = 0.55f)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFAF0)
+    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFF5F0E0)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6A6A6A)
     val ytRed = Color(0xFFFF0000)
 
     LazyColumn(

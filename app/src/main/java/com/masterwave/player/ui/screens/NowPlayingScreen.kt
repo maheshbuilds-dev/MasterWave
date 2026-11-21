@@ -1,13 +1,18 @@
 package com.masterwave.player.ui.screens
 
+import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.widget.Toast
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -16,13 +21,15 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,16 +40,17 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -50,19 +58,23 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.SpatialAudio
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,14 +82,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -91,24 +100,23 @@ import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.AudioPlaybackModal
 import com.masterwave.player.ui.components.GlassyStyle
-import com.masterwave.player.ui.components.LightningWaveform
 import com.masterwave.player.ui.components.bouncyClickable
-import com.masterwave.player.ui.components.glassySlab
 import com.masterwave.player.ui.components.glassySurface
 import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeState
-import kotlin.math.cos
-import kotlin.math.sin
+import com.masterwave.player.ui.theme.SwissMono
 
 /**
- * MASTERWAVE NOW PLAYING SCREEN
- * High-End Studio Art Direction:
- * - Ambient multi-layer blurred artwork backdrop with fluid organic aurora glow
- * - Centered 1:1 vinyl album cover hero with dynamic breathing animation
- * - Clean, non-colliding top app bar with collapse and options
- * - Ergonomic 5-button primary playback cluster (Shuffle, Prev, 72dp Play/Pause, Next, Repeat)
- * - Interactive LightningWaveform with timestamps and codec quality pill
- * - Tactile spring-physics micro-interactions on all actions
+ * NOW PLAYING SCREEN
+ * Apple Music Full-Bleed Artwork with Downward Bleed Effect:
+ * - Edge-to-edge full width artwork header with consistent thumbnail presentation for every song
+ * - No breathing animation (artwork is stable and sharp)
+ * - Deep downward bleed effect dissolving the lower portion of the thumbnail into the matching ambient backdrop
+ * - Clean song metadata (Title, Artist, Star, 3-Dots)
+ * - Scrubber seekbar with elapsed and "-remaining" time formatted labels
+ * - Centered triple playback controls (FastRewind, Play/Pause, FastForward)
+ * - Bottom utilities bar (Lyrics, Audio/EQ, Queue)
+ * - Downward swipe gesture & top grab bar to collapse
  */
 @Composable
 fun NowPlayingScreen(
@@ -132,293 +140,186 @@ fun NowPlayingScreen(
     val currentTrack = track ?: return
     val isFavorite = favorites.any { it.id == currentTrack.id }
     val context = LocalContext.current
+    val reduceMotion = rememberReduceMotion()
     val accentColor by ThemeState.accentColor.collectAsState()
     val artworkColor by ThemeState.artworkColor.collectAsState()
     val dynamicColorEnabled by ThemeState.dynamicColorEnabled.collectAsState()
-    val effectiveGlowColor = if (dynamicColorEnabled && artworkColor != null) artworkColor!! else accentColor
+
+    // Base color extracted from the track's artwork
+    val baseArtworkColor = if (dynamicColorEnabled && artworkColor != null) artworkColor!! else accentColor
+
+    // Downward bleed background color tuned for warm rich depth & contrast
+    val bottomBleedColor = remember(baseArtworkColor) {
+        Color(
+            red = (baseArtworkColor.red * 0.32f + 0.04f).coerceIn(0f, 1f),
+            green = (baseArtworkColor.green * 0.32f + 0.04f).coerceIn(0f, 1f),
+            blue = (baseArtworkColor.blue * 0.32f + 0.04f).coerceIn(0f, 1f),
+            alpha = 1f
+        )
+    }
 
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
 
-    val artModel = remember(currentTrack.artworkUrl) {
-        val u = currentTrack.artworkUrl
-        when {
-            u.isNullOrBlank() -> null
-            u.startsWith("http://") || u.startsWith("https://") -> u
-            u.startsWith("content://") -> android.net.Uri.parse(u)
-            u.startsWith("file://") -> android.net.Uri.parse(u)
-            else -> java.io.File(u)
-        }
+    val artworkContent = remember(currentTrack.id, currentTrack.title, currentTrack.artworkUrl) {
+        ArtworkContent(currentTrack.id, currentTrack.title, currentTrack.artworkUrl)
     }
 
-    // Gentle breathing pulse animation for active album art
-    val infiniteTransition = rememberInfiniteTransition(label = "now_playing_anim")
-    val breathingScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (isPlaying) 1.018f else 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "art_breathing"
-    )
-
-    // Fluid ambient aurora movement
-    val auroraPhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(14000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "aurora_phase"
-    )
-
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF07080D))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {}
-            )
+            .background(bottomBleedColor)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount > 45f) {
+                        onCollapse()
+                    }
+                }
+            }
     ) {
-        // --- 1. Clean Studio Ambient Background Layer (Apple Music / Tidal Aesthetic) ---
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF090A0F))
-        )
+        val screenHeight = maxHeight
 
-        // Subtle ambient radial glow behind album art
+        // --- 1. Background Ambient Radiant Canvas ---
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            val glowCenter = Offset(w * 0.5f, h * 0.38f)
 
+            // Base top-to-bottom gradient
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0.0f to Color(0xFF0A0B0E),
+                    0.45f to bottomBleedColor.copy(alpha = 0.70f),
+                    1.0f to bottomBleedColor
+                )
+            )
+
+            // Radiant ambient light pool near the lower controls
+            val glowCenter = Offset(w * 0.5f, h * 0.78f)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        effectiveGlowColor.copy(alpha = 0.28f),
-                        effectiveGlowColor.copy(alpha = 0.08f),
+                        baseArtworkColor.copy(alpha = 0.32f),
+                        bottomBleedColor.copy(alpha = 0.15f),
                         Color.Transparent
                     ),
                     center = glowCenter,
-                    radius = w * 0.75f
+                    radius = w * 0.85f
                 ),
-                radius = w * 0.75f,
+                radius = w * 0.85f,
                 center = glowCenter
             )
         }
 
-        // --- 2. Main Structured Content ---
-        Column(
+        // --- 2. Full-Bleed Artwork Hero with Downward Bleed Effect (Edge-to-Edge) ---
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 22.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .height(screenHeight * 0.56f)
         ) {
-            // --- Top App Bar ---
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Collapse Glassy Slab Button
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .glassySlab(shape = CircleShape, onClick = onCollapse),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Collapse",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
+            Crossfade(
+                targetState = artworkContent,
+                animationSpec = tween(
+                    durationMillis = if (reduceMotion) 100 else 220,
+                    easing = CubicBezierEasing(0.23f, 1f, 0.32f, 1f)
+                ),
+                label = "track_artwork"
+            ) { content ->
+                val contentModel = remember(content.trackId, content.artworkUrl) {
+                    resolveArtworkModel(content.artworkUrl)
                 }
-
-                // Center Title & Album Context
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
-                ) {
-                    Text(
-                        text = "NOW PLAYING",
-                        fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.8.sp,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = currentTrack.album.ifBlank { "MasterWave Music" },
-                        fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.5.sp,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                // Options Menu Glassy Slab Button
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .glassySlab(shape = CircleShape, onClick = { showMenu = true }),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier
-                            .glassySurface(
-                                shape = RoundedCornerShape(18.dp),
-                                style = GlassyStyle.SURFACE,
-                                elevation = 16.dp
-                            )
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("View Queue (${queue.size})", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = accentColor) },
-                            onClick = {
-                                showMenu = false
-                                onOpenQueue()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Lyrics & Synced Text", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Default.FormatQuote, contentDescription = null, tint = accentColor) },
-                            onClick = {
-                                showMenu = false
-                                onOpenLyrics()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Audio & Playback Settings", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Default.GraphicEq, contentDescription = null, tint = accentColor) },
-                            onClick = {
-                                showMenu = false
-                                showAudioPlaybackModal = true
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Download Track (Offline)", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Default.Download, contentDescription = null, tint = accentColor) },
-                            onClick = {
-                                showMenu = false
-                                val dm = MusicDownloadManager.getInstance(
-                                    context,
-                                    MasterWaveApp.instance.okHttpClient,
-                                    repository
-                                )
-                                dm.downloadTrack(currentTrack)
-                                Toast.makeText(context, "Downloading track offline...", Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("More Like This", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = accentColor) },
-                            onClick = {
-                                showMenu = false
-                                repository.recommendationManager.onMoreLikeThis(currentTrack)
-                                Toast.makeText(context, "Learning your taste: More like ${currentTrack.artist}!", Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Don't Recommend Artist", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Default.Block, contentDescription = null, tint = Color(0xFFF43F5E)) },
-                            onClick = {
-                                showMenu = false
-                                repository.recommendationManager.onDontRecommendArtist(currentTrack.artist)
-                                Toast.makeText(context, "We won't recommend ${currentTrack.artist} again", Toast.LENGTH_SHORT).show()
-                                player.skipToNext()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Hide This Track", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Default.VisibilityOff, contentDescription = null, tint = Color(0xFFF43F5E)) },
-                            onClick = {
-                                showMenu = false
-                                repository.recommendationManager.onHideTrack(currentTrack)
-                                Toast.makeText(context, "Track hidden", Toast.LENGTH_SHORT).show()
-                                player.skipToNext()
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(0.5f))
-
-            // --- 3. Centered 1:1 High-Resolution Album Artwork Hero ---
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.88f)
-                    .aspectRatio(1f)
-                    .graphicsLayer {
-                        scaleX = breathingScale
-                        scaleY = breathingScale
-                    }
-                    .shadow(
-                        elevation = 24.dp,
-                        shape = RoundedCornerShape(24.dp),
-                        spotColor = effectiveGlowColor.copy(alpha = 0.55f),
-                        ambientColor = Color.Black.copy(alpha = 0.6f)
-                    )
-                    .clip(RoundedCornerShape(24.dp))
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.White.copy(alpha = 0.08f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-                    .background(Color(0xFF161824)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (artModel != null) {
+                if (contentModel != null) {
                     AsyncImage(
-                        model = artModel,
-                        contentDescription = currentTrack.title,
+                        model = contentModel,
+                        contentDescription = content.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(72.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color(0xFF161822), bottomBleedColor)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier.size(80.dp)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.7f))
+            // Top subtle vignette for status bar icon legibility
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Black.copy(alpha = 0.50f),
+                            1.0f to Color.Transparent
+                        )
+                    )
+            )
 
-            // --- 4. Track Metadata & Favorite / Lyrics Actions ---
+            // The Downward Bleed Gradient:
+            // Smoothly and gradually bleeds the lower portion of the artwork down into the background tone
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.00f to Color.Transparent,
+                            0.36f to Color.Transparent,
+                            0.56f to bottomBleedColor.copy(alpha = 0.28f),
+                            0.72f to bottomBleedColor.copy(alpha = 0.65f),
+                            0.88f to bottomBleedColor.copy(alpha = 0.90f),
+                            0.98f to bottomBleedColor,
+                            1.00f to bottomBleedColor
+                        )
+                    )
+            )
+        }
+
+        // --- 3. Structured Foreground Controls ---
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Top Collapse Drag Handle with Generous Touch Target
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .bouncyClickable(scaleDown = 0.95f, onClick = onCollapse),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(5.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.45f))
+                )
+            }
+
+            // Spacer allocating visual presence for the upper artwork bleed
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Track Details Row: Title, Artist, Star, 3-Dots
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(horizontal = 26.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -426,292 +327,616 @@ fun NowPlayingScreen(
                     Text(
                         text = currentTrack.title,
                         fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                        letterSpacing = (-0.3).sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 24.sp,
+                        letterSpacing = (-0.5).sp,
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = currentTrack.artist,
                         fontFamily = DisplayFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        letterSpacing = (-0.1).sp,
                         color = Color.White.copy(alpha = 0.75f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
-                // Actions: Heart & Lyrics buttons
+                // Star & More Options Cluster (Pixel-iOS Glass Squircles)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val heartScale by animateFloatAsState(
-                        targetValue = if (isFavorite) 1.15f else 1f,
-                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f),
-                        label = "heart_scale"
-                    )
-
-                    // Favorite Button
+                    // Star (Favorite) Button
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
-                            .glassySlab(
-                                shape = CircleShape,
-                                prominent = isFavorite,
-                                tintColor = if (isFavorite) accentColor else null,
-                                onClick = { repository.toggleFavorite(currentTrack) }
-                            ),
+                            .size(44.dp)
+                            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(0.35f))
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = 0.14f))
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.38f),
+                                        Color.White.copy(alpha = 0.08f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .bouncyClickable(scaleDown = 0.88f, onClick = { repository.toggleFavorite(currentTrack) }),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            imageVector = if (isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
                             contentDescription = "Favorite",
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .scale(heartScale)
+                            tint = if (isFavorite) Color(0xFFFFD54F) else Color.White,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    // Lyrics Button
+                    // 3-Dots Options Menu Button
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
-                            .glassySlab(
-                                shape = CircleShape,
-                                onClick = onOpenLyrics
-                            ),
+                            .size(44.dp)
+                            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(0.35f))
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(alpha = 0.14f))
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.38f),
+                                        Color.White.copy(alpha = 0.08f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .bouncyClickable(scaleDown = 0.88f, onClick = { showMenu = true }),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FormatQuote,
-                            contentDescription = "Lyrics",
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "More Options",
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier
+                                .glassySurface(
+                                    shape = RoundedCornerShape(18.dp),
+                                    style = GlassyStyle.SURFACE,
+                                    elevation = 16.dp
+                                )
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Queue (${queue.size})", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = accentColor) },
+                                onClick = {
+                                    showMenu = false
+                                    onOpenQueue()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Lyrics", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Filled.ChatBubbleOutline, contentDescription = null, tint = accentColor) },
+                                onClick = {
+                                    showMenu = false
+                                    onOpenLyrics()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (isShuffle) "Shuffle: On" else "Shuffle: Off", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Filled.Shuffle, contentDescription = null, tint = if (isShuffle) accentColor else Color.White.copy(alpha = 0.6f)) },
+                                onClick = {
+                                    showMenu = false
+                                    player.toggleShuffle()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Repeat Mode", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat, contentDescription = null, tint = accentColor) },
+                                onClick = {
+                                    showMenu = false
+                                    player.cycleRepeatMode()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Audio settings", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = accentColor) },
+                                onClick = {
+                                    showMenu = false
+                                    showAudioPlaybackModal = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Download", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null, tint = accentColor) },
+                                onClick = {
+                                    showMenu = false
+                                    val dm = MusicDownloadManager.getInstance(
+                                        context,
+                                        MasterWaveApp.instance.okHttpClient,
+                                        repository
+                                    )
+                                    dm.downloadTrack(currentTrack)
+                                    Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("More like this", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = accentColor) },
+                                onClick = {
+                                    showMenu = false
+                                    repository.recommendationManager.onMoreLikeThis(currentTrack)
+                                    Toast.makeText(context, "More like ${currentTrack.artist}", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Don't recommend artist", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Filled.Block, contentDescription = null, tint = Color(0xFFF43F5E)) },
+                                onClick = {
+                                    showMenu = false
+                                    repository.recommendationManager.onDontRecommendArtist(currentTrack.artist)
+                                    Toast.makeText(context, "Artist hidden from recommendations", Toast.LENGTH_SHORT).show()
+                                    player.skipToNext()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Hide track", color = Color.White, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = { Icon(Icons.Filled.VisibilityOff, contentDescription = null, tint = Color(0xFFF43F5E)) },
+                                onClick = {
+                                    showMenu = false
+                                    repository.recommendationManager.onHideTrack(currentTrack)
+                                    Toast.makeText(context, "Track hidden", Toast.LENGTH_SHORT).show()
+                                    player.skipToNext()
+                                }
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // --- Scrubber Seekbar with Dynamic Expansion & Thumb (Pixel-iOS Hybrid) ---
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 26.dp)
+                    .padding(top = 14.dp, bottom = 4.dp)
+            ) {
+                var isDragging by remember { mutableStateOf(false) }
+                var dragPositionMs by remember { mutableStateOf<Long?>(null) }
+                val activePosition = dragPositionMs ?: positionMs
+                val progressFraction = if (durationMs > 0) (activePosition.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
 
-            // --- 5. Interactive Lightning Waveform Seekbar ---
-            LightningWaveform(
-                positionMs = positionMs,
-                durationMs = durationMs,
-                isPlaying = isPlaying,
-                waveColor = effectiveGlowColor,
-                codecLabel = "Opus 160 kbps • 48 kHz",
-                onSeek = { player.seekTo(it) },
-                onCodecClick = { showAudioPlaybackModal = true }
-            )
+                val scrubberBarHeight by animateDpAsState(
+                    targetValue = if (isDragging) 8.dp else 4.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "scrubber_height"
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .pointerInput(durationMs) {
+                            detectTapGestures { offset ->
+                                if (durationMs > 0 && size.width > 0) {
+                                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                    val targetMs = (fraction * durationMs).toLong()
+                                    player.seekTo(targetMs)
+                                }
+                            }
+                        }
+                        .pointerInput(durationMs) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    if (durationMs > 0 && size.width > 0) {
+                                        val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                        dragPositionMs = (fraction * durationMs).toLong()
+                                    }
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    dragPositionMs?.let { player.seekTo(it) }
+                                    dragPositionMs = null
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                    dragPositionMs = null
+                                },
+                                onHorizontalDrag = { change, _ ->
+                                    change.consume()
+                                    if (durationMs > 0 && size.width > 0) {
+                                        val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                        dragPositionMs = (fraction * durationMs).toLong()
+                                    }
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    // Background track
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(scrubberBarHeight)
+                            .clip(RoundedCornerShape(scrubberBarHeight / 2))
+                            .background(Color.White.copy(alpha = 0.22f))
+                    )
+                    // Filled progress
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progressFraction)
+                            .height(scrubberBarHeight)
+                            .clip(RoundedCornerShape(scrubberBarHeight / 2))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.85f),
+                                        Color.White,
+                                        accentColor
+                                    )
+                                )
+                            )
+                    )
 
-            // --- 6. Universal 5-Button Ergonomic Playback Cluster ---
+                    // Dynamic Floating Thumb Knob when scrubbing
+                    if (isDragging) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction = progressFraction.coerceIn(0.01f, 1f))
+                                .height(28.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.45f))
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(2.dp, accentColor, CircleShape)
+                            )
+                        }
+                    }
+                }
+
+                // Timestamps: 0:42 and -2:45
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatTime(activePosition),
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.60f)
+                    )
+
+                    val remainingMs = (durationMs - activePosition).coerceAtLeast(0L)
+                    Text(
+                        text = "-${formatTime(remainingMs)}",
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.60f)
+                    )
+                }
+            }
+
+            // --- Playback Controls: Apple Music Tactile Transport Cluster (Shuffle, Prev, Play/Pause, Next, Repeat) ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. Shuffle Button
+                // Shuffle Button (Tactile Squircle)
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .glassySurface(
-                            shape = CircleShape,
-                            style = if (isShuffle) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
-                            tintColor = if (isShuffle) accentColor else null,
-                            elevation = 3.dp,
-                            onClick = { player.toggleShuffle() }
-                        ),
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (isShuffle) accentColor.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f))
+                        .border(
+                            width = 1.dp,
+                            color = if (isShuffle) accentColor.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .bouncyClickable(scaleDown = 0.88f) { player.toggleShuffle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Shuffle,
+                        imageVector = Icons.Filled.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffle) Color.White else Color.White.copy(alpha = 0.7f),
+                        tint = if (isShuffle) accentColor else Color.White.copy(alpha = 0.65f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
-                // 2. Previous Track Button
+                // Previous Track (Tactile Frosted Squircle)
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
-                        .glassySlab(shape = CircleShape, onClick = { player.skipToPrevious() }),
+                        .size(52.dp)
+                        .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(0.35f))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.32f),
+                                    Color.White.copy(alpha = 0.06f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .bouncyClickable(scaleDown = 0.88f) { player.skipToPrevious() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SkipPrevious,
+                        imageVector = Icons.Filled.FastRewind,
                         contentDescription = "Previous Track",
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
                     )
                 }
 
-                // 3. Prominent Center Play / Pause Button (72dp)
+                // Play / Pause (Large Frosted Liquid Glass Pod with Ambient Glow)
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
-                        .glassySurface(
-                            shape = CircleShape,
-                            style = GlassyStyle.PROMINENT,
-                            tintColor = accentColor,
-                            elevation = 10.dp,
-                            hasSheen = true,
-                            onClick = { player.togglePlayPause() }
-                        ),
+                        .size(74.dp)
+                        .shadow(
+                            elevation = 14.dp,
+                            shape = RoundedCornerShape(26.dp),
+                            spotColor = accentColor.copy(alpha = 0.50f),
+                            ambientColor = Color.Black.copy(alpha = 0.35f)
+                        )
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    accentColor,
+                                    accentColor.copy(alpha = 0.88f),
+                                    accentColor.copy(alpha = 0.75f)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.2.dp,
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.75f),
+                                    Color.White.copy(alpha = 0.20f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(26.dp)
+                        )
+                        .bouncyClickable(scaleDown = 0.88f) { player.togglePlayPause() },
                     contentAlignment = Alignment.Center
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
                             color = Color.White,
-                            modifier = Modifier.size(30.dp),
+                            modifier = Modifier.size(34.dp),
                             strokeWidth = 3.dp
                         )
                     } else {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
                             tint = Color.White,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(40.dp)
                         )
                     }
                 }
 
-                // 4. Next Track Button
+                // Next Track (Tactile Frosted Squircle)
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
-                        .glassySlab(shape = CircleShape, onClick = { player.skipToNext() }),
+                        .size(52.dp)
+                        .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(0.35f))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.32f),
+                                    Color.White.copy(alpha = 0.06f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .bouncyClickable(scaleDown = 0.88f) { player.skipToNext() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.SkipNext,
+                        imageVector = Icons.Filled.FastForward,
                         contentDescription = "Next Track",
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
                     )
                 }
 
-                // 5. Repeat Button
-                val isRepeatActive = repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF
+                // Repeat Button (Tactile Squircle)
+                val repeatActive = repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .glassySurface(
-                            shape = CircleShape,
-                            style = if (isRepeatActive) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
-                            tintColor = if (isRepeatActive) accentColor else null,
-                            elevation = 3.dp,
-                            onClick = { player.cycleRepeatMode() }
-                        ),
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (repeatActive) accentColor.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f))
+                        .border(
+                            width = 1.dp,
+                            color = if (repeatActive) accentColor.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .bouncyClickable(scaleDown = 0.88f) { player.toggleRepeat() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) {
-                            Icons.Default.RepeatOne
-                        } else {
-                            Icons.Default.Repeat
-                        },
+                        imageVector = if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                         contentDescription = "Repeat",
-                        tint = if (isRepeatActive) Color.White else Color.White.copy(alpha = 0.7f),
+                        tint = if (repeatActive) accentColor else Color.White.copy(alpha = 0.65f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // --- 7. Bottom Quick Utility Controls (Audio/EQ, Queue, Download) ---
-            Row(
+            // --- Bottom Utilities: Lyrics, Audio/EQ, Queue (Floating Frosted Capsule Dock) ---
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Audio & EQ pill
-                Box(
-                    modifier = Modifier
-                        .height(44.dp)
-                        .weight(1f)
-                        .glassySlab(
-                            shape = RoundedCornerShape(22.dp),
-                            onClick = { showAudioPlaybackModal = true }
+                    .padding(horizontal = 28.dp)
+                    .padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.White.copy(alpha = 0.12f))
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.28f),
+                                Color.White.copy(alpha = 0.06f)
+                            )
                         ),
-                    contentAlignment = Alignment.Center
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .padding(horizontal = 22.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                    // Lyrics Button
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .bouncyClickable(scaleDown = 0.88f) { onOpenLyrics() },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.VolumeUp,
-                            contentDescription = "Equalizer",
-                            tint = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Audio & EQ",
-                            fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            color = Color.White
+                            imageVector = Icons.Filled.ChatBubbleOutline,
+                            contentDescription = "Lyrics",
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(22.dp)
                         )
                     }
-                }
 
-                // Queue access pill
-                Box(
-                    modifier = Modifier
-                        .height(44.dp)
-                        .weight(1f)
-                        .glassySlab(
-                            shape = RoundedCornerShape(22.dp),
-                            onClick = onOpenQueue
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                    // Audio & EQ effects button
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .bouncyClickable(scaleDown = 0.88f) { showAudioPlaybackModal = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.GraphicEq,
+                            contentDescription = "Audio settings",
+                            tint = accentColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Queue Button
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .bouncyClickable(scaleDown = 0.88f) { onOpenQueue() },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                             contentDescription = "Queue",
-                            tint = Color.White.copy(alpha = 0.9f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Queue (${queue.size})",
-                            fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
-                            color = Color.White
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
             }
         }
 
-        // --- 8. In-App Audio & Playback Modal ---
+        // --- Audio & Playback Modal ---
         AudioPlaybackModal(
             player = player,
             isOpen = showAudioPlaybackModal,
             onDismiss = { showAudioPlaybackModal = false }
         )
     }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
+}
+
+private data class ArtworkContent(
+    val trackId: String,
+    val title: String,
+    val artworkUrl: String?
+)
+
+private fun resolveArtworkModel(artworkUrl: String?): Any? = when {
+    artworkUrl.isNullOrBlank() -> null
+    artworkUrl.startsWith("http://") || artworkUrl.startsWith("https://") -> artworkUrl
+    artworkUrl.startsWith("content://") || artworkUrl.startsWith("file://") ->
+        android.net.Uri.parse(artworkUrl)
+    else -> java.io.File(artworkUrl)
+}
+
+@Composable
+private fun rememberReduceMotion(): Boolean {
+    val context = LocalContext.current
+    var reduceMotion by remember(context) {
+        mutableStateOf(
+            Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f
+            ) <= 0f
+        )
+    }
+
+    DisposableEffect(context) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                reduceMotion = Settings.Global.getFloat(
+                    context.contentResolver,
+                    Settings.Global.ANIMATOR_DURATION_SCALE,
+                    1f
+                ) <= 0f
+            }
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
+            false,
+            observer
+        )
+        onDispose {
+            context.contentResolver.unregisterContentObserver(observer)
+        }
+    }
+
+    return reduceMotion
 }

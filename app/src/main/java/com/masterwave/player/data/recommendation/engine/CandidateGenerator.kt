@@ -61,25 +61,29 @@ class CandidateGenerator(
     /**
      * Generates discovery candidates from high-performing viral and community playlists.
      */
-    suspend fun getDiscoveryCandidates(languageHint: String = "Trending"): List<Track> = withContext(Dispatchers.IO) {
+    suspend fun getDiscoveryCandidates(languageHint: String? = null): List<Track> = withContext(Dispatchers.IO) {
         val candidates = mutableListOf<Track>()
 
         // 1. Language viral recommendations
         try {
-            val (_, viral) = LanguageMusicRecommender.getLanguageViralTracks(repository, null)
+            val seedTrack = repository.recentTracks.value.firstOrNull()
+            val (language, viral) = LanguageMusicRecommender.getLanguageViralTracks(
+                repository,
+                seedTrack,
+                languageHint
+            )
             candidates.addAll(viral)
-        } catch (_: Exception) {}
 
-        // 2. Curated community query candidates
-        try {
-            val communityPlaylists = CommunityPlaylistsProvider.getPlaylistsForLanguage("Tamil") +
-                    CommunityPlaylistsProvider.getPlaylistsForLanguage("Hindi")
+            // 2. Curated community candidates for the user's most active language
+            val communityPlaylists = CommunityPlaylistsProvider.getPlaylistsForLanguage(language)
             val topPicks = communityPlaylists.shuffled().take(2)
             topPicks.forEach { cp ->
                 val searchRes = ytProvider.search(cp.searchQuery)
                 candidates.addAll(searchRes.songs.take(6))
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            // Viral candidates remain useful if the community query is unavailable.
+        }
 
         candidates.distinctBy { it.id }
     }

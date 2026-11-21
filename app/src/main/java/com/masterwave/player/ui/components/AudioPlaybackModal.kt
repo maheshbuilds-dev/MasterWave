@@ -67,7 +67,7 @@ import java.util.Locale
  * - Header: Audio & Playback (Volume, seamless transitions & speed), Close button.
  * - In-App Volume: 0-100% draggable slider.
  * - Speed & Pitch: "Linked" toggle, Reset button, Speed (0.50x-2.00x) & Pitch (0.50x-2.00x).
- * - Acoustic Tuning & EQ: Launch Snapdragon / Dolby Atmos DSP.
+ * - Acoustic Tuning & EQ: Launch Studio Equalizer / DSP.
  * - Music Haptics: Rhythm synchronization via haptic motor.
  */
 @Composable
@@ -605,7 +605,7 @@ fun AudioPlaybackModal(
                         val sourceLabel = if (currentTrack?.isLocal == true) "Local Storage (Device MediaStore)" else "YouTube Music InnerTube (itag 251)"
                         val codecLabel = if (currentTrack?.isLocal == true) "Auto-Detected (MediaCodec)" else "Opus / 48 kHz (Lossy WebM)"
                         val bitrateLabel = if (currentTrack?.isLocal == true) "Direct File Bitrate" else "160 kbps VBR (Stream target)"
-                        val outputSink = "AudioTrack 32-bit Float PCM • Moto G45 HAL"
+                        val outputSink = "AudioTrack 32-bit Float PCM • Direct Studio Audio HAL"
 
                         listOf(
                             "Audio Source" to sourceLabel,

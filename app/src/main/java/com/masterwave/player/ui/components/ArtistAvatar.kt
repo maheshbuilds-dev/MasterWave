@@ -1,5 +1,6 @@
 package com.masterwave.player.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,11 +21,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.masterwave.player.data.recommendation.ArtistPhotoProvider
 import com.masterwave.player.ui.theme.DisplayFontFamily
 import java.util.Locale
 import kotlin.math.abs
@@ -44,8 +48,28 @@ fun ArtistAvatar(
     borderColor: Color = Color(0x33FFFFFF),
     onClick: (() -> Unit)? = null
 ) {
-    var hasError by remember(photoUrl) { mutableStateOf(false) }
-    val isValidUrl = !photoUrl.isNullOrBlank() && !hasError
+    val context = LocalContext.current
+    val catalogPhotoUrl = remember(name) { ArtistPhotoProvider.getPhotoUrlOrNull(name) }
+    val explicitPhotoUrl = photoUrl?.takeIf(String::isNotBlank)
+    var failedPhotoUrls by remember(name, explicitPhotoUrl) {
+        mutableStateOf(emptySet<String>())
+    }
+    var fallbackPhotoUrl by remember(name, explicitPhotoUrl) { mutableStateOf<String?>(null) }
+    var fallbackAttempted by remember(name, explicitPhotoUrl) { mutableStateOf(false) }
+    val activePhotoUrl = explicitPhotoUrl?.takeUnless(failedPhotoUrls::contains)
+        ?: catalogPhotoUrl?.takeUnless(failedPhotoUrls::contains)
+        ?: fallbackPhotoUrl?.takeUnless(failedPhotoUrls::contains)
+
+    LaunchedEffect(name, explicitPhotoUrl, activePhotoUrl) {
+        if (activePhotoUrl == null && !fallbackAttempted) {
+            fallbackAttempted = true
+            fallbackPhotoUrl = ArtistPhotoProvider.resolvePhotoOnline(
+                context = context,
+                artistName = name,
+                excludedUrl = failedPhotoUrls.lastOrNull() ?: explicitPhotoUrl
+            )
+        }
+    }
 
     val clickModifier = if (onClick != null) {
         Modifier.clickable(onClick = onClick)
@@ -59,12 +83,16 @@ fun ArtistAvatar(
             .border(borderWidth, borderColor, CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        if (isValidUrl) {
+        if (activePhotoUrl != null) {
             AsyncImage(
-                model = photoUrl,
+                model = activePhotoUrl,
                 contentDescription = name,
                 contentScale = ContentScale.Crop,
-                onError = { hasError = true },
+                alignment = Alignment.TopCenter,
+                onError = { error ->
+                    Log.w("ArtistAvatar", "Photo load failed for '$name'", error.result.throwable)
+                    failedPhotoUrls = failedPhotoUrls + activePhotoUrl
+                },
                 modifier = Modifier.fillMaxSize()
             )
         } else {

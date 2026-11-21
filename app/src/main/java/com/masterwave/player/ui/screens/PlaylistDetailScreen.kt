@@ -85,11 +85,11 @@ fun PlaylistDetailScreen(
     }
     val downloadedIds by downloadManager.downloadedIds.collectAsState()
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
-    val cardBg = if (isAmoled) Color(0xFF12121A) else Color(0xFFEFECEF).copy(alpha = 0.55f)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
-    val pillBg = if (isAmoled) Color(0xFF181824) else Color(0xFFE6E3E6)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFAF0)
+    val cardBg = if (isAmoled) Color(0xFF12121A) else Color(0xFFF5F0E0)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6A6A6A)
+    val pillBg = if (isAmoled) Color(0xFF181824) else Color(0xFFFAF5E8)
 
     var showMenu by remember { mutableStateOf(false) }
 

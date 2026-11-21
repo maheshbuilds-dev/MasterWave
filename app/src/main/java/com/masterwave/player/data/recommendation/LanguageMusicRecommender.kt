@@ -92,9 +92,12 @@ object LanguageMusicRecommender {
 
     suspend fun getLanguageViralTracks(
         repository: MusicRepository,
-        currentTrack: Track?
+        currentTrack: Track?,
+        languageHint: String? = null
     ): Pair<String, List<Track>> = withContext(Dispatchers.IO) {
-        val lang = detectLanguage(currentTrack)
+        val lang = languageHint?.takeIf { it.isNotBlank() }?.let {
+            if (it.equals("English", ignoreCase = true)) "Global Hits" else it
+        } ?: detectLanguage(currentTrack)
         val query = getSearchQuery(lang)
         try {
             val searchRes = repository.search(query)

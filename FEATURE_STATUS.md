@@ -1,6 +1,6 @@
 # MasterWave: Feature Status Tracking
 
-**Last Updated:** 2026-11-12  
+**Last Updated:** 2026-11-19
 **Target Application:** MasterWave (`com.masterwave.player`)  
 **Hardware Baseline:** Motorola Moto G45 5G (Android 16)
 
@@ -21,6 +21,7 @@
 | | Search by Artist / Album | **Implemented and tested** | Filter chips and direct artist/album queries |
 | | Real-Time Query Suggestions | **Implemented and tested** | `suggestqueries.google.com/complete/search` |
 | | Search History Persistence | **Implemented and tested** | In-memory & DataStore persistence |
+| | Personalized Home Mixes | **Implemented and tested** | Genre and artist mixes ranked from favorites and recent plays; hero carousel plays recommended songs |
 | **Playback & Streaming**| InnerTube Multi-Client Resolution | **Implemented and tested** | YouTubeMusicProvider with NewPipeExtractor & 1MB pre-probing |
 | | Media3 ExoPlayer Engine | **Implemented and tested** | Native MediaCodec Opus/AAC 48kHz decoding verified on Moto G45 |
 | | Background Playback Service | **Implemented and tested** | FOREGROUND_SERVICE_MEDIA_PLAYBACK resilient under screen-off & minimize |
@@ -31,8 +32,10 @@
 | | Plain Lyrics Fallback | **Implemented and tested** | Unsynchronized text viewer fallback |
 | **Local Media** | MediaStore Audio Auto-Scan | **Implemented and tested** | LocalMusicProvider reading device content URI |
 | | Local Song/Album/Artist Browsing| **Implemented and tested** | Segmented Library tab with album art resolution |
+| | Managed Downloads | **Implemented; unit/build verified** | Lists completed in-app downloads only; posts percentage, completion, and failure notifications; leaves unregistered audio files untouched |
 | **Library & Playlists** | Custom User Playlists (Room DB) | **Implemented and tested** | Room database schema with TrackEntity |
 | | Favorites / Liked Songs | **Implemented and tested** | Instant heart toggle with StateFlow reactive updates |
 | | Recently Played Tracks | **Implemented and tested** | Queue & recent play history tracking |
-| **Settings & Visuals** | Dark Obsidian Theme & Accent Colors| **Implemented and tested** | Obsidian `#08080A`, Charcoal `#121216`, Crimson `#E53935` |
+| **Settings & Visuals** | Dark Obsidian Theme & Accent Colors| **Implemented and tested** | Obsidian `#08080A`, Charcoal `#121216`, Crimson `#E53935`; saved Light, Dark, AMOLED, and System modes are restored |
+| | Home Masthead & Split Glass Dock | **Implemented** | Scroll-responsive glass header; personalized rotating recommendations and Quick Picks; compact playlist search rail; corrected Downloads track count; separated Home/Library plus Search dock |
 | | Audio Decoder & Cache Settings | **Implemented and tested** | Hardware codec inspection, cache clear, GPL-3.0 info |

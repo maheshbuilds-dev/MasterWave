@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextOverflow
+import com.masterwave.player.ui.components.bouncyClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
@@ -56,6 +61,10 @@ import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.TrackItem
 import com.masterwave.player.ui.theme.ThemeState
+import androidx.compose.material3.HorizontalDivider
+import com.masterwave.player.ui.theme.SwissHairline
+import com.masterwave.player.ui.theme.SwissMono
+import com.masterwave.player.ui.theme.SwissDisplayLarge
 import kotlinx.coroutines.launch
 
 @Composable
@@ -73,7 +82,7 @@ fun LibraryScreen(
     val favorites by repository.favorites.collectAsState()
     val currentTrack by player.currentTrack.collectAsState()
     val isPlaying by player.isPlaying.collectAsState()
-    val accentColor by ThemeState.accentColor.collectAsState()
+    val accentColor = MaterialTheme.colorScheme.primary
     val isAmoled = ThemeState.isAmoledTheme()
     val context = LocalContext.current
 
@@ -83,9 +92,9 @@ fun LibraryScreen(
     val downloadedIds by downloadManager.downloadedIds.collectAsState()
     val downloadedTracks = localTracks.filter { downloadedIds.contains(it.id) }
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val bgColor = MaterialTheme.colorScheme.background
+    val textPrimary = MaterialTheme.colorScheme.onBackground
+    val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
 
     fun scanLocal() {
         isLoadingLocal = true
@@ -111,18 +120,21 @@ fun LibraryScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Library",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 30.sp
-                ),
-                color = textPrimary
-            )
+            Column {
+                Text(
+                    text = "Library",
+                    style = SwissDisplayLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 34.sp,
+                        letterSpacing = (-0.7).sp
+                    ),
+                    color = textPrimary
+                )
+            }
 
             if (selectedTab == 0) {
                 IconButton(onClick = { scanLocal() }) {
@@ -137,59 +149,101 @@ fun LibraryScreen(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Scan Media",
                             tint = accentColor,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
             }
         }
 
-        // Tab Selector Row
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = bgColor,
-            contentColor = accentColor,
-            indicator = { tabPositions ->
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                    color = accentColor,
-                    height = 3.dp
-                )
-            },
-            modifier = Modifier.padding(horizontal = 16.dp)
+        HorizontalDivider(
+            color = SwissHairline,
+            thickness = 0.5.dp,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+        )
+
+        // Tab Selector Row (Pixel-iOS Segmented Pill Chips)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            LibraryTabItem(
-                title = "Local (${localTracks.size})",
-                icon = Icons.Default.Folder,
-                isSelected = selectedTab == 0,
-                accentColor = accentColor,
-                textSecondary = textSecondary,
-                onClick = { selectedTab = 0 }
+            val tabs = listOf(
+                Triple("LOCAL", Icons.Default.Folder, localTracks.size),
+                Triple("FAVES", Icons.Default.Favorite, favorites.size),
+                Triple("HISTORY", Icons.Default.History, recentTracks.size),
+                Triple("SAVED", Icons.Default.Download, downloadedTracks.size)
             )
-            LibraryTabItem(
-                title = "Favorites (${favorites.size})",
-                icon = Icons.Default.Favorite,
-                isSelected = selectedTab == 1,
-                accentColor = accentColor,
-                textSecondary = textSecondary,
-                onClick = { selectedTab = 1 }
-            )
-            LibraryTabItem(
-                title = "History (${recentTracks.size})",
-                icon = Icons.Default.History,
-                isSelected = selectedTab == 2,
-                accentColor = accentColor,
-                textSecondary = textSecondary,
-                onClick = { selectedTab = 2 }
-            )
-            LibraryTabItem(
-                title = "Saved (${downloadedTracks.size})",
-                icon = Icons.Default.Download,
-                isSelected = selectedTab == 3,
-                accentColor = accentColor,
-                textSecondary = textSecondary,
-                onClick = { selectedTab = 3 }
-            )
+
+            tabs.forEachIndexed { index, (title, icon, count) ->
+                val isSelected = selectedTab == index
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp)
+                        .clip(RoundedCornerShape(19.dp))
+                        .then(
+                            if (isSelected) {
+                                Modifier.background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            accentColor,
+                                            accentColor.copy(alpha = 0.85f)
+                                        )
+                                    )
+                                )
+                            } else {
+                                Modifier.background(
+                                    if (isAmoled) Color(0x18FFFFFF) else Color(0x0C000000)
+                                )
+                            }
+                        )
+                        .border(
+                            width = 1.dp,
+                            brush = if (isSelected) {
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.45f),
+                                        Color.White.copy(alpha = 0.10f)
+                                    )
+                                )
+                            } else {
+                                Brush.verticalGradient(
+                                    listOf(
+                                        if (isAmoled) Color(0x22FFFFFF) else Color(0x12000000),
+                                        if (isAmoled) Color(0x08FFFFFF) else Color(0x04000000)
+                                    )
+                                )
+                            },
+                            shape = RoundedCornerShape(19.dp)
+                        )
+                        .bouncyClickable(scaleDown = 0.92f) { selectedTab = index },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = if (isSelected) Color.White else textSecondary
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "$title ($count)",
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
 
         // Tab Content
@@ -311,38 +365,4 @@ fun LibraryScreen(
             }
         }
     }
-}
-
-@Composable
-private fun LibraryTabItem(
-    title: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    accentColor: Color,
-    textSecondary: Color,
-    onClick: () -> Unit
-) {
-    Tab(
-        selected = isSelected,
-        onClick = onClick,
-        text = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = if (isSelected) accentColor else textSecondary
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 12.sp
-                    ),
-                    color = if (isSelected) accentColor else textSecondary
-                )
-            }
-        }
-    )
 }

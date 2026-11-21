@@ -59,6 +59,7 @@ import coil.compose.AsyncImage
 import com.masterwave.player.data.model.Track
 import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeState
+import io.github.fletchmckee.liquid.LiquidState
 import java.io.File
 
 /**
@@ -83,7 +84,9 @@ fun MiniPlayerDock(
     onExpand: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    liquidState: LiquidState? = null,
+    isGlassEnabled: Boolean = true
 ) {
     val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "mini_progress")
@@ -122,26 +125,15 @@ fun MiniPlayerDock(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragStart = { totalDrag = 0f },
-                    onDragEnd = {
-                        if (totalDrag < -60f) {
-                            onNext()
-                        }
-                    },
-                    onHorizontalDrag = { _, dragAmount ->
-                        totalDrag += dragAmount
-                    }
-                )
-            },
+            .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
     ) {
         // Floating Optical Capsule
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .clickable(onClick = onExpand)
                 .glassySurface(
                     shape = RoundedCornerShape(24.dp),
                     style = GlassyStyle.DOCK,
@@ -150,6 +142,9 @@ fun MiniPlayerDock(
                     elevation = 10.dp,
                     accentGlow = animatedAccent.copy(alpha = 0.15f),
                     hasSheen = true,
+                    tintColor = animatedAccent,
+                    liquidState = liquidState,
+                    isGlassEnabled = isGlassEnabled,
                     onClick = onExpand
                 )
         ) {
@@ -239,8 +234,6 @@ fun MiniPlayerDock(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     // Title, Artist, & Live Animated Visualizer
-                    val crimsonJewel = Color(0xFF880E4F)
-
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -271,21 +264,21 @@ fun MiniPlayerDock(
                                             .width(2.5.dp)
                                             .height(bar1Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(crimsonJewel)
+                                            .background(animatedAccent)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar2Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(crimsonJewel)
+                                            .background(animatedAccent)
                                     )
                                     Box(
                                         modifier = Modifier
                                             .width(2.5.dp)
                                             .height(bar3Height.dp)
                                             .clip(RoundedCornerShape(1.dp))
-                                            .background(crimsonJewel)
+                                            .background(animatedAccent)
                                     )
                                 }
                             }
@@ -306,9 +299,9 @@ fun MiniPlayerDock(
                     // Play / Pause Circular Liquid Glass Jewel Button (Apple Music Signature)
                     val playJewelGradient = Brush.verticalGradient(
                         listOf(
-                            Color(0xFF9E1B42), // Brilliant ruby crown
-                            Color(0xFF880E4F), // Deep wine red core
-                            Color(0xFF6A093D)  // Grounded burgundy floor
+                            animatedAccent,
+                            animatedAccent.copy(alpha = 0.88f),
+                            animatedAccent.copy(alpha = 0.72f)
                         )
                     )
 
@@ -318,7 +311,7 @@ fun MiniPlayerDock(
                             .shadow(
                                 elevation = 6.dp,
                                 shape = CircleShape,
-                                spotColor = Color(0xFF880E4F).copy(alpha = 0.55f),
+                                spotColor = animatedAccent.copy(alpha = 0.35f),
                                 ambientColor = Color.Black.copy(alpha = 0.20f)
                             )
                             .clip(CircleShape)

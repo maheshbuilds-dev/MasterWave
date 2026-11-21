@@ -185,6 +185,22 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
         }
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        val prefs = getSharedPreferences("masterwave_audio_prefs", Context.MODE_PRIVATE)
+        val stopWhenCleared = prefs.getBoolean("stop_when_app_cleared", false)
+        if (stopWhenCleared) {
+            player.pause()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+            stopSelf()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()

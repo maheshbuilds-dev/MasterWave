@@ -3,6 +3,7 @@ package com.masterwave.player.ui.theme
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography as MaterialTypography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -14,58 +15,130 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Pure AMOLED Dark Color Scheme (True Pitch Black #000000 for OLED efficiency)
+// Pure AMOLED Color Scheme — true pitch black for OLED efficiency.
 private fun createAmoledDarkColorScheme(accent: Color) = darkColorScheme(
     primary = accent,
     onPrimary = Color.White,
-    primaryContainer = accent.copy(alpha = 0.35f),
-    onPrimaryContainer = Color.White,
-    secondary = accent.copy(alpha = 0.85f),
+    primaryContainer = accent.copy(alpha = 0.24f),
+    onPrimaryContainer = Color(0xFFFFD9DF),
+    secondary = AppleMusicRose,
     onSecondary = Color.White,
-    tertiary = AccentLime,
-    background = AmoledBackground, // #000000 Pure Pitch Black
-    onBackground = Color(0xFFFFFFFF),
-    surface = AmoledSurface, // Deepest surface
-    onSurface = Color(0xFFFFFFFF),
-    surfaceVariant = AmoledSurfaceElevated,
-    onSurfaceVariant = DarkTextSecondary,
-    outline = AmoledBorder
+    secondaryContainer = Color(0xFF4A0A16),
+    onSecondaryContainer = Color(0xFFFFD9DF),
+    tertiary = AppleMusicIndigo,
+    onTertiary = Color.White,
+    background = Color.Black,
+    onBackground = Color.White,
+    surface = Color.Black,
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF141416),
+    onSurfaceVariant = AMDarkTextSecondary,
+    surfaceTint = accent,
+    surfaceDim = Color.Black,
+    surfaceBright = AMDarkSurfaceHighest,
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF0A0A0C),
+    surfaceContainer = Color(0xFF121214),
+    surfaceContainerHigh = Color(0xFF1A1A1C),
+    surfaceContainerHighest = Color(0xFF242426),
+    outline = AMDarkOutline,
+    outlineVariant = AMDarkSeparator,
+    inverseSurface = Color.White,
+    inverseOnSurface = AMLightTextPrimary,
+    inversePrimary = AppleMusicRedDeep,
+    error = Color(0xFFFF453A),
+    onError = Color.White,
+    scrim = Color.Black
 )
 
-// Standard Dark Color Scheme (#0D0F0E Layered Dark Charcoal)
+// Standard dark scheme — layered charcoal, Apple Music dark surfaces.
 private fun createDarkColorScheme(accent: Color) = darkColorScheme(
     primary = accent,
     onPrimary = Color.White,
-    primaryContainer = accent.copy(alpha = 0.28f),
-    onPrimaryContainer = Color.White,
-    secondary = accent.copy(alpha = 0.85f),
+    primaryContainer = accent.copy(alpha = 0.22f),
+    onPrimaryContainer = Color(0xFFFFD9DF),
+    secondary = AppleMusicRose,
     onSecondary = Color.White,
-    tertiary = AccentLime,
-    background = DarkBackground, // #0D0F0E
-    onBackground = DarkTextPrimary, // #F2F4F3
-    surface = DarkSurface, // #141716
-    onSurface = DarkTextPrimary,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = DarkTextSecondary,
-    outline = DarkBorder
+    secondaryContainer = Color(0xFF4A0A16),
+    onSecondaryContainer = Color(0xFFFFD9DF),
+    tertiary = AppleMusicIndigo,
+    onTertiary = Color.White,
+    background = AMDarkBackground,
+    onBackground = AMDarkTextPrimary,
+    surface = AMDarkBackground,
+    onSurface = AMDarkTextPrimary,
+    surfaceVariant = AMDarkSurface,
+    onSurfaceVariant = AMDarkTextSecondary,
+    surfaceTint = accent,
+    surfaceDim = AMDarkBackground,
+    surfaceBright = AMDarkSurfaceHighest,
+    surfaceContainerLowest = Color(0xFF08080A),
+    surfaceContainerLow = Color(0xFF121214),
+    surfaceContainer = AMDarkSurface,
+    surfaceContainerHigh = AMDarkSurfaceHigh,
+    surfaceContainerHighest = AMDarkSurfaceHighest,
+    outline = AMDarkOutline,
+    outlineVariant = AMDarkSeparator,
+    inverseSurface = Color.White,
+    inverseOnSurface = AMLightTextPrimary,
+    inversePrimary = AppleMusicRedDeep,
+    error = Color(0xFFFF453A),
+    onError = Color.White,
+    scrim = Color.Black
 )
 
-// Light Color Scheme (#F6F5F3 Default Light Palette)
+// Light scheme — MasterWave Warm Light Website Canvas (#fffaf0) with tactile bento surfaces.
 private fun createLightColorScheme(accent: Color) = lightColorScheme(
     primary = accent,
     onPrimary = Color.White,
-    primaryContainer = LightSoftTint,
-    onPrimaryContainer = LightPrimaryGreen,
-    secondary = accent.copy(alpha = 0.85f),
+    primaryContainer = accent.copy(alpha = 0.14f),
+    onPrimaryContainer = WebInk,
+    secondary = WebAccentPink,
     onSecondary = Color.White,
-    tertiary = LightPrimaryGreen,
-    background = LightBackground, // #F6F5F3
-    onBackground = LightTextPrimary, // #1C1B1F
-    surface = LightSurface, // #FFFFFF
-    onSurface = LightTextPrimary,
-    surfaceVariant = LightSurfaceVariant, // #F0EFEB
-    onSurfaceVariant = LightTextSecondary, // #5A5A66
-    outline = LightBorder
+    secondaryContainer = WebAccentPeach.copy(alpha = 0.3f),
+    onSecondaryContainer = WebInk,
+    tertiary = WebAccentViolet,
+    onTertiary = Color.White,
+    background = WebCanvas,
+    onBackground = WebInk,
+    surface = WebCanvas,
+    onSurface = WebInk,
+    surfaceVariant = WebSurfaceCard,
+    onSurfaceVariant = WebBody,
+    surfaceTint = accent,
+    surfaceDim = WebSurfaceSoft,
+    surfaceBright = Color.White,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = WebSurfaceCard,
+    surfaceContainer = WebSurfaceCard,
+    surfaceContainerHigh = WebSurfaceSoft,
+    surfaceContainerHighest = WebSurfaceSoft,
+    outline = WebInk,
+    outlineVariant = WebHairline,
+    inverseSurface = WebInk,
+    inverseOnSurface = Color.White,
+    inversePrimary = WebAccentPink,
+    error = Color(0xFFFF3B30),
+    onError = Color.White,
+    scrim = Color.Black
+)
+
+private fun MaterialTypography.withForegroundColor(color: Color) = copy(
+    displayLarge = displayLarge.copy(color = color),
+    displayMedium = displayMedium.copy(color = color),
+    displaySmall = displaySmall.copy(color = color),
+    headlineLarge = headlineLarge.copy(color = color),
+    headlineMedium = headlineMedium.copy(color = color),
+    headlineSmall = headlineSmall.copy(color = color),
+    titleLarge = titleLarge.copy(color = color),
+    titleMedium = titleMedium.copy(color = color),
+    titleSmall = titleSmall.copy(color = color),
+    bodyLarge = bodyLarge.copy(color = color),
+    bodyMedium = bodyMedium.copy(color = color),
+    bodySmall = bodySmall.copy(color = color),
+    labelLarge = labelLarge.copy(color = color),
+    labelMedium = labelMedium.copy(color = color),
+    labelSmall = labelSmall.copy(color = color)
 )
 
 @Composable
@@ -78,24 +151,20 @@ fun MasterWaveTheme(
 
     val isDark = when (themeMode) {
         ThemeMode.LIGHT -> false
-        ThemeMode.DARK, ThemeMode.AMOLED, ThemeMode.SYSTEM -> true
+        else -> true // Dark theme means pure AMOLED Dark
     }
 
-    val colorScheme = when (themeMode) {
-        ThemeMode.LIGHT -> createLightColorScheme(accentColor)
-        ThemeMode.DARK -> createDarkColorScheme(accentColor)
-        ThemeMode.AMOLED, ThemeMode.SYSTEM -> createAmoledDarkColorScheme(accentColor)
+    val colorScheme = if (isDark) {
+        createAmoledDarkColorScheme(accentColor)
+    } else {
+        createLightColorScheme(accentColor)
     }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            val bgColor = (when (themeMode) {
-                ThemeMode.AMOLED, ThemeMode.SYSTEM -> AmoledBackground
-                ThemeMode.DARK -> DarkBackground
-                ThemeMode.LIGHT -> LightBackground
-            }).toArgb()
+            val bgColor = (if (isDark) AmoledBackground else WebCanvas).toArgb()
             window.statusBarColor = bgColor
             window.navigationBarColor = bgColor
             val insetsController = WindowCompat.getInsetsController(window, view)
@@ -106,7 +175,8 @@ fun MasterWaveTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = Typography.withForegroundColor(colorScheme.onBackground),
+        shapes = ExpressiveShapes,
         content = content
     )
 }

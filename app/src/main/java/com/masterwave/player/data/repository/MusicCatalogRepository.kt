@@ -1,10 +1,6 @@
 package com.masterwave.player.data.repository
 
 import com.masterwave.player.data.model.Track
-import com.masterwave.player.data.model.TrackAvailability
-import com.masterwave.player.data.provider.AudiusSourceAdapter
-import com.masterwave.player.data.provider.InternetArchiveSourceAdapter
-import com.masterwave.player.data.provider.JamendoSourceAdapter
 import com.masterwave.player.data.provider.LocalMusicSourceAdapter
 import com.masterwave.player.data.provider.MusicSourceAdapter
 import com.masterwave.player.data.provider.YouTubeMusicSourceAdapter
@@ -15,22 +11,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Unified multi-source music repository.
- * Aggregates, deduplicates, and resolves playback streams across local files,
- * decentralized Audius streams, Internet Archive collections, Jamendo, and YouTube Music.
+ * Aggregates, deduplicates, and resolves playback streams across local files and YouTube Music.
  */
 class MusicCatalogRepository(
     val localAdapter: MusicSourceAdapter,
-    val audiusAdapter: MusicSourceAdapter,
-    val internetArchiveAdapter: MusicSourceAdapter,
-    val jamendoAdapter: MusicSourceAdapter,
     val youtubeAdapter: MusicSourceAdapter
 ) {
     val allAdapters: List<MusicSourceAdapter> = listOf(
         localAdapter,
-        audiusAdapter,
-        internetArchiveAdapter,
-        jamendoAdapter,
         youtubeAdapter
     )
 
@@ -70,32 +58,18 @@ class MusicCatalogRepository(
     }
 
     /**
-     * Get trending music across open and authorized catalogues.
+     * Get trending music from YouTube Music.
      */
     suspend fun getTrendingAll(limit: Int = 30): List<Track> = withContext(Dispatchers.IO) {
-        val deferredAudius = async {
-            withTimeoutOrNull(4000L) {
-                try { audiusAdapter.getTrending(limit) } catch (_: Exception) { emptyList() }
-            } ?: emptyList()
-        }
-        val deferredArchive = async {
-            withTimeoutOrNull(4000L) {
-                try { internetArchiveAdapter.getTrending(limit) } catch (_: Exception) { emptyList() }
-            } ?: emptyList()
-        }
-        val deferredYouTube = async {
-            withTimeoutOrNull(4000L) {
-                try { youtubeAdapter.getTrending(limit) } catch (_: Exception) { emptyList() }
-            } ?: emptyList()
-        }
+        val trending = withTimeoutOrNull(4000L) {
+            try { youtubeAdapter.getTrending(limit) } catch (_: Exception) { emptyList() }
+        } ?: emptyList()
 
-        val combined = deferredAudius.await() + deferredArchive.await() + deferredYouTube.await()
-        deduplicateTracks(combined).take(limit)
+        deduplicateTracks(trending).take(limit)
     }
 
     /**
-     * Dedicated Indian music discovery across authorized public domain, classical archives,
-     * and contemporary catalogs.
+     * Dedicated Indian music discovery through YouTube Music.
      */
     suspend fun getIndianMusic(
         category: String,
@@ -117,46 +91,34 @@ class MusicCatalogRepository(
             else -> "$category Indian music"
         }
 
-        val deferredArchive = async {
-            withTimeoutOrNull(4500L) {
-                try {
-                    internetArchiveAdapter.search(searchQuery, limit)
-                } catch (_: Exception) {
-                    emptyList()
-                }
-            } ?: emptyList()
+        val tracks = withTimeoutOrNull(4500L) {
+            try {
+                youtubeAdapter.search(searchQuery, limit)
+            } catch (_: Exception) {
+                emptyList()
+            }
         }
 
-        val deferredYouTube = async {
-            withTimeoutOrNull(4500L) {
-                try {
-                    youtubeAdapter.search(searchQuery, limit)
-                } catch (_: Exception) {
-                    emptyList()
-                }
-            } ?: emptyList()
-        }
-
-        val combined = deferredArchive.await() + deferredYouTube.await()
-        deduplicateTracks(combined).take(limit)
+        deduplicateTracks(tracks ?: emptyList()).take(limit)
     }
 
     /**
-     * Resolves the playable audio stream URL for a given track.
-     * Tries the native adapter first, followed by graceful fallback across other adapters.
+     * Resolves a stream from local files or YouTube Music.
      */
     suspend fun resolveStreamUrl(track: Track): String? = withContext(Dispatchers.IO) {
         // 1. Direct local file or existing absolute file path
         if (track.isLocal && !track.localUri.isNullOrBlank()) {
             return@withContext track.localUri
         }
-        val existingStream = track.streamUrl
-        if (!existingStream.isNullOrBlank()) {
-            if (existingStream.startsWith("http://") || existingStream.startsWith("https://") || existingStream.startsWith("content://")) {
-                return@withContext existingStream
+        if (track.providerId !in removedProviderIds) {
+            val existingStream = track.streamUrl
+            if (!existingStream.isNullOrBlank()) {
+                if (existingStream.startsWith("http://") || existingStream.startsWith("https://") || existingStream.startsWith("content://")) {
+                    return@withContext existingStream
+                }
+                val f = java.io.File(existingStream.removePrefix("file://"))
+                if (f.exists()) return@withContext f.absolutePath
             }
-            val f = java.io.File(existingStream.removePrefix("file://"))
-            if (f.exists()) return@withContext f.absolutePath
         }
 
         // 2. Query target adapter by providerId
@@ -170,22 +132,8 @@ class MusicCatalogRepository(
             } catch (_: Exception) {}
         }
 
-        // 3. Graceful fallback: Search on authorized adapters by Title + Artist
+        // 3. Graceful fallback: Search YouTube Music by title and artist
         val fallbackQuery = "${track.title} ${track.artist}".trim()
-        if (fallbackQuery.isNotBlank() && track.providerId != "audius") {
-            try {
-                val audiusCandidates = audiusAdapter.search(fallbackQuery, 3)
-                val bestAudius = audiusCandidates.firstOrNull { candidate ->
-                    isFuzzyMatch(candidate.title, track.title)
-                }
-                if (bestAudius != null) {
-                    val resolved = audiusAdapter.resolveStreamUrl(bestAudius)
-                    if (!resolved.isNullOrBlank()) return@withContext resolved
-                }
-            } catch (_: Exception) {}
-        }
-
-        // 4. Secondary fallback: YouTube Music resolver if not already tried
         if (track.providerId != "youtube") {
             try {
                 val ytCandidates = youtubeAdapter.search(fallbackQuery, 3)
@@ -200,20 +148,17 @@ class MusicCatalogRepository(
     }
 
     /**
-     * Deduplicates a list of tracks, prioritizing local and authorized full-length recordings.
+     * Deduplicates tracks, preferring local files over YouTube Music results.
      */
     fun deduplicateTracks(tracks: List<Track>): List<Track> {
         val seenKeys = mutableSetOf<String>()
         val result = mutableListOf<Track>()
 
-        // Sort to prioritize local > audius > internet_archive > jamendo > youtube
         val prioritized = tracks.sortedBy { track ->
             when (track.providerId) {
                 "local" -> 0
-                "audius" -> 1
-                "internet_archive" -> 2
-                "jamendo" -> 3
-                else -> 4
+                "youtube" -> 1
+                else -> 2
             }
         }
 
@@ -238,9 +183,7 @@ class MusicCatalogRepository(
         return "$cleanTitle::$cleanArtist"
     }
 
-    private fun isFuzzyMatch(str1: String, str2: String): Boolean {
-        val c1 = str1.lowercase().replace(Regex("[^a-z0-9]"), "")
-        val c2 = str2.lowercase().replace(Regex("[^a-z0-9]"), "")
-        return c1.contains(c2) || c2.contains(c1)
+    private companion object {
+        val removedProviderIds = setOf("audius", "internet_archive", "jamendo")
     }
 }

@@ -16,6 +16,7 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
 
     companion object {
         const val PLAYBACK_CHANNEL_ID = "masterwave_playback_v1"
+        const val DOWNLOAD_CHANNEL_ID = "masterwave_downloads_v1"
         lateinit var instance: MasterWaveApp
             private set
     }
@@ -28,6 +29,17 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val requestWithUserAgent = if (request.header("User-Agent") == null) {
+                    request.newBuilder()
+                        .header("User-Agent", "MasterWave/2.0 (Android music player)")
+                        .build()
+                } else {
+                    request
+                }
+                chain.proceed(requestWithUserAgent)
+            }
             .build()
     }
 
@@ -49,8 +61,20 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
                 enableVibration(false)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
+            val downloadChannel = NotificationChannel(
+                DOWNLOAD_CHANNEL_ID,
+                getString(R.string.download_notification_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = getString(R.string.download_notification_channel_desc)
+                setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+            }
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager?.createNotificationChannel(channel)
+            notificationManager?.createNotificationChannel(downloadChannel)
         }
     }
 
@@ -58,17 +82,18 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
         return ImageLoader.Builder(this)
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.20)
+                    .maxSizePercent(0.25)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(File(cacheDir, "image_cache"))
-                    .maxSizeBytes(100L * 1024 * 1024) // 100 MB
+                    .maxSizeBytes(150L * 1024 * 1024) // 150 MB fast image cache
                     .build()
             }
             .okHttpClient(okHttpClient)
-            .crossfade(true)
+            .crossfade(150)
+            .respectCacheHeaders(false)
             .build()
     }
 }

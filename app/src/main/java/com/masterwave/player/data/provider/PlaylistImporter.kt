@@ -175,7 +175,7 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
         if (trimmed.matches(Regex("^[a-zA-Z0-9]{22}$"))) {
             return trimmed
         }
-        val match = Regex("playlist/([a-zA-Z0-9]{22})").find(trimmed)
+        val match = Regex("playlist[/:]+([a-zA-Z0-9]{22})").find(trimmed)
         return match?.groupValues?.get(1)
     }
 }

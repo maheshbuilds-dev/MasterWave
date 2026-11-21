@@ -2,6 +2,7 @@ package com.masterwave.player.ui.theme
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -19,17 +20,37 @@ enum class ThemeMode {
     SYSTEM
 }
 
+internal fun themeModeFromPreference(saved: String?): ThemeMode = when (saved) {
+    "AMOLED", "AMOLED_DARK" -> ThemeMode.AMOLED
+    "DARK" -> ThemeMode.DARK
+    "LIGHT" -> ThemeMode.LIGHT
+    "SYSTEM" -> ThemeMode.SYSTEM
+    else -> ThemeMode.LIGHT
+}
+
+internal fun isDarkThemeMode(mode: ThemeMode, systemInDark: Boolean): Boolean = when (mode) {
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK, ThemeMode.AMOLED -> true
+    ThemeMode.SYSTEM -> systemInDark
+}
+
 enum class ThemeAccentPreset(
     val title: String,
     val subtitle: String,
     val primaryColor: Color,
     val secondaryColor: Color
 ) {
+    APPLE_MUSIC(
+        title = "Apple Music",
+        subtitle = "Signature rose red & warm coral",
+        primaryColor = Color(0xFFFA2D48),
+        secondaryColor = Color(0xFFFF6482)
+    ),
     AUTOMATIC(
         title = "Automatic",
         subtitle = "Adapts live to currently playing album artwork",
-        primaryColor = Color(0xFF00D4B2),
-        secondaryColor = Color(0xFF00B4D8)
+        primaryColor = Color(0xFFFA2D48),
+        secondaryColor = Color(0xFFFF6482)
     ),
     OCEAN(
         title = "Ocean",
@@ -44,10 +65,10 @@ enum class ThemeAccentPreset(
         secondaryColor = Color(0xFFBE123C)
     ),
     FOREST(
-        title = "Forest",
-        subtitle = "Natural emerald & calm woodland pine",
-        primaryColor = Color(0xFF10B981),
-        secondaryColor = Color(0xFF059669)
+        title = "Sage Forest",
+        subtitle = "Natural sage emerald & calm woodland green",
+        primaryColor = Color(0xFF236B43),
+        secondaryColor = Color(0xFF388E5E)
     ),
     SUNSET(
         title = "Sunset",
@@ -71,12 +92,14 @@ object ThemeState {
     private const val KEY_DYNAMIC_COLOR = "dynamic_color_enabled"
     private const val KEY_LIQUID_GLASS = "liquid_glass_enabled"
     private const val KEY_WAVY_SEEKBAR = "wavy_seekbar_enabled"
+    private const val KEY_HIGH_REFRESH_RATE = "high_refresh_rate_enabled"
 
     private val prefs: SharedPreferences by lazy {
         MasterWaveApp.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     val Presets = listOf(
+        Color(0xFFFA2D48) to "Apple Music Red",
         Color(0xFF00D4B2) to "MasterWave Turquoise",
         Color(0xFF0EA5E9) to "Ocean Blue",
         Color(0xFFE11D48) to "Velvet Berry",
@@ -87,14 +110,7 @@ object ThemeState {
 
     private val _themeMode = MutableStateFlow(
         try {
-            val saved = prefs.getString(KEY_THEME_MODE, ThemeMode.AMOLED.name)
-            when (saved) {
-                "AMOLED", "AMOLED_DARK" -> ThemeMode.AMOLED
-                "DARK" -> ThemeMode.DARK
-                "LIGHT" -> ThemeMode.AMOLED
-                "SYSTEM" -> ThemeMode.AMOLED
-                else -> ThemeMode.AMOLED
-            }
+            themeModeFromPreference(prefs.getString(KEY_THEME_MODE, null))
         } catch (_: Exception) {
             ThemeMode.AMOLED
         }
@@ -103,10 +119,10 @@ object ThemeState {
 
     private val _accentPreset = MutableStateFlow(
         try {
-            val saved = prefs.getString(KEY_ACCENT_PRESET, ThemeAccentPreset.AUTOMATIC.name)
-            ThemeAccentPreset.valueOf(saved ?: ThemeAccentPreset.AUTOMATIC.name)
+            val saved = prefs.getString(KEY_ACCENT_PRESET, ThemeAccentPreset.APPLE_MUSIC.name)
+            ThemeAccentPreset.valueOf(saved ?: ThemeAccentPreset.APPLE_MUSIC.name)
         } catch (_: Exception) {
-            ThemeAccentPreset.AUTOMATIC
+            ThemeAccentPreset.APPLE_MUSIC
         }
     )
     val accentPreset: StateFlow<ThemeAccentPreset> = _accentPreset.asStateFlow()
@@ -115,6 +131,12 @@ object ThemeState {
     private val _artworkColor = MutableStateFlow<Color?>(null)
     val artworkColor: StateFlow<Color?> = _artworkColor.asStateFlow()
 
+    // Dynamic artwork tinting is opt-in so the default look stays Apple Music red.
+    private val _dynamicColorEnabled = MutableStateFlow(
+        prefs.getBoolean(KEY_DYNAMIC_COLOR, false)
+    )
+    val dynamicColorEnabled: StateFlow<Boolean> = _dynamicColorEnabled.asStateFlow()
+
     // Effective reactive accent color (combines preset and dynamic artwork)
     private val _effectiveAccentColor = MutableStateFlow(computeEffectiveAccent())
     val effectiveAccentColor: StateFlow<Color> = _effectiveAccentColor.asStateFlow()
@@ -122,15 +144,15 @@ object ThemeState {
     // Backwards-compatible alias for existing composables
     val accentColor: StateFlow<Color> = _effectiveAccentColor.asStateFlow()
 
-    private val _dynamicColorEnabled = MutableStateFlow(
-        prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
-    )
-    val dynamicColorEnabled: StateFlow<Boolean> = _dynamicColorEnabled.asStateFlow()
-
     private val _liquidGlassEnabled = MutableStateFlow(
         prefs.getBoolean(KEY_LIQUID_GLASS, true)
     )
     val liquidGlassEnabled: StateFlow<Boolean> = _liquidGlassEnabled.asStateFlow()
+
+    private val _highRefreshRateEnabled = MutableStateFlow(
+        prefs.getBoolean(KEY_HIGH_REFRESH_RATE, true)
+    )
+    val highRefreshRateEnabled: StateFlow<Boolean> = _highRefreshRateEnabled.asStateFlow()
 
     private val _wavySeekbarEnabled = MutableStateFlow(
         prefs.getBoolean(KEY_WAVY_SEEKBAR, true)
@@ -139,7 +161,7 @@ object ThemeState {
 
     private fun computeEffectiveAccent(): Color {
         val preset = _accentPreset.value
-        return if (preset == ThemeAccentPreset.AUTOMATIC) {
+        return if (preset == ThemeAccentPreset.AUTOMATIC && _dynamicColorEnabled.value) {
             _artworkColor.value ?: preset.primaryColor
         } else {
             preset.primaryColor
@@ -167,6 +189,11 @@ object ThemeState {
         prefs.edit().putBoolean(KEY_LIQUID_GLASS, enabled).apply()
     }
 
+    fun setHighRefreshRateEnabled(enabled: Boolean) {
+        _highRefreshRateEnabled.value = enabled
+        prefs.edit().putBoolean(KEY_HIGH_REFRESH_RATE, enabled).apply()
+    }
+
     fun setWavySeekbarEnabled(enabled: Boolean) {
         _wavySeekbarEnabled.value = enabled
         prefs.edit().putBoolean(KEY_WAVY_SEEKBAR, enabled).apply()
@@ -174,6 +201,7 @@ object ThemeState {
 
     fun setDynamicColorEnabled(enabled: Boolean) {
         _dynamicColorEnabled.value = enabled
+        _effectiveAccentColor.value = computeEffectiveAccent()
         prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
     }
 
@@ -190,18 +218,14 @@ object ThemeState {
     @Composable
     fun isDarkTheme(): Boolean {
         val mode by themeMode.collectAsState()
-        return when (mode) {
-            ThemeMode.LIGHT -> false
-            ThemeMode.DARK, ThemeMode.AMOLED, ThemeMode.SYSTEM -> true
-        }
+        val systemInDark = isSystemInDarkTheme()
+        return isDarkThemeMode(mode, systemInDark)
     }
 
     @Composable
     fun isAmoledTheme(): Boolean {
         val mode by themeMode.collectAsState()
-        return when (mode) {
-            ThemeMode.LIGHT -> false
-            ThemeMode.DARK, ThemeMode.AMOLED, ThemeMode.SYSTEM -> true
-        }
+        val systemInDark = isSystemInDarkTheme()
+        return isDarkThemeMode(mode, systemInDark)
     }
 }

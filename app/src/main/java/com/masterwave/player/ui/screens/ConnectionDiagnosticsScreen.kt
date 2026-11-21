@@ -92,15 +92,15 @@ fun ConnectionDiagnosticsScreen(
     var spLatencyMs by remember { mutableStateOf<Long?>(null) }
     var logOutput by remember {
         mutableStateOf(
-            "[DIAGNOSTICS INITIALIZED]\nTarget: Moto G45 5G (Snapdragon 6s Gen 3)\nAudio: Hardware Opus 48kHz Stereo Decoder\nRefresh: 120Hz display target"
+            "[DIAGNOSTICS INITIALIZED]\nTarget: Direct Studio Audio Hardware\nAudio: Hardware Opus 48kHz Stereo Decoder\nRefresh: 120Hz display target"
         )
     }
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
-    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFEFECEF).copy(alpha = 0.6f)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
-    val backBg = if (isAmoled) Color(0xFF161622) else Color(0xFFEFECEF)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFAF0)
+    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFF5F0E0)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6A6A6A)
+    val backBg = if (isAmoled) Color(0xFF161622) else Color(0xFFFAF5E8)
 
     fun runNetworkDiagnostic() {
         if (isPinging) return
@@ -303,7 +303,7 @@ fun ConnectionDiagnosticsScreen(
 
                         val hardwareItems = listOf(
                             "Device" to "${Build.MANUFACTURER.uppercase()} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})",
-                            "SoC Architecture" to "Snapdragon 6s Gen 3 (Adreno 619)",
+                            "SoC Architecture" to "Octa-core 64-bit Audio SoC",
                             "Audio Decoder" to "Hardware Opus (c2.android.opus.decoder)",
                             "Sampling Rate" to "48.0 kHz Stereo (16-bit PCM output)",
                             "Display Target" to "120 Hz Variable Refresh Rate (VRR)",

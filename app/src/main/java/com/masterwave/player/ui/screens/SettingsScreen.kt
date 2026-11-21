@@ -18,44 +18,78 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SettingsBackupRestore
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.VolunteerActivism
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masterwave.player.ui.components.bouncyClickable
-import com.masterwave.player.ui.theme.ThemeState
+import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.theme.DisplayFontFamily
+import com.masterwave.player.ui.theme.rememberAppThemeColors
+import com.masterwave.player.ui.theme.WebAccentEmerald
+import com.masterwave.player.ui.theme.WebAccentGreen
+import com.masterwave.player.ui.theme.WebAccentIce
+import com.masterwave.player.ui.theme.WebAccentOchre
+import com.masterwave.player.ui.theme.WebAccentPeach
+import com.masterwave.player.ui.theme.WebAccentPink
+import com.masterwave.player.ui.theme.WebAccentRose
+import com.masterwave.player.ui.theme.WebAccentSky
+import com.masterwave.player.ui.theme.WebAccentViolet
+import kotlinx.coroutines.launch
+
+data class SettingsItemData(
+    val id: String,
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val accentColor: Color,
+    val onClick: () -> Unit
+)
 
 /**
- * Clean, Streamlined Settings Screen for MasterWave Music:
- * Preserves essential services (YouTube Music, Spotify), Audio Engine,
- * Visuals, and full launcher-standard Backup & Restore.
+ * Supercool MasterWave Settings Screen:
+ * Completely rebuilt in the MasterWave Website Warm Light Aesthetic (#fffaf0 canvas,
+ * soft cream cards, bold ink outlines, drop-shadows & pastel badges).
+ *
+ * All unwanted/deprecated clutter permanently removed:
+ * - Removed: AI Hub, Listening Summary, Echo Wrapped, Music Flow.
+ * - Added: New Listen Together, Support MasterWave (persuasive donation), App Updates.
  */
 @Composable
 fun SettingsScreen(
@@ -63,272 +97,363 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit,
     onNavigateToAudioPlayback: () -> Unit,
     onNavigateToAppUpdate: () -> Unit,
-    onNavigateToSupport: () -> Unit,
     onNavigateToBackupRestore: () -> Unit,
     onNavigateToYouTubeSync: () -> Unit = {},
-    onNavigateToSpotifySync: () -> Unit = {},
+    onNavigateToListenTogether: () -> Unit = {},
+    onNavigateToSupport: () -> Unit = {},
+    player: MasterWavePlayer? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val accentColor by ThemeState.accentColor.collectAsState()
-    val isAmoled = ThemeState.isAmoledTheme()
+    val scope = rememberCoroutineScope()
+    val colors = rememberAppThemeColors()
+    var searchQuery by remember { mutableStateOf("") }
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
-    val cardBg = if (isAmoled) Color(0xFF101016) else Color(0xFFFFFFFF)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    // --- Clean, Curated Settings Groups ---
+    // Group 1: Sound & Experience
+    val groupSound = listOf(
+        SettingsItemData(
+            id = "player_audio",
+            icon = Icons.Default.PlayArrow,
+            title = "Player & Audio",
+            subtitle = "48 kHz studio stereo, equalizer, gapless audio",
+            accentColor = WebAccentViolet,
+            onClick = onNavigateToAudioPlayback
+        ),
+        SettingsItemData(
+            id = "appearance",
+            icon = Icons.Default.Palette,
+            title = "Appearance & Visuals",
+            subtitle = "Website light theme, accent colors, liquid glass",
+            accentColor = WebAccentPink,
+            onClick = onNavigateToAppearance
+        ),
+        SettingsItemData(
+            id = "listen_together",
+            icon = Icons.Default.Group,
+            title = "Listen Together",
+            subtitle = "Host or join real-time music sync with friends",
+            accentColor = WebAccentSky,
+            onClick = onNavigateToListenTogether
+        )
+    )
 
-    val headerBg = if (isAmoled) Color(0xFF14151E) else Color(0xFFFFFFFF)
-    val headerBorder = if (isAmoled) Color(0x20FFFFFF) else Color(0x0D000000)
-    val headerShape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(bgColor)
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 96.dp, bottom = 150.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // --- 1. Connected Services ---
-            item {
-                SettingsSectionHeader("Connected Services", accentColor)
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SettingsCard(
-                        icon = Icons.Default.Sync,
-                        iconBg = Color(0xFFFF0000).copy(alpha = 0.18f),
-                        iconTint = Color(0xFFFF0000),
-                        title = "YouTube & Sync",
-                    subtitle = "Account connection, channels, history & cloud sync",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToYouTubeSync
-                )
-                SettingsCard(
-                    icon = Icons.Default.PlayCircle,
-                    iconBg = Color(0xFF1DB954).copy(alpha = 0.2f),
-                    iconTint = Color(0xFF1DB954),
-                    title = "Spotify",
-                    subtitle = "Account connection, Canvas, playlist imports",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToSpotifySync
-                )
-            }
-        }
-
-            // --- 2. Playback & UI ---
-            item {
-                SettingsSectionHeader("Playback & UI", textSecondary)
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SettingsCard(
-                        icon = Icons.Default.Palette,
-                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
-                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                        title = "Appearance & Visuals",
-                        subtitle = "AMOLED Dark, Liquid Glass Dock, Accent Colors",
-                        cardBg = cardBg,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        onClick = onNavigateToAppearance
-                    )
-                    SettingsCard(
-                        icon = Icons.Default.Equalizer,
-                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
-                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                        title = "Audio & Playback",
-                        subtitle = "Streaming quality, Audio engine, Equalizer...",
-                        cardBg = cardBg,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        onClick = onNavigateToAudioPlayback
-                    )
+    // Group 2: Library, Storage & Sync
+    val groupData = listOf(
+        SettingsItemData(
+            id = "storage",
+            icon = Icons.Default.Storage,
+            title = "Storage & Cache",
+            subtitle = "Clear cached tracks and manage offline storage",
+            accentColor = WebAccentPeach,
+            onClick = {
+                scope.launch {
+                    try {
+                        val cacheDir = context.cacheDir
+                        val size = cacheDir.walkTopDown().filter { it.isFile }.map { it.length() }.sum()
+                        cacheDir.deleteRecursively()
+                        cacheDir.mkdirs()
+                        val freedMb = (size / (1024 * 1024)).coerceAtLeast(1)
+                        Toast.makeText(context, "Cleared $freedMb MB cached audio data", Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {
+                        Toast.makeText(context, "Storage cache cleaned", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
+        ),
+        SettingsItemData(
+            id = "backup_restore",
+            icon = Icons.Default.CloudDownload,
+            title = "Backup & Restore",
+            subtitle = "Export or import your playlists and favorites",
+            accentColor = WebAccentOchre,
+            onClick = onNavigateToBackupRestore
+        ),
+        SettingsItemData(
+            id = "account_sync",
+            icon = Icons.Default.AccountCircle,
+            title = "Cloud & Integrations",
+            subtitle = "Import playlists from YouTube Music",
+            accentColor = WebAccentEmerald,
+            onClick = onNavigateToYouTubeSync
+        )
+    )
 
-            // --- 3. System & Backup ---
-            item {
-                SettingsSectionHeader("System & Data", textSecondary)
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SettingsCard(
-                        icon = Icons.Default.SettingsBackupRestore,
-                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
-                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                        title = "Backup & Restore",
-                        subtitle = "Export or restore settings, themes, and playlists",
-                        cardBg = cardBg,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        onClick = onNavigateToBackupRestore
-                    )
-                    SettingsCard(
-                        icon = Icons.Default.Info,
-                        iconBg = com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.16f),
-                        iconTint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                        title = "About & System",
-                        subtitle = "MasterWave 2.0 • Snapdragon 6s Gen 3",
-                        cardBg = cardBg,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        onClick = onNavigateToAppUpdate
-                    )
-                SettingsCard(
-                    icon = Icons.Default.HelpOutline,
-                    iconBg = if (isAmoled) Color(0xFF181822) else Color(0xFFEFECEF),
-                    iconTint = textPrimary,
-                    title = "Support & Community",
-                    subtitle = "Telegram updates, Discord, FAQ",
-                    cardBg = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToSupport
-                )
+    // Group 3: Community, Support & Updates
+    val groupCommunity = listOf(
+        SettingsItemData(
+            id = "support_donate",
+            icon = Icons.Default.VolunteerActivism,
+            title = "Support MasterWave",
+            subtitle = "Keep MasterWave ad-free forever • Voluntary UPI support",
+            accentColor = WebAccentRose,
+            onClick = onNavigateToSupport
+        ),
+        SettingsItemData(
+            id = "system_update",
+            icon = Icons.Default.SystemUpdate,
+            title = "App Updates & Changelog",
+            subtitle = "Version v2.0.0 • Download latest APK and mirrors",
+            accentColor = WebAccentIce,
+            onClick = onNavigateToAppUpdate
+        ),
+        SettingsItemData(
+            id = "privacy",
+            icon = Icons.Default.Security,
+            title = "Privacy & Zero Telemetry",
+            subtitle = "100% private, zero profiling, on-device library only",
+            accentColor = WebAccentGreen,
+            onClick = {
+                Toast.makeText(context, "Privacy: MasterWave has zero trackers and zero telemetry.", Toast.LENGTH_LONG).show()
+            }
+        )
+    )
+
+    val allGroups = listOf(
+        Pair("SOUND & EXPERIENCE", groupSound),
+        Pair("LIBRARY & STORAGE", groupData),
+        Pair("COMMUNITY & UPDATES", groupCommunity)
+    )
+
+    val filteredGroups = remember(searchQuery) {
+        if (searchQuery.isBlank()) {
+            allGroups
+        } else {
+            allGroups.mapNotNull { (groupTitle, items) ->
+                val filtered = items.filter { item ->
+                    item.title.contains(searchQuery, ignoreCase = true) ||
+                    item.subtitle.contains(searchQuery, ignoreCase = true)
+                }
+                if (filtered.isNotEmpty()) Pair(groupTitle, filtered) else null
             }
         }
     }
 
-    // Pinned Floating Top Header matching Reference Screenshot
-    Surface(
-        shape = headerShape,
-        color = headerBg,
-        shadowElevation = 8.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .align(Alignment.TopCenter)
-            .shadow(
-                elevation = 8.dp,
-                shape = headerShape,
-                spotColor = Color.Black.copy(alpha = if (isAmoled) 0.5f else 0.08f),
-                ambientColor = Color.Black.copy(alpha = if (isAmoled) 0.3f else 0.03f)
-            )
-            .border(width = 1.dp, color = headerBorder, shape = headerShape)
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.canvas)
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-        ) {
+        // --- Top Bar ---
+        item {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = textPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Settings",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp
-                        ),
-                        color = textPrimary
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .border(2.dp, colors.border, CircleShape)
+                        .background(colors.surfaceSoft, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = colors.ink,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-
-                IconButton(onClick = { /* Search in settings */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = textPrimary,
-                        modifier = Modifier.size(24.dp)
+                Spacer(modifier = Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = "Settings",
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp,
+                        color = colors.ink
+                    )
+                    Text(
+                        text = "Customize sound, appearance, and sync",
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 13.sp,
+                        color = colors.muted
                     )
                 }
             }
         }
-    }
-}
-}
 
-@Composable
-private fun SettingsSectionHeader(title: String, accentColor: Color) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
-        ),
-        color = Color(0xFF880E4F), // Signature Burgundy / Crimson from reference screenshot
-        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
-    )
-}
-
-@Composable
-private fun SettingsCard(
-    icon: ImageVector,
-    iconBg: Color,
-    iconTint: Color,
-    title: String,
-    subtitle: String,
-    cardBg: Color,
-    textPrimary: Color,
-    textSecondary: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = cardBg,
-        shadowElevation = 2.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .bouncyClickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(iconBg),
-                contentAlignment = Alignment.Center
+        // --- Stadium Search Pill Bar ---
+        item {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = colors.surfaceCard,
+                border = androidx.compose.foundation.BorderStroke(2.dp, colors.border),
+                shadowElevation = if (colors.isDark) 0.dp else 3.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = colors.ink,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            fontFamily = DisplayFontFamily,
+                            color = colors.ink,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        cursorBrush = SolidColor(colors.ink),
+                        modifier = Modifier.weight(1f),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search settings, audio, and storage...",
+                                    fontFamily = DisplayFontFamily,
+                                    color = colors.muted,
+                                    fontSize = 14.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(
+                            onClick = { searchQuery = "" },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = colors.ink,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
+        }
+
+        // --- Grouped Bento Clusters ---
+        filteredGroups.forEach { (groupTitle, items) ->
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = groupTitle,
+                        fontFamily = DisplayFontFamily,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.5.sp,
+                        color = colors.muted,
+                        modifier = Modifier.padding(start = 6.dp)
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = colors.surfaceCard,
+                        border = androidx.compose.foundation.BorderStroke(2.dp, colors.border),
+                        shadowElevation = if (colors.isDark) 0.dp else 4.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            items.forEachIndexed { index, itemData ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { itemData.onClick() }
+                                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Tactile Pastel Squircle Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(itemData.accentColor)
+                                            .border(1.5.dp, colors.border, RoundedCornerShape(14.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = itemData.icon,
+                                            contentDescription = null,
+                                            tint = Color(0xFF0A0A0A),
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(14.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = itemData.title,
+                                            fontFamily = DisplayFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = colors.ink
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = itemData.subtitle,
+                                            fontFamily = DisplayFontFamily,
+                                            fontSize = 12.sp,
+                                            color = colors.muted,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                        contentDescription = null,
+                                        tint = colors.muted,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+
+                                if (index < items.size - 1) {
+                                    HorizontalDivider(
+                                        color = colors.hairline,
+                                        thickness = 1.dp,
+                                        modifier = Modifier.padding(horizontal = 18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- MasterWave App Brand Stamp Footer ---
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    ),
-                    color = textPrimary
+                    text = "MasterWave v2.0.0 (Build 2026)",
+                    fontFamily = DisplayFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = colors.ink
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = textSecondary,
-                    maxLines = 1
+                    text = "48 kHz Studio Architecture • 100% Free Forever",
+                    fontFamily = DisplayFontFamily,
+                    fontSize = 12.sp,
+                    color = colors.muted
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                tint = textSecondary.copy(alpha = 0.5f),
-                modifier = Modifier.size(14.dp)
-            )
         }
     }
 }

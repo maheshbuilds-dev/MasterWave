@@ -72,6 +72,10 @@ class CloudAccountManager(
         YouTubeLibraryFetcher(MasterWaveApp.instance.okHttpClient, repository)
     }
 
+    private val spotifyFetcher by lazy {
+        SpotifyLibraryFetcher(MasterWaveApp.instance.okHttpClient, repository)
+    }
+
     init {
         // Auto-sync library in background if already signed in
         val savedCookies = _ytCookies.value
@@ -79,6 +83,15 @@ class CloudAccountManager(
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                 try {
                     ytFetcher.fetchRealUserPlaylists(savedCookies)
+                } catch (_: Exception) {}
+            }
+        }
+
+        val savedSpotifyCookies = _spotifyCookies.value
+        if (!savedSpotifyCookies.isNullOrBlank()) {
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    spotifyFetcher.fetchRealUserLibrary(savedSpotifyCookies)
                 } catch (_: Exception) {}
             }
         }
@@ -157,7 +170,50 @@ class CloudAccountManager(
     fun saveSpotifyAuth(cookies: String) {
         _spotifyCookies.value = cookies
         prefs.edit().putString("sp_cookies", cookies).apply()
-        checkOverallAuth()
+
+        // Fetch real account profile and sync library asynchronously
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val (name, avatar) = spotifyFetcher.fetchUserProfile(cookies)
+                val profile = UserProfile(
+                    isSignedIn = true,
+                    displayName = name,
+                    email = "Spotify Account Synchronized",
+                    photoUrl = avatar,
+                    provider = "Spotify"
+                )
+                _userProfile.value = profile
+                prefs.edit()
+                    .putBoolean("is_signed_in", true)
+                    .putString("display_name", profile.displayName)
+                    .putString("email", profile.email)
+                    .putString("photo_url", avatar)
+                    .putString("provider", profile.provider)
+                    .apply()
+
+                // Immediately fetch Real Liked Songs & User Playlists
+                spotifyFetcher.fetchRealUserLibrary(cookies)
+            } catch (e: Exception) {
+                android.util.Log.e("CloudAccountManager", "Error during Spotify sync", e)
+            }
+        }
+    }
+
+    suspend fun syncRealSpotifyLibrary(): List<Playlist> = withContext(Dispatchers.IO) {
+        val cookies = _spotifyCookies.value
+        if (cookies.isNullOrBlank()) {
+            return@withContext emptyList()
+        }
+        spotifyFetcher.fetchRealUserLibrary(cookies)
+    }
+
+    suspend fun importSpotifyPlaylistUrl(urlOrId: String): Result<Playlist> = withContext(Dispatchers.IO) {
+        val importer = com.masterwave.player.data.provider.PlaylistImporter(MasterWaveApp.instance.okHttpClient)
+        val result = importer.importSpotifyPlaylist(urlOrId)
+        result.onSuccess { pl ->
+            repository.addCustomPlaylist(pl)
+        }
+        result
     }
 
     fun signOutSpotify() {
@@ -174,7 +230,9 @@ class CloudAccountManager(
     }
 
     suspend fun syncAllPresetPlaylists(): List<Playlist> = withContext(Dispatchers.IO) {
-        syncRealYouTubeMusicLibrary()
+        val ytList = syncRealYouTubeMusicLibrary()
+        val spList = syncRealSpotifyLibrary()
+        ytList + spList
     }
 
     companion object {

@@ -163,9 +163,9 @@ fun LyricsScreen(
         }
     }
 
-    val bgColor = if (isAmoled) Color(0xFF040407) else Color(0xFFF7F5F8)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
+    val bgColor = if (isAmoled) Color(0xFF040407) else Color(0xFFFFFAF0)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6A6A6A)
 
     Box(
         modifier = modifier

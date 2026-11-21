@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.screens
 
 import android.widget.Toast
+import android.util.Log
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -22,18 +23,23 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
@@ -51,6 +57,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +67,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,12 +79,16 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.cloud.UserProfile
@@ -85,7 +97,6 @@ import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
-import com.masterwave.player.data.recommendation.ArtistPhotoProvider
 import com.masterwave.player.ui.components.ArtistAvatar
 import com.masterwave.player.ui.components.ArtistPickerSheet
 import com.masterwave.player.ui.components.GlassyBadge
@@ -107,10 +118,16 @@ import com.masterwave.player.ui.theme.EditorialHeadlineSmall
 import com.masterwave.player.ui.theme.ExpressiveSectionHeader
 import com.masterwave.player.ui.theme.ExpressiveDisplayFont
 import com.masterwave.player.ui.theme.ThemeState
+import com.masterwave.player.ui.theme.SwissHairline
+import com.masterwave.player.ui.theme.SwissHairlineStrong
+import com.masterwave.player.ui.theme.SwissRed
+import com.masterwave.player.ui.theme.SwissMono
+import com.masterwave.player.ui.theme.SwissSectionHeader
+import com.masterwave.player.ui.theme.SwissDisplayLarge
+import com.masterwave.player.ui.theme.SwissDisplayMedium
+import com.masterwave.player.ui.theme.SwissHeadline
+import io.github.fletchmckee.liquid.LiquidState
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 import androidx.compose.ui.draw.blur
@@ -119,14 +136,7 @@ import androidx.compose.ui.util.lerp
 import kotlin.math.absoluteValue
 import com.masterwave.player.data.recommendation.CommunityPlaylist
 import com.masterwave.player.data.recommendation.CommunityPlaylistsProvider
-
-data class DiscoverHeroItem(
-    val title: String,
-    val subtitle: String,
-    val badge: String,
-    val artworkUrl: String,
-    val querySeed: String
-)
+import kotlinx.coroutines.CancellationException
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -140,19 +150,21 @@ fun HomeScreen(
     onNavigateToLikedSongs: () -> Unit = {},
     onNavigateToGenerator: () -> Unit = {},
     onPlaylistSelected: (Playlist) -> Unit = {},
+    liquidState: LiquidState? = null,
+    isGlassEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val accentColor by ThemeState.accentColor.collectAsState()
+    // Apple Music keeps controls on one confident accent. The theme owns that colour.
+    val accentColor = MaterialTheme.colorScheme.primary
     val isAmoled = ThemeState.isAmoledTheme()
     val favorites by repository.favorites.collectAsState()
     val localTracks by repository.localTracks.collectAsState()
     val recentTracks by repository.recentTracks.collectAsState()
-
-    val downloadManager = remember {
-        MusicDownloadManager.getInstance(context, repository.okHttpClient, repository)
+    val homeMixOptions = remember(favorites, recentTracks) {
+        HomeMixPersonalizer.build(favorites, recentTracks)
     }
-    val downloadedIds by downloadManager.downloadedIds.collectAsState()
+
     val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
     val userProfile by cloudManager.userProfile.collectAsState()
 
@@ -161,41 +173,23 @@ fun HomeScreen(
 
     val scope = rememberCoroutineScope()
     var trendingTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var quickPickTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var isLoadingTrending by remember { mutableStateOf(false) }
+    var loadingHomeMix by remember { mutableStateOf<String?>(null) }
 
-    // Dynamic Time-Based Greeting and Date (LastWave Page 1)
-    val greeting = remember {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when (hour) {
-            in 5..11 -> "Good morning"
-            in 12..16 -> "Good afternoon"
-            in 17..21 -> "Good evening"
-            else -> "Late night vibes"
-        }
-    }
-
-    val formattedDate = remember {
-        try {
-            SimpleDateFormat("EEEE, d MMMM", Locale.ENGLISH).format(Date()).uppercase()
-        } catch (e: Exception) {
-            "TODAY"
-        }
-    }
-
-    // Dynamic Language & Viral Music Recommendation Engine:
-    // Triggers instantly whenever the active song changes!
     LaunchedEffect(currentTrack?.id) {
-        isLoadingTrending = true
-        scope.launch {
+        activeLanguage = com.masterwave.player.data.recommendation.LanguageMusicRecommender
+            .detectLanguage(currentTrack)
+        try {
             val (lang, res) = com.masterwave.player.data.recommendation.LanguageMusicRecommender.getLanguageViralTracks(
                 repository,
                 currentTrack
             )
             activeLanguage = lang
             trendingTracks = res
-            quickPickTracks = if (res.size >= 16) res.take(16) else (res + res).take(16)
-            isLoadingTrending = false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("HomeScreen", "Could not load language recommendations", e)
+            trendingTracks = emptyList()
         }
     }
 
@@ -205,19 +199,44 @@ fun HomeScreen(
     var becauseYouListenedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var rediscoverTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
 
-    LaunchedEffect(currentTrack?.id, favorites.size) {
+    LaunchedEffect(currentTrack?.id, favorites, recentTracks.firstOrNull()?.id) {
         scope.launch {
             try {
-                madeForYouTracks = repository.recommendationManager.getMadeForYou(limit = 10)
-                dailyMixTracks = repository.recommendationManager.getDailyMix(limit = 10)
+                madeForYouTracks = repository.recommendationManager.getMadeForYou(limit = 48)
+                dailyMixTracks = repository.recommendationManager.getDailyMix(limit = 24)
                 val seed = currentTrack ?: favorites.firstOrNull() ?: repository.recentTracks.value.firstOrNull()
                 if (seed != null) {
-                    val (header, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 8)
+                    val (header, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 16)
                     becauseYouListenedHeader = header
                     becauseYouListenedTracks = recs
                 }
-                rediscoverTracks = repository.recommendationManager.getRediscoverTracks(limit = 8)
+                rediscoverTracks = repository.recommendationManager.getRediscoverTracks(limit = 20)
             } catch (_: Exception) {}
+        }
+    }
+
+    // Smart Sonic Flow (Dynamic User Taste Radio - Updates on song change)
+    var flowTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+
+    LaunchedEffect(currentTrack?.id, favorites.size, recentTracks.firstOrNull()?.id) {
+        scope.launch {
+            try {
+                val seed = currentTrack ?: favorites.firstOrNull() ?: recentTracks.firstOrNull()
+                if (seed != null) {
+                    val (_, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 24)
+                    if (recs.isNotEmpty()) {
+                        flowTracks = recs
+                    } else {
+                        val made = repository.recommendationManager.getMadeForYou(limit = 24)
+                        flowTracks = made
+                    }
+                } else {
+                    val made = repository.recommendationManager.getMadeForYou(limit = 24)
+                    flowTracks = made
+                }
+            } catch (_: Exception) {
+                flowTracks = madeForYouTracks
+            }
         }
     }
 
@@ -232,199 +251,103 @@ fun HomeScreen(
     val followedArtists by repository.followedArtists.collectAsState()
     var isArtistPickerOpen by remember { mutableStateOf(false) }
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF6F5F3)
-    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFFFFFFF)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF5A5A66)
-    val chipInactiveBg = if (isAmoled) Color(0xFF14141E) else Color(0xFFEFECEF)
+    val bgColor = MaterialTheme.colorScheme.background
+    val cardBg = MaterialTheme.colorScheme.surfaceContainerLow
+    val textPrimary = MaterialTheme.colorScheme.onBackground
+    val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val chipInactiveBg = MaterialTheme.colorScheme.surfaceContainerHigh
 
     fun openCommunityPlaylist(playlist: CommunityPlaylist) {
         scope.launch {
-            Toast.makeText(context, "Opening ${playlist.title}...", Toast.LENGTH_SHORT).show()
             val fetchedSongs = try {
                 repository.search(playlist.searchQuery).songs
-            } catch (_: Exception) {
-                emptyList()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("HomeScreen", "Could not load playlist search: ${playlist.searchQuery}", e)
+                Toast.makeText(context, "Couldn't load this playlist. Check your connection and try again.", Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            if (fetchedSongs.isEmpty()) {
+                Toast.makeText(context, "No songs were found for this playlist.", Toast.LENGTH_LONG).show()
+                return@launch
             }
             val pl = Playlist(
                 id = playlist.id,
                 title = playlist.title,
-                description = playlist.description,
-                trackCount = if (fetchedSongs.isNotEmpty()) fetchedSongs.size else playlist.trackCount,
+                description = "Songs matching: ${playlist.searchQuery}",
+                trackCount = fetchedSongs.size,
                 tracks = fetchedSongs,
                 artworkUrl = playlist.artworkUrl,
-                source = "Community • $activeLanguage",
-                createdAt = playlist.updatedToday
+                source = "YouTube Music search"
             )
             onPlaylistSelected(pl)
         }
     }
 
-    // Curated Discover Hero items (Echo Music Carousel Style - Dynamically reflects activeLanguage!)
-    val discoverCards = remember(activeLanguage, trendingTracks) {
-        when (activeLanguage) {
-            "Tamil" -> listOf(
-                DiscoverHeroItem(
-                    title = "Kollywood Viral 50",
-                    subtitle = "Most played Tamil bangers right now",
-                    badge = "✦ #1 IN TAMIL NADU",
-                    artworkUrl = trendingTracks.getOrNull(0)?.artworkUrl ?: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&fit=crop",
-                    querySeed = "trending viral tamil hits 2026 songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Anirudh Universe",
-                    subtitle = "High-octane bass, rock guitars & iconic hooks",
-                    badge = "POPULAR",
-                    artworkUrl = trendingTracks.getOrNull(1)?.artworkUrl ?: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&fit=crop",
-                    querySeed = "Anirudh Ravichander best songs 2026"
-                ),
-                DiscoverHeroItem(
-                    title = "Sai Abhyankkar Hits",
-                    subtitle = "Aane Wala Star, Katchi Sera & new wave indie",
-                    badge = "TRENDING",
-                    artworkUrl = trendingTracks.getOrNull(2)?.artworkUrl ?: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&fit=crop",
-                    querySeed = "Sai Abhyankkar songs Aane Wala Star Katchi Sera"
-                ),
-                DiscoverHeroItem(
-                    title = "Tamil Melodies Uncut",
-                    subtitle = "Soulful violins, live strings & heartfelt lyrics",
-                    badge = "MELODIES",
-                    artworkUrl = trendingTracks.getOrNull(3)?.artworkUrl ?: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&fit=crop",
-                    querySeed = "tamil melody songs soulful hits"
-                ),
-                DiscoverHeroItem(
-                    title = "Yuvan 2000s Nostalgia",
-                    subtitle = "Unmatched timeless tracks & pure soul",
-                    badge = "NOSTALGIA",
-                    artworkUrl = trendingTracks.getOrNull(4)?.artworkUrl ?: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&fit=crop",
-                    querySeed = "Yuvan Shankar Raja 2000s hits songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Madras Hip-Hop & Rap",
-                    subtitle = "Street poetry & hard 808 basslines",
-                    badge = "HIP-HOP",
-                    artworkUrl = trendingTracks.getOrNull(5)?.artworkUrl ?: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&fit=crop",
-                    querySeed = "tamil hip hop rap independent songs"
-                )
-            )
-            "Punjabi" -> listOf(
-                DiscoverHeroItem(
-                    title = "Punjabi Wave 2026",
-                    subtitle = "High-octane bass, flow & anthems",
-                    badge = "✦ #1 IN PUNJAB",
-                    artworkUrl = trendingTracks.getOrNull(0)?.artworkUrl ?: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=800&fit=crop",
-                    querySeed = "punjabi trending hits 2026 songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Sidhu Moose Wala Forever",
-                    subtitle = "The legend's timeless hip-hop anthems",
-                    badge = "LEGEND",
-                    artworkUrl = trendingTracks.getOrNull(1)?.artworkUrl ?: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&fit=crop",
-                    querySeed = "sidhu moose wala best songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Diljit Dosanjh Global",
-                    subtitle = "Coachella vibes & energetic pop flow",
-                    badge = "POPULAR",
-                    artworkUrl = trendingTracks.getOrNull(2)?.artworkUrl ?: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&fit=crop",
-                    querySeed = "diljit dosanjh top hits"
-                ),
-                DiscoverHeroItem(
-                    title = "Karan Aujla Way Ahead",
-                    subtitle = "Four You, Making Memories & lethal rhymes",
-                    badge = "TRENDING",
-                    artworkUrl = trendingTracks.getOrNull(3)?.artworkUrl ?: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&fit=crop",
-                    querySeed = "karan aujla hit songs"
-                )
-            )
-            "Telugu" -> listOf(
-                DiscoverHeroItem(
-                    title = "Tollywood Chartbusters",
-                    subtitle = "Mass beats, melodies & cinematic power",
-                    badge = "✦ #1 IN TELUGU",
-                    artworkUrl = trendingTracks.getOrNull(0)?.artworkUrl ?: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&fit=crop",
-                    querySeed = "telugu trending hits 2026 songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Telugu Melodic Romance",
-                    subtitle = "Heartfelt unplugged guitar & soothing vocals",
-                    badge = "ROMANCE",
-                    artworkUrl = trendingTracks.getOrNull(1)?.artworkUrl ?: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&fit=crop",
-                    querySeed = "telugu melody songs soulful hits"
-                ),
-                DiscoverHeroItem(
-                    title = "Thaman & DSP Mass Anthems",
-                    subtitle = "High voltage theatre drums & celebration",
-                    badge = "MASS ANTHEMS",
-                    artworkUrl = trendingTracks.getOrNull(2)?.artworkUrl ?: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&fit=crop",
-                    querySeed = "thaman dsp telugu mass hits"
-                )
-            )
-            "Hindi" -> listOf(
-                DiscoverHeroItem(
-                    title = "Bollywood Top 50",
-                    subtitle = "Grand cinematic soundtracks & melodies",
-                    badge = "✦ #1 IN INDIA",
-                    artworkUrl = trendingTracks.getOrNull(0)?.artworkUrl ?: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&fit=crop",
-                    querySeed = "bollywood latest hits 2026 songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Arijit Singh Soulful Vault",
-                    subtitle = "Intimate emotions & studio perfection",
-                    badge = "POPULAR",
-                    artworkUrl = trendingTracks.getOrNull(1)?.artworkUrl ?: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&fit=crop",
-                    querySeed = "arijit singh best songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Desi Hip-Hop Cypher",
-                    subtitle = "KR\$NA, Divine, Seedhe Maut & raw bars",
-                    badge = "DHH CYPHER",
-                    artworkUrl = trendingTracks.getOrNull(2)?.artworkUrl ?: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&fit=crop",
-                    querySeed = "desi hip hop krsna divine seedhe maut"
-                )
-            )
-            else -> listOf(
-                DiscoverHeroItem(
-                    title = "Infinite Radio",
-                    subtitle = "Continuous playback based on your favorites",
-                    badge = "✦ MADE FOR YOU",
-                    artworkUrl = trendingTracks.getOrNull(0)?.artworkUrl ?: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&fit=crop",
-                    querySeed = "trending global hits"
-                ),
-                DiscoverHeroItem(
-                    title = "Late Night Lo-Fi",
-                    subtitle = "Intimate melodies & deep calm",
-                    badge = "DISCOVER MIX",
-                    artworkUrl = trendingTracks.getOrNull(1)?.artworkUrl ?: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&fit=crop",
-                    querySeed = "lofi chill midnight vibes"
-                ),
-                DiscoverHeroItem(
-                    title = "Trending Heat",
-                    subtitle = "Most played bangers right now",
-                    badge = "TRENDING",
-                    artworkUrl = trendingTracks.getOrNull(2)?.artworkUrl ?: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&fit=crop",
-                    querySeed = "top trending songs"
-                ),
-                DiscoverHeroItem(
-                    title = "Synthwave Highway",
-                    subtitle = "Retro neon synth & midnight drive",
-                    badge = "SYNTHWAVE",
-                    artworkUrl = trendingTracks.getOrNull(3)?.artworkUrl ?: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&fit=crop",
-                    querySeed = "synthwave outrun retro electro"
-                )
-            )
+    fun openTrendingPlaylist() {
+        if (trendingTracks.isEmpty()) {
+            Toast.makeText(context, "No trending tracks are available right now.", Toast.LENGTH_SHORT).show()
+            return
         }
+        onPlaylistSelected(
+            Playlist(
+                id = "trending_$activeLanguage",
+                title = "Trending now",
+                description = "Popular tracks right now",
+                trackCount = trendingTracks.size,
+                tracks = trendingTracks,
+                artworkUrl = trendingTracks.firstOrNull()?.artworkUrl,
+                source = "YouTube Music search"
+            )
+        )
     }
 
-    val quickPickColumns = remember(quickPickTracks) {
-        if (quickPickTracks.isEmpty()) emptyList() else quickPickTracks.chunked(4)
+    val personalizedHeroTracks = remember(
+        madeForYouTracks,
+        dailyMixTracks,
+        becauseYouListenedTracks,
+        rediscoverTracks,
+        favorites
+    ) {
+        madeForYouTracks + dailyMixTracks + becauseYouListenedTracks + rediscoverTracks + favorites
+    }
+    var previousCarouselTracks by remember { mutableStateOf(emptyList<Track>()) }
+    var heroSelection by remember {
+        mutableStateOf(HomeHeroSelection(emptyList(), isPersonalized = false))
+    }
+    LaunchedEffect(personalizedHeroTracks, trendingTracks, recentTracks, currentTrack?.id) {
+        val selection = HomeHeroRecommendations.build(
+            personalizedTracks = personalizedHeroTracks,
+            trendingTracks = trendingTracks,
+            recentlyPlayedTracks = recentTracks + listOfNotNull(currentTrack),
+            previousCarouselTracks = previousCarouselTracks,
+            limit = 24
+        )
+        heroSelection = selection
+        if (selection.tracks.isNotEmpty()) previousCarouselTracks = selection.tracks
+    }
+    val heroTracks = heroSelection.tracks
+    val quickPickTracks = remember(
+        personalizedHeroTracks,
+        trendingTracks,
+        heroTracks,
+        recentTracks,
+        currentTrack?.id
+    ) {
+        HomeHeroRecommendations.buildQuickPicks(
+            personalizedTracks = personalizedHeroTracks,
+            trendingTracks = trendingTracks,
+            carouselTracks = heroTracks,
+            recentlyPlayedTracks = recentTracks + listOfNotNull(currentTrack),
+            limit = 24
+        )
     }
 
     var selectedCategory by remember { mutableStateOf("All") }
+    // Mood-first browse row. Language matching still happens silently behind the scenes.
     val categories = listOf(
-        "All", "Hindi", "Tamil", "Telugu", "Punjabi", "Malayalam", "Kannada", "Bengali", "Marathi",
-        "Hindustani", "Carnatic", "Classical", "Devotional", "Indie",
-        "Relax", "Workout", "Focus", "Party"
+        "All", "Trending", "New Releases", "Podcasts", "Playlists", "Top Charts"
     )
 
     val indianCategories = remember {
@@ -445,15 +368,11 @@ fun HomeScreen(
                     repository.getIndianMusic(selectedCategory, limit = 25)
                 } else {
                     val query = when (selectedCategory) {
+                        "Trending" -> "trending global top songs"
+                        "New Releases" -> "new music releases"
                         "Podcasts" -> "podcast episodes music discussion"
-                        "Sleep" -> "deep sleep ambient calming delta wave music"
-                        "Relax" -> "relaxing calm ambient music"
-                        "Feel good" -> "feel good happy upbeat pop songs"
-                        "Romance" -> "romantic hindi english love songs"
-                        "Energize" -> "high energy workout edm party tracks"
-                        "Workout" -> "gym workout motivation bass tracks"
-                        "Focus" -> "lo-fi study focus instrumental beats"
-                        "Party" -> "party dance anthems club hits"
+                        "Playlists" -> "top hit music playlists"
+                        "Top Charts" -> "billboard top charts music"
                         else -> "$selectedCategory hits"
                     }
                     repository.search(query).songs
@@ -469,242 +388,445 @@ fun HomeScreen(
 
     val continueListeningList = remember(recentTracks, madeForYouTracks, dailyMixTracks) {
         if (recentTracks.size >= 4) {
-            recentTracks.take(10)
+            recentTracks.take(20)
         } else {
             val additional = (madeForYouTracks + dailyMixTracks).filter { cand ->
                 recentTracks.none { r -> r.id == cand.id }
             }
-            (recentTracks + additional).take(10)
+            (recentTracks + additional).take(20)
         }
     }
+
+    val homeListState = rememberLazyListState()
+    var headerHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val headerHeight = if (headerHeightPx == 0) {
+        168.dp
+    } else {
+        with(density) { headerHeightPx.toDp() }
+    }
+    val isScrolled = homeListState.firstVisibleItemIndex > 0 ||
+        homeListState.firstVisibleItemScrollOffset > 0
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // 1. Dedicated Measured Header Layer (Never overlaps content!)
-            HomeScreenHeader(
-                isAmoled = isAmoled,
-                textPrimary = textPrimary,
-                textSecondary = textSecondary,
-                accentColor = accentColor,
-                userProfile = userProfile,
-                categories = categories,
-                selectedCategory = selectedCategory,
-                onCategorySelected = { category ->
-                    selectedCategory = category
-                    if (category != "All") {
-                        Toast.makeText(context, "Filtered: $category", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onNavigateToDownloads = onNavigateToDownloads,
-                onNavigateToSearch = onNavigateToSearch,
-                onNavigateToSettings = onNavigateToSettings
-            )
-
-            // 2. Dedicated Scrollable Content Region
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 170.dp)
-            ) {
-            // --- 1. Greeting & Uppercase Date (LastWave Page 1) ---
-            item {
-                Spacer(modifier = Modifier.height(6.dp))
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    Text(
-                        text = greeting,
-                        style = NothingHeadlineLarge.copy(
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.5).sp
-                        ),
-                        color = textPrimary
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = formattedDate.uppercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.2.sp
-                        ),
-                        color = accentColor
-                    )
-                }
-            }
-
-            // --- 2. Big Covered Discover Hero Carousel (Echo Music / Apple Music Style) ---
+        LazyColumn(
+            state = homeListState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = headerHeight + 8.dp, bottom = 170.dp)
+        ) {
+            // --- 1. Greeting, Infinite Radio Hero Card, My genres, and Discover New Music (Reference Page 1) ---
             if (selectedCategory == "All") {
+                // Greeting & Uppercase Date
                 item {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    val pagerState = rememberPagerState(pageCount = { discoverCards.size })
-
-                    LaunchedEffect(pagerState, discoverCards.size) {
-                        while (true) {
-                            kotlinx.coroutines.delay(5000L)
-                            if (!pagerState.isScrollInProgress && discoverCards.isNotEmpty()) {
-                                val next = (pagerState.currentPage + 1) % discoverCards.size
-                                pagerState.animateScrollToPage(next)
-                            }
-                        }
+                    val currentHour = remember { java.time.LocalTime.now().hour }
+                    val greeting = when (currentHour) {
+                        in 5..11 -> "Good morning"
+                        in 12..16 -> "Good afternoon"
+                        else -> "Good evening"
+                    }
+                    val formattedDate = remember {
+                        java.time.LocalDate.now().format(
+                            java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d").withLocale(java.util.Locale.ENGLISH)
+                        ).uppercase()
                     }
 
-                    HorizontalPager(
-                        state = pagerState,
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        pageSpacing = 12.dp,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(235.dp)
-                    ) { page ->
-                        val card = discoverCards[page]
-                        val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
-                        val cardScale = androidx.compose.ui.util.lerp(0.92f, 1f, 1f - pageOffset.coerceIn(0f, 1f))
-                        val cardAlpha = androidx.compose.ui.util.lerp(0.65f, 1f, 1f - pageOffset.coerceIn(0f, 1f))
+                            .padding(horizontal = 20.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = formattedDate,
+                            style = SwissMono.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                letterSpacing = 1.2.sp
+                            ),
+                            color = textSecondary.copy(alpha = 0.8f)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = greeting,
+                            style = SwissDisplayMedium.copy(
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.6).sp
+                            ),
+                            color = textPrimary
+                        )
+                    }
+                }
 
-                        Surface(
-                            shape = RoundedCornerShape(26.dp),
-                            color = cardBg,
-                            shadowElevation = 8.dp,
+                // Smart Sonic Flow (Dynamic User Taste Radio - Updates on song change)
+                // --- Smart Sonic Flow (Big Style Featured Showcase) ---
+                item {
+                    val activeFlowTracks = if (flowTracks.isNotEmpty()) flowTracks else heroTracks
+                    val heroTrack = activeFlowTracks.firstOrNull()
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp)
+                    ) {
+                        // Section Header: Clean, Bold, Confident
+                        Row(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    scaleX = cardScale
-                                    scaleY = cardScale
-                                    alpha = cardAlpha
-                                }
-                                .bouncyClickable {
-                                    val heroPlaylist = Playlist(
-                                        id = "carousel_${card.title.hashCode()}",
-                                        title = card.title,
-                                        description = card.querySeed,
-                                        trackCount = 25,
-                                        artworkUrl = card.artworkUrl.ifBlank { null },
-                                        source = "Featured • Curated",
-                                        createdAt = "Updated Today"
-                                    )
-                                    onPlaylistSelected(heroPlaylist)
-                                }
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                // Full Artwork
-                                if (card.artworkUrl.isNotBlank()) {
+                            Text(
+                                text = "Smart Sonic Flow",
+                                style = SwissDisplayMedium.copy(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = (-0.5).sp
+                                ),
+                                color = textPrimary
+                            )
+
+                            // Play All Action Button
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = accentColor,
+                                modifier = Modifier.bouncyClickable(scaleDown = 0.92f) {
+                                    if (activeFlowTracks.isNotEmpty()) {
+                                        player.playPlaylist(activeFlowTracks, 0)
+                                        Toast.makeText(context, "Playing Smart Sonic Flow", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Play Flow",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Large Featured Hero Showcase Card (Big Style)
+                        if (heroTrack != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(260.dp)
+                                    .padding(horizontal = 20.dp)
+                                    .shadow(
+                                        elevation = 12.dp,
+                                        shape = RoundedCornerShape(26.dp),
+                                        spotColor = Color.Black.copy(alpha = if (isAmoled) 0.6f else 0.20f)
+                                    )
+                                    .clip(RoundedCornerShape(26.dp))
+                                    .background(
+                                        if (isAmoled) Color(0xFF161824) else Color(0xFFF5F0E0)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        brush = Brush.verticalGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = if (isAmoled) 0.35f else 0.70f),
+                                                Color.White.copy(alpha = if (isAmoled) 0.06f else 0.12f)
+                                            )
+                                        ),
+                                        shape = RoundedCornerShape(26.dp)
+                                    )
+                                    .bouncyClickable(scaleDown = 0.98f) {
+                                        player.playPlaylist(activeFlowTracks, 0)
+                                    }
+                            ) {
+                                // Background Artwork
+                                if (!heroTrack.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
-                                        model = card.artworkUrl,
-                                        contentDescription = card.title,
+                                        model = heroTrack.artworkUrl,
+                                        contentDescription = heroTrack.title,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                Brush.linearGradient(
-                                                    listOf(accentColor.copy(alpha = 0.7f), Color(0xFF0F0E16))
-                                                )
-                                            )
-                                    )
                                 }
 
-                                // Dark Gradient Scrim Overlay
+                                // Dark acrylic gradient scrim
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .background(
                                             Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(0x22000000),
-                                                    Color(0x44000000),
-                                                    Color(0xCC08070D),
-                                                    Color(0xF008070D)
-                                                )
+                                                0.0f to Color.Transparent,
+                                                0.35f to Color.Black.copy(alpha = 0.30f),
+                                                0.70f to Color.Black.copy(alpha = 0.75f),
+                                                1.0f to Color.Black.copy(alpha = 0.92f)
                                             )
                                         )
                                 )
 
-                                // Top Left Glassy Badge
-                                GlassyBadge(
-                                    text = card.badge,
-                                    tone = GlassyBadgeTone.GOLD,
+                                // Foreground Information & Large Play Action
+                                Box(
                                     modifier = Modifier
-                                        .padding(16.dp)
-                                        .align(Alignment.TopStart)
-                                )
-
-                                // Bottom Content: Title, Subtitle, and View Songs Action Pill
-                                Column(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(20.dp)
+                                        .fillMaxSize()
+                                        .padding(22.dp),
+                                    contentAlignment = Alignment.BottomStart
                                 ) {
-                                    Text(
-                                        text = card.title,
-                                        style = EditorialHeadlineMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 24.sp
-                                        ),
-                                        color = Color.White
-                                    )
-
-                                    Spacer(modifier = Modifier.height(2.dp))
-
-                                    Text(
-                                        text = card.subtitle,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                        color = Color.White.copy(alpha = 0.8f)
-                                    )
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    // View Songs Glassy Prominent Button
-                                    Box(
-                                        modifier = Modifier.glassySurface(
-                                            shape = CircleShape,
-                                            style = GlassyStyle.PROMINENT,
-                                            tintColor = accentColor,
-                                            elevation = 4.dp,
-                                            onClick = {
-                                                val heroPlaylist = Playlist(
-                                                    id = "carousel_${card.title.hashCode()}",
-                                                    title = card.title,
-                                                    description = card.querySeed,
-                                                    trackCount = 25,
-                                                    artworkUrl = card.artworkUrl.ifBlank { null },
-                                                    source = "Featured • Curated",
-                                                    createdAt = "Updated Today"
-                                                )
-                                                onPlaylistSelected(heroPlaylist)
-                                            }
-                                        )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Bottom
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = heroTrack.title,
+                                                fontFamily = DisplayFontFamily,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 24.sp,
+                                                letterSpacing = (-0.6).sp,
+                                                color = Color.White,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(3.dp))
+                                            Text(
+                                                text = heroTrack.artist,
+                                                fontFamily = DisplayFontFamily,
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 15.sp,
+                                                color = Color.White.copy(alpha = 0.85f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        // Big Radiant Play Jewel
+                                        Box(
+                                            modifier = Modifier
+                                                .size(58.dp)
+                                                .shadow(10.dp, CircleShape, spotColor = accentColor.copy(alpha = 0.6f))
+                                                .clip(CircleShape)
+                                                .background(accentColor)
+                                                .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                                                .bouncyClickable(scaleDown = 0.90f) {
+                                                    player.playPlaylist(activeFlowTracks, 0)
+                                                },
+                                            contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.QueueMusic,
-                                                contentDescription = "View Songs",
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Play",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "View Songs",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 12.5.sp,
-                                                color = Color.White
+                                                modifier = Modifier.size(32.dp)
                                             )
                                         }
                                     }
                                 }
                             }
                         }
+
+                        // Large Carousel of Remaining Flow Recommendations (Big 150dp Cards)
+                        val flowCarousel = activeFlowTracks.drop(1).take(10)
+                        if (flowCarousel.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                items(flowCarousel) { track ->
+                                    val trackIndex = activeFlowTracks.indexOf(track)
+                                    Column(
+                                        modifier = Modifier
+                                            .width(150.dp)
+                                            .bouncyClickable(scaleDown = 0.96f) {
+                                                player.playPlaylist(activeFlowTracks, trackIndex)
+                                            }
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(150.dp)
+                                                .shadow(
+                                                    elevation = 6.dp,
+                                                    shape = RoundedCornerShape(18.dp),
+                                                    spotColor = Color.Black.copy(alpha = if (isAmoled) 0.45f else 0.12f)
+                                                )
+                                                .clip(RoundedCornerShape(18.dp))
+                                                .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF5F0E0))
+                                                .border(
+                                                    BorderStroke(
+                                                        1.dp,
+                                                        if (isAmoled) Color(0x28FFFFFF) else Color(0xFF0A0A0A)
+                                                    ),
+                                                    RoundedCornerShape(18.dp)
+                                                )
+                                        ) {
+                                            if (!track.artworkUrl.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = track.artworkUrl,
+                                                    contentDescription = track.title,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Default.MusicNote,
+                                                    contentDescription = null,
+                                                    tint = textSecondary,
+                                                    modifier = Modifier
+                                                        .size(38.dp)
+                                                        .align(Alignment.Center)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = track.title,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp
+                                            ),
+                                            color = textPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = track.artist,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                            color = textSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
+                }
+
+                // Discover New Music Shelf
+                item {
+                    val discoverTracks = if (trendingTracks.isNotEmpty()) trendingTracks else heroTracks
+                    if (discoverTracks.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(22.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Discover New Music",
+                                style = SwissSectionHeader.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp
+                                ),
+                                color = textPrimary
+                            )
+
+                            Text(
+                                text = "> See all",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp
+                                ),
+                                color = accentColor,
+                                modifier = Modifier.bouncyClickable { onNavigateToSearch() }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(discoverTracks.take(10)) { track ->
+                                Column(
+                                    modifier = Modifier
+                                        .width(135.dp)
+                                        .bouncyClickable { player.playTrack(track, discoverTracks) }
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(135.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF5F0E0))
+                                            .border(BorderStroke(1.dp, if (isAmoled) Color(0x25FFFFFF) else Color(0xFF0A0A0A)), RoundedCornerShape(14.dp))
+                                    ) {
+                                        if (!track.artworkUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = track.artworkUrl,
+                                                contentDescription = track.title,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.MusicNote,
+                                                contentDescription = null,
+                                                tint = textSecondary,
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .align(Alignment.Center)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = track.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.5.sp
+                                        ),
+                                        color = textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = track.artist,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                        color = textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (selectedCategory == "All" && quickPickTracks.isNotEmpty()) {
+                item {
+                    QuickPicksSection(
+                        tracks = quickPickTracks,
+                        isAmoled = isAmoled,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        cardBg = cardBg,
+                        chipInactiveBg = chipInactiveBg,
+                        onShuffle = {
+                            player.playPlaylist(quickPickTracks.shuffled(), 0)
+                            Toast.makeText(context, "Shuffling quick picks", Toast.LENGTH_SHORT).show()
+                        },
+                        onTrackClick = { player.playTrack(it, quickPickTracks) }
+                    )
                 }
             }
 
@@ -752,7 +874,7 @@ fun HomeScreen(
                                     Box(
                                         modifier = Modifier
                                             .size(130.dp)
-                                            .clip(RoundedCornerShape(18.dp))
+                                            .clip(RoundedCornerShape(12.dp))
                                             .background(chipInactiveBg)
                                     ) {
                                         if (!track.artworkUrl.isNullOrBlank()) {
@@ -765,7 +887,7 @@ fun HomeScreen(
                                         }
                                         Surface(
                                             shape = CircleShape,
-                                            color = Color(0xFF34C759),
+                                            color = accentColor,
                                             modifier = Modifier
                                                 .padding(8.dp)
                                                 .align(Alignment.TopStart)
@@ -802,128 +924,15 @@ fun HomeScreen(
                 }
             }
 
-            // --- 2.0B Clean Quick Access Cards: Liked Songs & Downloads (Zero Clutter) ---
-            item {
-                Spacer(modifier = Modifier.height(18.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // 1. Liked Songs Card
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(96.dp)
-                            .glassySurface(
-                                shape = RoundedCornerShape(22.dp),
-                                style = GlassyStyle.CARD,
-                                isDark = isAmoled,
-                                onClick = onNavigateToLikedSongs
-                            )
-                            .padding(14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(com.masterwave.player.ui.theme.MasterWaveTurquoise.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Favorite,
-                                    contentDescription = "Liked Songs",
-                                    tint = com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Liked Songs",
-                                    style = MaterialTheme.typography.titleSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    ),
-                                    color = textPrimary
-                                )
-                                Text(
-                                    text = "${favorites.size} tracks",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                    color = textSecondary
-                                )
-                            }
-                        }
-                    }
-
-                    // 2. Downloads Card
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(96.dp)
-                            .glassySurface(
-                                shape = RoundedCornerShape(22.dp),
-                                style = GlassyStyle.CARD,
-                                isDark = isAmoled,
-                                onClick = onNavigateToDownloads
-                            )
-                            .padding(14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(com.masterwave.player.ui.theme.MasterWaveCyan.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Download,
-                                    contentDescription = "Downloads",
-                                    tint = com.masterwave.player.ui.theme.MasterWaveCyan,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Downloads",
-                                    style = MaterialTheme.typography.titleSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    ),
-                                    color = textPrimary
-                                )
-                                Text(
-                                    text = "${downloadedIds.size} tracks",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                    color = textSecondary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             // --- 2.1 Continue Listening (Recent History & Multi-Track Jump Back In) ---
             if (continueListeningList.isNotEmpty()) {
                 item {
                     RecommendationShelf(
                         title = "Continue Listening",
-                        subtitle = "Jump back into what you were playing",
                         tracks = continueListeningList,
-                        badge = "RECENT",
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
-                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
                         onTrackClick = { player.playTrack(it, continueListeningList) }
                     )
@@ -935,12 +944,10 @@ fun HomeScreen(
                 item {
                     RecommendationShelf(
                         title = "Made For You",
-                        subtitle = "Tuned to your listening habits & taste profile",
                         tracks = madeForYouTracks,
-                        badge = "✦ PERSONALIZED",
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
-                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
                         onTrackClick = { player.playTrack(it, madeForYouTracks) }
                     )
@@ -952,12 +959,10 @@ fun HomeScreen(
                 item {
                     RecommendationShelf(
                         title = "Daily Mix",
-                        subtitle = "Your top favorites mixed with related tracks",
                         tracks = dailyMixTracks,
-                        badge = "DAILY",
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
-                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
                         onTrackClick = { player.playTrack(it, dailyMixTracks) }
                     )
@@ -969,12 +974,10 @@ fun HomeScreen(
                 item {
                     RecommendationShelf(
                         title = becauseYouListenedHeader,
-                        subtitle = "Music influenced by your recent exploration",
                         tracks = becauseYouListenedTracks,
-                        badge = "ARTIST RADAR",
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
-                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
                         onTrackClick = { player.playTrack(it, becauseYouListenedTracks) }
                     )
@@ -986,24 +989,24 @@ fun HomeScreen(
                 item {
                     RecommendationShelf(
                         title = "Rediscover",
-                        subtitle = "Past favorites you haven't played recently",
                         tracks = rediscoverTracks,
-                        badge = "TIMELESS",
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
-                        accentColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
+                        accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
                         onTrackClick = { player.playTrack(it, rediscoverTracks) }
                     )
                 }
             }
 
-            // --- 2.6 My genres horizontal chips (LastWave Page 1) ---
+            // --- 2.6 Personalized mixes from favorites and listening history ---
             item {
                 Spacer(modifier = Modifier.height(18.dp))
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    val sectionTitle = "Your Artists & Mixes"
+
                     Text(
-                        text = "My genres",
+                        text = sectionTitle,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
@@ -1014,45 +1017,94 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                val myGenres = listOf("Pop", "Rock", "Hip Hop", "Indie", "Electronic", "R&B", "Bollywood", "Punjabi", "Soul")
-                val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
-
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(myGenres.indices.toList()) { index ->
-                        val genre = myGenres[index]
-                        val dotColor = brandTurquoise
+                    items(
+                        items = homeMixOptions,
+                        key = { "${it.kind.name}_${it.label.lowercase(Locale.ROOT)}" }
+                    ) { mix ->
+                        val isLoading = loadingHomeMix == mix.searchQuery
+                        val icon = when (mix.kind) {
+                            HomeMixKind.ARTIST -> Icons.Filled.Person
+                            HomeMixKind.STARTER -> Icons.Filled.Explore
+                        }
+
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(50),
                             color = cardBg,
-                            modifier = Modifier.clickable {
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isAmoled) {
+                                    Color.White.copy(alpha = 0.10f)
+                                } else {
+                                    Color.Black.copy(alpha = 0.07f)
+                                }
+                            ),
+                            modifier = Modifier.clickable(enabled = loadingHomeMix == null) {
                                 scope.launch {
-                                    val tracks = repository.search("$genre hits").songs
-                                    if (tracks.isNotEmpty()) {
-                                        player.playPlaylist(tracks, 0)
-                                        Toast.makeText(context, "Playing $genre radio", Toast.LENGTH_SHORT).show()
+                                    loadingHomeMix = mix.searchQuery
+                                    try {
+                                        val tracks = repository.search(mix.searchQuery).songs
+                                            .filter { it.isPlayable }
+                                        if (tracks.isEmpty()) {
+                                            Toast.makeText(
+                                                context,
+                                                "No playable tracks found for ${mix.label}.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            player.playPlaylist(tracks, 0)
+                                            Toast.makeText(
+                                                context,
+                                                "Playing ${mix.label} mix",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    } catch (cancelled: CancellationException) {
+                                        throw cancelled
+                                    } catch (_: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            "Couldn't load ${mix.label}. Check your connection and try again.",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } finally {
+                                        loadingHomeMix = null
                                     }
                                 }
                             }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .height(40.dp)
+                                    .padding(horizontal = 14.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(dotColor)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = accentColor,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = accentColor,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
                                 Text(
-                                    text = genre,
+                                    text = mix.label,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 13.sp,
-                                    color = textPrimary
+                                    color = textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 148.dp)
                                 )
                             }
                         }
@@ -1061,8 +1113,13 @@ fun HomeScreen(
             }
 
             // --- 2.2 Discover New Music (LastWave Page 1) ---
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
+            if (trendingTracks.isNotEmpty()) item {
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(
+                    color = SwissHairline,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1070,31 +1127,27 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Discover New Music • $activeLanguage",
-                            style = ExpressiveSectionHeader.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 23.sp
-                            ),
-                            color = textPrimary
-                        )
-                        Text(
-                            text = "Fresh single releases & daily recommendations",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = textSecondary
-                        )
-                    }
+                    Text(
+                        text = "New Releases",
+                        style = SwissSectionHeader.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 21.sp
+                        ),
+                        color = textPrimary
+                    )
 
                     Surface(
-                        shape = CircleShape,
-                        color = if (isAmoled) Color(0xFF161622) else Color(0xFFE8E5E8),
+                        shape = RoundedCornerShape(999.dp),
+                        color = accentColor.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
                         modifier = Modifier.clickable(onClick = onNavigateToSearch)
                     ) {
                         Text(
-                            text = "Search >",
+                            text = "SEE ALL",
+                            fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
+                            letterSpacing = 0.6.sp,
                             color = accentColor,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
@@ -1118,6 +1171,7 @@ fun HomeScreen(
                                     .size(135.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(chipInactiveBg)
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -1128,12 +1182,13 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(7.dp))
                             Text(
                                 text = track.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp
+                                    fontSize = 13.5.sp,
+                                    letterSpacing = (-0.2).sp
                                 ),
                                 color = textPrimary,
                                 maxLines = 1,
@@ -1141,7 +1196,10 @@ fun HomeScreen(
                             )
                             Text(
                                 text = track.artist,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.5.sp,
+                                    letterSpacing = (-0.1).sp
+                                ),
                                 color = textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1151,46 +1209,36 @@ fun HomeScreen(
                 }
             }
 
-            // --- 2.3 Trending community playlists Card (LastWave Page 2) ---
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    Text(
-                        text = "Trending community playlists",
-                        style = ExpressiveSectionHeader.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 23.sp
-                        ),
-                        color = textPrimary
-                    )
-                    Text(
-                        text = "Top picks curated by the MasterWave community",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = textSecondary
-                    )
-                }
+            // --- Language-matched trending tracks ---
+            if (trendingTracks.isNotEmpty()) item {
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(
+                    color = SwissHairline,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
+                Text(
+                    text = "Trending",
+                    style = SwissSectionHeader.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 21.sp
+                    ),
+                    color = textPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = cardBg,
-                    shadowElevation = 4.dp,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                    shadowElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                         .bouncyClickable {
-                            val pl = Playlist(
-                                id = "comm_global_top_50",
-                                title = "Global Top 50 Radar",
-                                description = "50 tracks • Updated today • Curated",
-                                trackCount = trendingTracks.size.coerceAtLeast(50),
-                                tracks = trendingTracks,
-                                artworkUrl = trendingTracks.firstOrNull()?.artworkUrl,
-                                source = "Community • Global",
-                                createdAt = "Updated Today"
-                            )
-                            onPlaylistSelected(pl)
+                            openTrendingPlaylist()
                         }
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1201,9 +1249,10 @@ fun HomeScreen(
                             val collageArts = trendingTracks.take(4).mapNotNull { it.artworkUrl }
                             Box(
                                 modifier = Modifier
-                                    .size(68.dp)
-                                    .clip(RoundedCornerShape(14.dp))
+                                    .size(64.dp)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(chipInactiveBg)
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
                             ) {
                                 if (collageArts.size >= 4) {
                                     Column(modifier = Modifier.fillMaxSize()) {
@@ -1230,36 +1279,30 @@ fun HomeScreen(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Global Top 50 Radar",
+                                    text = "Trending Now",
                                     style = EditorialHeadlineSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp
+                                        fontSize = 17.sp,
+                                        letterSpacing = (-0.3).sp
                                     ),
                                     color = textPrimary
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "50 tracks • Tap to choose songs",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    text = "${trendingTracks.size} songs • Tap to explore",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 12.sp,
+                                        letterSpacing = (-0.1).sp
+                                    ),
                                     color = textSecondary
                                 )
                             }
 
                             Surface(
-                                shape = CircleShape,
-                                color = Color(0xFF165B33),
+                                shape = RoundedCornerShape(999.dp),
+                                color = accentColor,
                                 modifier = Modifier.bouncyClickable {
-                                    val pl = Playlist(
-                                        id = "comm_global_top_50",
-                                        title = "Global Top 50 Radar",
-                                        description = "50 tracks • Updated today • Curated",
-                                        trackCount = trendingTracks.size.coerceAtLeast(50),
-                                        tracks = trendingTracks,
-                                        artworkUrl = trendingTracks.firstOrNull()?.artworkUrl,
-                                        source = "Community • Global",
-                                        createdAt = "Updated Today"
-                                    )
-                                    onPlaylistSelected(pl)
+                                    openTrendingPlaylist()
                                 }
                             ) {
                                 Row(
@@ -1270,13 +1313,15 @@ fun HomeScreen(
                                         imageVector = Icons.Default.QueueMusic,
                                         contentDescription = "View Songs",
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(15.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     Text(
-                                        text = "View Songs",
+                                        text = "VIEW",
+                                        fontFamily = DisplayFontFamily,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
+                                        fontSize = 11.sp,
+                                        letterSpacing = 0.5.sp,
                                         color = Color.White
                                     )
                                 }
@@ -1290,26 +1335,26 @@ fun HomeScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(RoundedCornerShape(14.dp))
                                         .clickable { player.playTrack(track) }
                                         .padding(vertical = 6.dp, horizontal = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = "${idx + 1}",
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp
-                                        ),
+                                        fontFamily = DisplayFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
                                         color = textSecondary,
-                                        modifier = Modifier.width(20.dp)
+                                        modifier = Modifier.width(22.dp)
                                     )
 
                                     Box(
                                         modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(RoundedCornerShape(10.dp))
+                                            .size(38.dp)
+                                            .clip(RoundedCornerShape(12.dp))
                                             .background(chipInactiveBg)
+                                            .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
                                     ) {
                                         if (!track.artworkUrl.isNullOrBlank()) {
                                             AsyncImage(
@@ -1327,8 +1372,9 @@ fun HomeScreen(
                                         Text(
                                             text = track.title,
                                             style = MaterialTheme.typography.bodyMedium.copy(
-                                                fontWeight = FontWeight.SemiBold,
-                                                fontSize = 13.5.sp
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.5.sp,
+                                                letterSpacing = (-0.2).sp
                                             ),
                                             color = textPrimary,
                                             maxLines = 1,
@@ -1336,7 +1382,10 @@ fun HomeScreen(
                                         )
                                         Text(
                                             text = track.artist,
-                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontSize = 11.5.sp,
+                                                letterSpacing = (-0.1).sp
+                                            ),
                                             color = textSecondary,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -1347,7 +1396,7 @@ fun HomeScreen(
                                         imageVector = Icons.Default.PlayArrow,
                                         contentDescription = "Play",
                                         tint = accentColor,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(19.dp)
                                     )
                                 }
                             }
@@ -1356,142 +1405,14 @@ fun HomeScreen(
                 }
             }
 
-            // --- 3. Quick Picks Section (LastWave Page 2: 4-track columns in horizontal scroll) ---
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Quick picks • $activeLanguage",
-                            style = ExpressiveSectionHeader.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 23.sp
-                            ),
-                            color = textPrimary
-                        )
-                        Text(
-                            text = if (currentTrack != null) "Viral $activeLanguage hits • Matching ${currentTrack?.title}" else "Trending viral songs worth playing now",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = textSecondary
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(if (isAmoled) Color(0xFF161622) else Color(0xFFE8E5E8))
-                            .clickable {
-                                if (quickPickTracks.isNotEmpty()) {
-                                    player.playPlaylist(quickPickTracks.shuffled(), 0)
-                                    Toast.makeText(context, "Shuffling quick picks", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = textPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // YouTube Music / LastWave Style Quick Picks: Horizontal scroll of 4-track columns
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(quickPickColumns) { columnTracks ->
-                        Column(
-                            modifier = Modifier.width(320.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            columnTracks.forEach { track ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(cardBg)
-                                        .clickable { player.playTrack(track) }
-                                        .padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(52.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(chipInactiveBg)
-                                    ) {
-                                        if (!track.artworkUrl.isNullOrBlank()) {
-                                            AsyncImage(
-                                                model = track.artworkUrl,
-                                                contentDescription = track.title,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        } else {
-                                            Icon(
-                                                imageVector = Icons.Default.MusicNote,
-                                                contentDescription = null,
-                                                tint = textSecondary,
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .align(Alignment.Center)
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.width(14.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = track.title,
-                                            style = MaterialTheme.typography.bodyLarge.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.5.sp
-                                            ),
-                                            color = textPrimary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = track.artist,
-                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                            color = textSecondary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-
-                                    IconButton(onClick = { player.playTrack(track) }) {
-                                        Icon(
-                                            imageVector = Icons.Default.PlayArrow,
-                                            contentDescription = "Play",
-                                            tint = accentColor,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             // --- 4. Fresh finds with NEW badge (LastWave Page 3) ---
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
+            if (trendingTracks.isNotEmpty()) item {
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(
+                    color = SwissHairline,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1499,27 +1420,21 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Fresh finds",
-                            style = ExpressiveSectionHeader.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 23.sp
-                            ),
-                            color = textPrimary
-                        )
-                        Text(
-                            text = "Brand new tracks picked for you",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = textSecondary
-                        )
-                    }
+                    Text(
+                        text = "More to Explore",
+                        style = SwissSectionHeader.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 21.sp
+                        ),
+                        color = textPrimary
+                    )
 
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(if (isAmoled) Color(0xFF161622) else Color(0xFFE8E5E8))
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isAmoled) Color(0xFF161622) else Color(0xFFF5F0E0))
+                            .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
                             .clickable {
                                 val shuffled = trendingTracks.shuffled()
                                 if (shuffled.isNotEmpty()) {
@@ -1533,7 +1448,7 @@ fun HomeScreen(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = "Shuffle",
                             tint = textPrimary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -1555,6 +1470,7 @@ fun HomeScreen(
                                     .size(135.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(chipInactiveBg)
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -1564,29 +1480,14 @@ fun HomeScreen(
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color(0xFF34C759),
-                                    modifier = Modifier
-                                        .padding(8.dp)
-                                        .align(Alignment.TopStart)
-                                ) {
-                                    Text(
-                                        text = "NEW",
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 9.sp,
-                                        letterSpacing = 0.8.sp,
-                                        color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
-                                    )
-                                }
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(7.dp))
                             Text(
                                 text = track.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp
+                                    fontSize = 13.5.sp,
+                                    letterSpacing = (-0.2).sp
                                 ),
                                 color = textPrimary,
                                 maxLines = 1,
@@ -1594,7 +1495,10 @@ fun HomeScreen(
                             )
                             Text(
                                 text = track.artist,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.5.sp,
+                                    letterSpacing = (-0.1).sp
+                                ),
                                 color = textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1606,7 +1510,12 @@ fun HomeScreen(
 
             // --- 5. Favorite Artists Section (Persistent, Real Artist Photos & Interactive Add/Edit) ---
             item {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(
+                    color = SwissHairline,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1614,24 +1523,18 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Favorite Artists",
-                            fontFamily = DisplayFontFamily,
+                    Text(
+                        text = "Artists",
+                        style = SwissSectionHeader.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            color = textPrimary
-                        )
-                        Text(
-                            text = "${followedArtists.size} artists followed",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                            color = textSecondary
-                        )
-                    }
+                            fontSize = 21.sp
+                        ),
+                        color = textPrimary
+                    )
 
                     Surface(
-                        shape = CircleShape,
-                        color = accentColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(999.dp),
+                        color = accentColor.copy(alpha = 0.12f),
                         border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
                         modifier = Modifier.clickable { isArtistPickerOpen = true }
                     ) {
@@ -1644,14 +1547,14 @@ fun HomeScreen(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Add Artist",
                                 tint = accentColor,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = "Add / Edit",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp
-                                ),
+                                text = "ADD",
+                                fontFamily = DisplayFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                letterSpacing = 0.5.sp,
                                 color = accentColor
                             )
                         }
@@ -1665,7 +1568,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(followedArtists) { artist ->
+                    items(followedArtists, key = { it.name }) { artist ->
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
@@ -1674,7 +1577,7 @@ fun HomeScreen(
                         ) {
                             ArtistAvatar(
                                 name = artist.name,
-                                photoUrl = artist.thumbnailUrl ?: ArtistPhotoProvider.getPhotoUrlOrNull(artist.name),
+                                photoUrl = null,
                                 size = 76.dp,
                                 borderColor = accentColor.copy(alpha = 0.4f),
                                 borderWidth = 1.5.dp
@@ -1692,11 +1595,6 @@ fun HomeScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            Text(
-                                text = "Artist",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = textSecondary
-                            )
                         }
                     }
 
@@ -1711,9 +1609,9 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .size(76.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isAmoled) Color(0xFF141624) else Color(0xFFE9ECF4))
-                                    .border(1.dp, accentColor.copy(alpha = 0.35f), CircleShape),
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(if (isAmoled) Color(0xFF141624) else Color(0xFFF5F0E0))
+                                    .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(18.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -1746,23 +1644,22 @@ fun HomeScreen(
             }
 
             // --- 6. Because you listened to [Top Artist] (LastWave Page 3) ---
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    Text(
-                        text = "Because you listened to $topArtist",
-                        style = ExpressiveSectionHeader.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 21.sp
-                        ),
-                        color = textPrimary
-                    )
-                    Text(
-                        text = "Similar vibe and recommended tracks",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = textSecondary
-                    )
-                }
+            if (similarTracks.isNotEmpty()) item {
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(
+                    color = SwissHairline,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
+                Text(
+                    text = "Because you listened to $topArtist",
+                    style = SwissSectionHeader.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 21.sp
+                    ),
+                    color = textPrimary,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -1781,6 +1678,7 @@ fun HomeScreen(
                                     .size(135.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(chipInactiveBg)
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -1791,12 +1689,13 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(7.dp))
                             Text(
                                 text = track.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp
+                                    fontSize = 13.5.sp,
+                                    letterSpacing = (-0.2).sp
                                 ),
                                 color = textPrimary,
                                 maxLines = 1,
@@ -1804,7 +1703,10 @@ fun HomeScreen(
                             )
                             Text(
                                 text = track.artist,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.5.sp,
+                                    letterSpacing = (-0.1).sp
+                                ),
                                 color = textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1814,72 +1716,48 @@ fun HomeScreen(
                 }
             }
 
-            // --- 7. Trending Community Playlists Showcase (16+ Daily Updated Playlists for activeLanguage) ---
+            // --- Curated playlist search shortcuts ---
             item {
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(
+                    color = SwissHairline,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+                )
                 val communityPlaylists = remember(activeLanguage) {
-                    CommunityPlaylistsProvider.getPlaylistsForLanguage(activeLanguage)
+                    CommunityPlaylistsProvider.getPlaylistsForLanguage(activeLanguage).take(8)
                 }
 
                 Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Community Playlists • $activeLanguage",
-                                style = ExpressiveSectionHeader.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 23.sp
-                                ),
-                                color = textPrimary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "16 trending playlists • Curated daily by community",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = textSecondary
-                            )
-                        }
-
-                        Surface(
-                            shape = CircleShape,
-                            color = accentColor.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = "DAILY SYNC",
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp,
-                                letterSpacing = 1.sp,
-                                color = accentColor,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Trending community playlists",
+                        style = SwissSectionHeader.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 21.sp
+                        ),
+                        color = textPrimary
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Top 4 Featured Big Cards in a horizontal row
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(communityPlaylists.take(4)) { playlist ->
-                        Surface(
-                            shape = RoundedCornerShape(22.dp),
-                            color = cardBg,
-                            shadowElevation = 6.dp,
+                    items(communityPlaylists, key = { it.id }) { playlist ->
+                        Column(
                             modifier = Modifier
-                                .width(220.dp)
-                                .height(260.dp)
-                                .bouncyClickable {
-                                    openCommunityPlaylist(playlist)
-                                }
+                                .width(160.dp)
+                                .bouncyClickable { openCommunityPlaylist(playlist) }
                         ) {
-                            Box(modifier = Modifier.fillMaxSize()) {
+                            Box(
+                                modifier = Modifier
+                                    .size(160.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(chipInactiveBg)
+                                    .border(1.dp, if (isAmoled) Color(0x28FFFFFF) else Color(0xFF0A0A0A), RoundedCornerShape(16.dp))
+                            ) {
                                 AsyncImage(
                                     model = playlist.artworkUrl,
                                     contentDescription = playlist.title,
@@ -1887,179 +1765,98 @@ fun HomeScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
 
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(0x33000000),
-                                                    Color(0x66000000),
-                                                    Color(0xEE0A0A12),
-                                                    Color(0xFF07070E)
-                                                )
-                                            )
-                                        )
-                                )
-
+                                // Top Trend Badge Pill
                                 Surface(
-                                    shape = CircleShape,
-                                    color = Color(0x99000000),
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = Color.Black.copy(alpha = 0.65f),
+                                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.25f)),
                                     modifier = Modifier
-                                        .padding(12.dp)
                                         .align(Alignment.TopStart)
+                                        .padding(8.dp)
                                 ) {
                                     Text(
-                                        text = playlist.trendTag,
-                                        fontWeight = FontWeight.ExtraBold,
+                                        text = playlist.trendTag.uppercase(),
+                                        fontFamily = DisplayFontFamily,
+                                        fontWeight = FontWeight.Bold,
                                         fontSize = 9.sp,
-                                        letterSpacing = 0.8.sp,
+                                        letterSpacing = 0.6.sp,
                                         color = Color.White,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                     )
                                 }
 
-                                Column(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(14.dp)
-                                ) {
-                                    Text(
-                                        text = playlist.title,
-                                        style = EditorialHeadlineSmall.copy(
-                                            fontSize = 17.sp,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        color = Color.White,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(modifier = Modifier.height(3.dp))
-                                    Text(
-                                        text = "${playlist.trackCount} tracks • ${playlist.updatedToday}",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                        color = Color.White.copy(alpha = 0.8f)
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color(0xFF165B33),
-                                        modifier = Modifier.bouncyClickable {
-                                            openCommunityPlaylist(playlist)
-                                        }
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.QueueMusic,
-                                                contentDescription = "View Tracks",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(5.dp))
-                                            Text(
-                                                text = "View Songs",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 11.5.sp,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // The other 12 Community Playlists in clean vertical cards
-                Column(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    communityPlaylists.drop(4).forEach { playlist ->
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = cardBg,
-                            shadowElevation = 2.dp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bouncyClickable {
-                                    openCommunityPlaylist(playlist)
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                                // Subtle Bottom Gradient Scrim
                                 Box(
                                     modifier = Modifier
-                                        .size(56.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(chipInactiveBg)
-                                ) {
-                                    AsyncImage(
-                                        model = playlist.artworkUrl,
-                                        contentDescription = playlist.title,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(14.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = playlist.title,
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.5.sp
-                                        ),
-                                        color = textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(modifier = Modifier.height(3.dp))
-                                    Text(
-                                        text = "${playlist.description} • ${playlist.trackCount} tracks",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                                        color = textSecondary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = accentColor.copy(alpha = 0.12f)
-                                    ) {
-                                        Text(
-                                            text = playlist.trendTag,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 9.sp,
-                                            color = accentColor,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .fillMaxWidth()
+                                        .height(56.dp)
+                                        .align(Alignment.BottomCenter)
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.62f))
+                                            )
                                         )
-                                    }
-                                }
+                                )
 
-                                IconButton(
-                                    onClick = {
-                                        openCommunityPlaylist(playlist)
-                                    }
+                                // Bottom Track Count Meta
+                                Text(
+                                    text = "${playlist.trackCount} TRACKS",
+                                    style = SwissMono.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        letterSpacing = 0.5.sp
+                                    ),
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(horizontal = 10.dp, vertical = 10.dp)
+                                )
+
+                                // Action Play Button (Liquid Glass preserved)
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(8.dp)
+                                        .size(36.dp)
+                                        .glassySurface(
+                                            shape = CircleShape,
+                                            style = GlassyStyle.CARD,
+                                            tintColor = accentColor,
+                                            onClick = { openCommunityPlaylist(playlist) }
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.QueueMusic,
-                                        contentDescription = "View Songs",
-                                        tint = accentColor,
-                                        modifier = Modifier.size(22.dp)
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Explore ${playlist.title}",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = playlist.title,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    letterSpacing = (-0.2).sp
+                                ),
+                                color = textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = playlist.description,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.5.sp,
+                                    letterSpacing = (-0.1).sp
+                                ),
+                                color = textSecondary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -2069,6 +1866,32 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }
+
+        HomeScreenHeader(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(1f)
+                .onSizeChanged { headerHeightPx = it.height },
+            isScrolled = isScrolled,
+            liquidState = liquidState,
+            isGlassEnabled = isGlassEnabled,
+            isAmoled = isAmoled,
+            textPrimary = textPrimary,
+            textSecondary = textSecondary,
+            accentColor = accentColor,
+            userProfile = userProfile,
+            categories = categories,
+            selectedCategory = selectedCategory,
+            onCategorySelected = { category ->
+                selectedCategory = category
+                if (category != "All") {
+                    Toast.makeText(context, "Filtered: $category", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onNavigateToDownloads = onNavigateToDownloads,
+            onNavigateToSearch = onNavigateToSearch,
+            onNavigateToSettings = onNavigateToSettings
+        )
     }
 
     // Interactive Favorite Artists Management Sheet
@@ -2078,12 +1901,15 @@ fun HomeScreen(
             onDismiss = { isArtistPickerOpen = false }
         )
     }
-    }
 }
 
 // --- Dedicated Measured Header Layer with Liquid Glass Surface ---
 @Composable
 private fun HomeScreenHeader(
+    modifier: Modifier = Modifier,
+    isScrolled: Boolean,
+    liquidState: LiquidState?,
+    isGlassEnabled: Boolean,
     isAmoled: Boolean,
     textPrimary: Color,
     textSecondary: Color,
@@ -2096,20 +1922,32 @@ private fun HomeScreenHeader(
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
-    val headerShape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+    val headerShape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .glassySurface(
                 shape = headerShape,
-                style = GlassyStyle.HEADER,
+                style = GlassyStyle.DOCK,
                 isDark = isAmoled,
+                isGlassEnabled = isGlassEnabled,
                 borderWidth = 1.dp,
-                elevation = 6.dp,
-                hasSheen = false
+                elevation = 10.dp,
+                accentGlow = accentColor.copy(alpha = if (isScrolled) 0.12f else 0.08f),
+                tintColor = accentColor,
+                hasSheen = true,
+                liquidState = liquidState
             )
     ) {
+        if (isScrolled) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2120,7 +1958,7 @@ private fun HomeScreenHeader(
                     .fillMaxWidth()
                     .padding(bottom = 12.dp)
             ) {
-                // Row 1: Brand Logo ("MASTERWAVE"), Audio Engine tag, and Action items
+                // Masthead (Reference Page 1): Clean "Home" title + Download, Search, Profile buttons
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2128,117 +1966,72 @@ private fun HomeScreenHeader(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "MASTERWAVE",
-                                style = NothingHeadlineLarge.copy(
-                                    fontSize = 21.sp,
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = (-0.5).sp
-                                ),
-                                color = textPrimary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(com.masterwave.player.ui.theme.MasterWaveTurquoise)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Music Discovery & Library",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.5.sp
-                            ),
-                            color = textSecondary
-                        )
-                    }
+                    Text(
+                        text = "Home",
+                        style = SwissDisplayMedium.copy(
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.6).sp
+                        ),
+                        color = textPrimary,
+                        maxLines = 1
+                    )
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Downloads Glassy Slab Button
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .glassySlab(
-                                    shape = CircleShape,
-                                    isDark = isAmoled,
-                                    onClick = onNavigateToDownloads
-                                ),
-                            contentAlignment = Alignment.Center
+                        // Download button
+                        IconButton(
+                            onClick = onNavigateToDownloads,
+                            modifier = Modifier.size(38.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
                                 contentDescription = "Downloads",
                                 tint = textPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(23.dp)
                             )
                         }
 
-                        // Search Glassy Slab Button
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .glassySlab(
-                                    shape = CircleShape,
-                                    isDark = isAmoled,
-                                    onClick = onNavigateToSearch
-                                ),
-                            contentAlignment = Alignment.Center
+                        // Search button
+                        IconButton(
+                            onClick = onNavigateToSearch,
+                            modifier = Modifier.size(38.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Search",
                                 tint = textPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(23.dp)
                             )
                         }
 
-                        // User Avatar with glowing halo
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    2.dp,
-                                    Brush.sweepGradient(
-                                        listOf(
-                                            com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                                            com.masterwave.player.ui.theme.MasterWaveCyan,
-                                            com.masterwave.player.ui.theme.MasterWaveTurquoise
-                                        )
-                                    ),
-                                    CircleShape
-                                )
-                                .bouncyClickable(onClick = onNavigateToSettings),
-                            contentAlignment = Alignment.Center
+                        // User Avatar button (Settings)
+                        IconButton(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier.size(38.dp)
                         ) {
-                            if (userProfile.photoUrl != null && userProfile.isSignedIn) {
-                                AsyncImage(
-                                    model = userProfile.photoUrl,
-                                    contentDescription = userProfile.displayName,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.matchParentSize()
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(accentColor.copy(alpha = 0.25f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = userProfile.displayName.take(1).uppercase(),
-                                        fontWeight = FontWeight.Bold,
-                                        color = accentColor,
-                                        fontSize = 16.sp
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(accentColor),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (userProfile.photoUrl != null && userProfile.isSignedIn) {
+                                    AsyncImage(
+                                        model = userProfile.photoUrl,
+                                        contentDescription = userProfile.displayName,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "Settings",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
@@ -2246,7 +2039,7 @@ private fun HomeScreenHeader(
                     }
                 }
 
-                // Row 2: Category Selector Glassy Chips
+                // Row 2: Category Selector Capsule Pills (Reference Page 1)
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2256,27 +2049,164 @@ private fun HomeScreenHeader(
                 ) {
                     items(categories) { category ->
                         val isSelected = category == selectedCategory
-                        Box(
-                            modifier = Modifier.glassySurface(
-                                shape = RoundedCornerShape(18.dp),
-                                style = if (isSelected) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
-                                isDark = isAmoled,
-                                tintColor = if (isSelected) accentColor else null,
-                                elevation = if (isSelected) 4.dp else 2.dp,
-                                onClick = { onCategorySelected(category) }
-                            ),
-                            contentAlignment = Alignment.Center
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (isSelected) accentColor else if (isAmoled) Color(0x28FFFFFF) else Color.White,
+                            border = if (isSelected) null else BorderStroke(1.dp, if (isAmoled) Color(0x38FFFFFF) else Color(0xFFE0E6DD)),
+                            modifier = Modifier
+                                .height(36.dp)
+                                .bouncyClickable { onCategorySelected(category) }
                         ) {
-                            Text(
-                                text = category,
-                                style = MaterialTheme.typography.labelMedium.copy(
+                            Box(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = category,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 12.5.sp,
-                                    letterSpacing = 0.2.sp
-                                ),
-                                color = if (isSelected) Color.White else textPrimary,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-                            )
+                                    fontSize = 13.5.sp,
+                                    color = if (isSelected) Color.White else textPrimary,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickPicksSection(
+    tracks: List<Track>,
+    isAmoled: Boolean,
+    textPrimary: Color,
+    textSecondary: Color,
+    cardBg: Color,
+    chipInactiveBg: Color,
+    onShuffle: () -> Unit,
+    onTrackClick: (Track) -> Unit
+) {
+    if (tracks.isEmpty()) return
+    val columns = remember(tracks) { tracks.chunked(3) }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+        HorizontalDivider(
+            color = SwissHairline,
+            thickness = 0.5.dp,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Quick Picks",
+                style = SwissSectionHeader.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 21.sp
+                ),
+                color = textPrimary,
+                modifier = Modifier.weight(1f)
+            )
+
+            Box(
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                    .clickable(onClick = onShuffle),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shuffle,
+                    contentDescription = "Shuffle quick picks",
+                    tint = textPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(columns) { columnTracks ->
+                Column(
+                    modifier = Modifier.width(320.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    columnTracks.forEach { track ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(cardBg)
+                                .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                .clickable { onTrackClick(track) }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(chipInactiveBg)
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                            ) {
+                                if (!track.artworkUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = track.artworkUrl,
+                                        contentDescription = track.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.MusicNote,
+                                        contentDescription = null,
+                                        tint = textSecondary,
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .align(Alignment.Center)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = track.title,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.5.sp,
+                                        letterSpacing = (-0.2).sp
+                                    ),
+                                    color = textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = track.artist,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 12.sp,
+                                        letterSpacing = (-0.1).sp
+                                    ),
+                                    color = textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -2292,9 +2222,7 @@ fun getArtistPhotoUrl(artistName: String): String {
 @Composable
 private fun RecommendationShelf(
     title: String,
-    subtitle: String,
     tracks: List<Track>,
-    badge: String? = null,
     textPrimary: Color,
     textSecondary: Color,
     accentColor: Color,
@@ -2302,71 +2230,46 @@ private fun RecommendationShelf(
     onTrackClick: (Track) -> Unit
 ) {
     if (tracks.isEmpty()) return
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 22.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 18.dp)) {
+        HorizontalDivider(
+            color = SwissHairline,
+            thickness = 0.5.dp,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+        )
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = title,
-                        style = ExpressiveSectionHeader.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        ),
-                        color = textPrimary
-                    )
-                    if (badge != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = CircleShape,
-                            color = accentColor.copy(alpha = 0.18f)
-                        ) {
-                            Text(
-                                text = badge,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp,
-                                    letterSpacing = 0.8.sp
-                                ),
-                                color = accentColor,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-                if (subtitle.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = textSecondary
-                    )
-                }
-            }
+            Text(
+                text = title,
+                style = SwissSectionHeader.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 21.sp
+                ),
+                color = textPrimary
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             items(tracks) { track ->
                 Column(
                     modifier = Modifier
-                        .width(136.dp)
+                        .width(135.dp)
                         .clickable { onTrackClick(track) }
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.10f)),
                         color = chipInactiveBg,
-                        shadowElevation = 2.dp,
                         modifier = Modifier
-                            .size(136.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .size(135.dp)
+                            .clip(RoundedCornerShape(18.dp))
                     ) {
                         if (!track.artworkUrl.isNullOrBlank()) {
                             AsyncImage(
@@ -2384,17 +2287,18 @@ private fun RecommendationShelf(
                                     imageVector = Icons.Default.MusicNote,
                                     contentDescription = null,
                                     tint = textSecondary,
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(28.dp)
                                 )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(7.dp))
                     Text(
                         text = track.title,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.5.sp
+                            fontSize = 13.5.sp,
+                            letterSpacing = (-0.2).sp
                         ),
                         color = textPrimary,
                         maxLines = 1,
@@ -2402,7 +2306,10 @@ private fun RecommendationShelf(
                     )
                     Text(
                         text = track.artist,
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 11.5.sp,
+                            letterSpacing = (-0.1).sp
+                        ),
                         color = textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

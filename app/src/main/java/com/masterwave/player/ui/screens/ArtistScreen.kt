@@ -98,10 +98,10 @@ fun ArtistScreen(
         repository.isArtistFollowed(artistName)
     }
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFF7F5F8)
-    val cardBg = if (isAmoled) Color(0xFF12121A) else Color(0xFFEFECEF).copy(alpha = 0.6f)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF1C1B1F)
-    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6E6E7A)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFAF0)
+    val cardBg = if (isAmoled) Color(0xFF12121A) else Color(0xFFF5F0E0)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6A6A6A)
 
     LaunchedEffect(artistName) {
         isLoading = true

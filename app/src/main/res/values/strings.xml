@@ -2,4 +2,12 @@
     <string name="app_name">Marshall Music</string>
     <string name="notification_channel_name">Marshall Music Playback</string>
     <string name="notification_channel_desc">Active audio playback notification and transport controls</string>
+    <string name="download_notification_channel_name">Downloads</string>
+    <string name="download_notification_channel_desc">Shows progress and results while tracks are downloading</string>
+    <string name="download_notification_progress_title">Downloading %1$s</string>
+    <string name="download_notification_progress_text">%1$d%% - %2$s</string>
+    <string name="download_notification_complete_title">Download complete</string>
+    <string name="download_notification_complete_text">%1$s is ready offline</string>
+    <string name="download_notification_failed_title">Download failed</string>
+    <string name="download_notification_failed_text">Could not download %1$s. Try again.</string>
 </resources>

@@ -268,7 +268,7 @@ fun WebAuthDialog(
                                 settings.setSupportZoom(true)
                                 settings.javaScriptCanOpenWindowsAutomatically = true
                                 settings.allowFileAccess = true
-                                // Clean Mobile Chrome UA matching Moto G45 (never flagged as bot/desktop mismatch)
+                                // Clean Mobile Chrome UA (never flagged as bot/desktop mismatch)
                                 settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.107 Mobile Safari/537.36"
 
                                 val cookieManager = CookieManager.getInstance()
@@ -295,8 +295,10 @@ fun WebAuthDialog(
                                             val c1 = cookieManager.getCookie("https://music.youtube.com") ?: ""
                                             val c2 = cookieManager.getCookie("https://accounts.google.com") ?: ""
                                             val c3 = cookieManager.getCookie("https://www.youtube.com") ?: ""
-                                            val c4 = cookieManager.getCookie(url) ?: ""
-                                            val cookies = "$c1; $c2; $c3; $c4"
+                                            val c4 = cookieManager.getCookie("https://open.spotify.com") ?: ""
+                                            val c5 = cookieManager.getCookie("https://accounts.spotify.com") ?: ""
+                                            val c6 = cookieManager.getCookie(url) ?: ""
+                                            val cookies = "$c1; $c2; $c3; $c4; $c5; $c6"
                                             if (cookies.contains("SAPISID") || cookies.contains("__Secure-3PAPISID") || cookies.contains("LOGIN_INFO") || cookies.contains("sp_dc")) {
                                                 onAuthCaptured(cookies)
                                             }
@@ -309,8 +311,10 @@ fun WebAuthDialog(
                                             val c1 = cookieManager.getCookie("https://music.youtube.com") ?: ""
                                             val c2 = cookieManager.getCookie("https://accounts.google.com") ?: ""
                                             val c3 = cookieManager.getCookie("https://www.youtube.com") ?: ""
-                                            val c4 = cookieManager.getCookie(targetUrl) ?: ""
-                                            val cookies = "$c1; $c2; $c3; $c4"
+                                            val c4 = cookieManager.getCookie("https://open.spotify.com") ?: ""
+                                            val c5 = cookieManager.getCookie("https://accounts.spotify.com") ?: ""
+                                            val c6 = cookieManager.getCookie(targetUrl) ?: ""
+                                            val cookies = "$c1; $c2; $c3; $c4; $c5; $c6"
                                             if (cookies.contains("SAPISID") || cookies.contains("__Secure-3PAPISID") || cookies.contains("LOGIN_INFO") || cookies.contains("sp_dc")) {
                                                 onAuthCaptured(cookies)
                                             }

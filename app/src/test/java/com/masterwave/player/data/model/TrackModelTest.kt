@@ -10,7 +10,7 @@ class TrackModelTest {
     @Test
     fun testTrackAvailabilityAndPlayability() {
         val fullTrack = Track(
-            id = "audius_1",
+            id = "track_1",
             title = "Fragments",
             artist = "Xsetra",
             availability = TrackAvailability.FULL_TRACK

@@ -1,5 +1,6 @@
 package com.masterwave.player.ui.components
 
+import android.os.Build
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -45,6 +46,8 @@ import com.masterwave.player.ui.theme.GlassyRose
 import com.masterwave.player.ui.theme.GlassySlate
 import com.masterwave.player.ui.theme.GlassyViolet
 import com.masterwave.player.ui.theme.NothingTechMono
+import io.github.fletchmckee.liquid.LiquidState
+import io.github.fletchmckee.liquid.liquid
 
 // ==========================================
 // REFINED APPLE-GRADE LIQUID GLASS ENGINE
@@ -92,14 +95,20 @@ fun Modifier.glassySurface(
     elevation: Dp = if (style == GlassyStyle.DOCK) 10.dp else 6.dp,
     accentGlow: Color = Color.Transparent,
     hasSheen: Boolean = true,
+    liquidState: LiquidState? = null,
+    isGlassEnabled: Boolean = true,
     onClick: (() -> Unit)? = null
 ): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val opticalState = liquidState.takeIf {
+        isGlassEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    }
 
-    // Tactile spring slab compression physics
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && onClick != null) 0.95f else 1f,
+        targetValue = if (isPressed && onClick != null) {
+            if (opticalState != null) 0.98f else 0.95f
+        } else 1f,
         animationSpec = spring(
             dampingRatio = 0.80f,
             stiffness = 500f
@@ -108,8 +117,16 @@ fun Modifier.glassySurface(
     )
 
     // LAYER A: Optical Base Fill (Calibrated density to prevent uncontrolled bleed)
-    val glassFillBrush = remember(style, isDark, tintColor) {
-        when (style) {
+    val glassFillBrush = remember(style, isDark, tintColor, isGlassEnabled) {
+        if (!isGlassEnabled) {
+            Brush.verticalGradient(
+                colors = if (isDark) {
+                    listOf(Color(0xFF1B1D25), Color(0xFF111319))
+                } else {
+                    listOf(Color(0xFFF8F9FC), Color(0xFFE9ECF2))
+                }
+            )
+        } else when (style) {
             GlassyStyle.DOCK -> {
                 if (isDark) {
                     Brush.verticalGradient(
@@ -130,21 +147,20 @@ fun Modifier.glassySurface(
                 }
             }
             GlassyStyle.HEADER -> {
-                // High protective density: completely isolates status bar and category chips
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFC10121C), // 99% density over status bar
-                            Color(0xF80D0F18), // 97% density
-                            Color(0xF20A0B12)  // 95% density at curved bottom edge
+                            Color(0xE810121C),
+                            Color(0xE00D0F18),
+                            Color(0xD80A0B12)
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFFFFFF), // 100% solid white over status bar
-                            Color(0xFFFFFFFF), // 100% solid white body
-                            Color(0xFAF8F6F4)  // 98% crystal bottom edge
+                            Color(0xE8FFFFFF),
+                            Color(0xE5FFFFFF),
+                            Color(0xDDF8F6F4)
                         )
                     )
                 }
@@ -275,6 +291,20 @@ fun Modifier.glassySurface(
         }
     }
 
+    val surfaceModifier = opticalState?.let { state ->
+        Modifier.liquid(state) {
+            this.shape = shape
+            frost = 8.dp
+            refraction = if (isPressed) 0.14f else 0.08f
+            curve = 0.14f
+            edge = 0.10f
+            saturation = 1.06f
+            contrast = 1.04f
+            dispersion = 0.015f
+            tint = tintColor?.copy(alpha = 0.12f) ?: Color.White.copy(alpha = 0.10f)
+        }
+    } ?: Modifier.background(glassFillBrush)
+
     return this
         .graphicsLayer {
             scaleX = scale
@@ -292,10 +322,15 @@ fun Modifier.glassySurface(
             ambientColor = Color.Black.copy(alpha = if (isDark) 0.30f else 0.05f)
         )
         .clip(shape)
-        .background(glassFillBrush)
+        .then(surfaceModifier)
         // LAYER B: Specular Reflex Arc (Restrained overhead radial highlight)
         .then(
-            if (hasSheen && (style == GlassyStyle.DOCK || style == GlassyStyle.PROMINENT || style == GlassyStyle.SLAB)) {
+            if (isGlassEnabled && hasSheen &&
+                (style == GlassyStyle.DOCK ||
+                    style == GlassyStyle.PROMINENT ||
+                    style == GlassyStyle.SLAB ||
+                    style == GlassyStyle.HEADER)
+            ) {
                 Modifier.drawWithContent {
                     drawContent()
 
@@ -330,7 +365,13 @@ fun Modifier.glassySurface(
                 }
             } else Modifier
         )
-        .border(width = borderWidth, brush = specularBorderBrush, shape = shape)
+        .then(
+            if (isGlassEnabled) {
+                Modifier.border(width = borderWidth, brush = specularBorderBrush, shape = shape)
+            } else {
+                Modifier
+            }
+        )
         .then(
             if (onClick != null) {
                 Modifier.clickable(
@@ -351,12 +392,14 @@ fun Modifier.glassySlab(
     prominent: Boolean = false,
     isDark: Boolean = true,
     tintColor: Color? = null,
+    isGlassEnabled: Boolean = true,
     onClick: (() -> Unit)? = null
 ): Modifier = glassySurface(
     shape = shape,
     style = if (prominent) GlassyStyle.PROMINENT else GlassyStyle.SLAB,
     isDark = isDark,
     tintColor = tintColor,
+    isGlassEnabled = isGlassEnabled,
     borderWidth = 1.dp,
     elevation = if (prominent) 6.dp else 3.dp,
     onClick = onClick
