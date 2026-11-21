@@ -191,16 +191,8 @@ class MusicDownloadManager(
                         ids.add(baseName)
                         ids.add(displayName)
 
-                        // Look for companion thumbnail in public musicDir or cache
-                        val companionArt = File(musicDir, "$baseName.jpg").let {
-                            if (it.exists() && it.length() > 0) it else File(context.cacheDir, "art_$baseName.jpg")
-                        }
-
-                        val artworkUrl = if (companionArt.exists() && companionArt.length() > 0) {
-                            "file://${companionArt.absolutePath}"
-                        } else {
-                            findArtworkInMediaStore(baseName)
-                        }
+                        val audioFile = if (!filePath.isNullOrBlank()) File(filePath).takeIf { it.exists() } else null
+                        val artworkUrl = resolveArtworkForDownloadedTrack(baseName, audioFile, contentUri, null)
 
                         val playableUri = if (!filePath.isNullOrBlank() && File(filePath).exists()) {
                             filePath
@@ -242,12 +234,7 @@ class MusicDownloadManager(
                     ids.add(file.name)
 
                     if (tracks.none { it.streamUrl == file.absolutePath || it.title == baseName }) {
-                        val companionArt = File(musicDir, "$baseName.jpg").let {
-                            if (it.exists() && it.length() > 0) it else File(context.cacheDir, "art_$baseName.jpg")
-                        }
-                        val artworkUrl = if (companionArt.exists() && companionArt.length() > 0) {
-                            "file://${companionArt.absolutePath}"
-                        } else null
+                        val artworkUrl = resolveArtworkForDownloadedTrack(baseName, file, null, null)
 
                         tracks.add(
                             Track(
@@ -279,6 +266,77 @@ class MusicDownloadManager(
             _downloadedIds.value = deduplicatedIds
             _downloadedTracks.value = deduplicatedTracks
         }
+    }
+
+    /**
+     * Highly resilient multi-tiered artwork resolver for downloaded and local tracks:
+     * 1. Persistent covers directory in app filesDir (safe across cache cleans).
+     * 2. Companion artwork files in public music directory or parent folder.
+     * 3. MediaMetadataRetriever embedded picture extracted directly from the audio file or contentUri.
+     * 4. MediaStore Images query.
+     * 5. YouTube video ID thumbnail fallback if videoId is detected in trackId or filename.
+     */
+    fun resolveArtworkForDownloadedTrack(
+        baseName: String,
+        audioFile: File?,
+        audioUri: Uri?,
+        trackId: String? = null
+    ): String? {
+        val coversDir = File(context.filesDir, "download_covers").apply { mkdirs() }
+        val safeHash = baseName.hashCode().toUInt().toString(16)
+        val persistentCover = File(coversDir, "$safeHash.jpg")
+        if (persistentCover.exists() && persistentCover.length() > 0) {
+            return "file://${persistentCover.absolutePath}"
+        }
+
+        // 1. Companion artwork file in musicDir or audioFile parent
+        val companionCandidates = listOfNotNull(
+            audioFile?.parentFile?.let { File(it, "$baseName.jpg") },
+            audioFile?.parentFile?.let { File(it, "cover.jpg") },
+            File(musicDir, "$baseName.jpg"),
+            File(musicDir, "cover.jpg"),
+            File(context.cacheDir, "art_$baseName.jpg")
+        )
+        val companion = companionCandidates.firstOrNull { it.exists() && it.length() > 0 }
+        if (companion != null) {
+            try {
+                companion.copyTo(persistentCover, overwrite = true)
+                return "file://${persistentCover.absolutePath}"
+            } catch (_: Exception) {
+                return "file://${companion.absolutePath}"
+            }
+        }
+
+        // 2. Extract embedded picture from audio metadata using MediaMetadataRetriever
+        try {
+            val retriever = MediaMetadataRetriever()
+            if (audioFile != null && audioFile.exists() && audioFile.canRead()) {
+                retriever.setDataSource(audioFile.absolutePath)
+            } else if (audioUri != null) {
+                retriever.setDataSource(context, audioUri)
+            }
+            val picture = retriever.embeddedPicture
+            retriever.release()
+            if (picture != null && picture.isNotEmpty()) {
+                persistentCover.writeBytes(picture)
+                return "file://${persistentCover.absolutePath}"
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not extract embedded picture for $baseName", e)
+        }
+
+        // 3. MediaStore Image query
+        val msArt = findArtworkInMediaStore(baseName)
+        if (!msArt.isNullOrBlank()) return msArt
+
+        // 4. YouTube Video ID fallback
+        val ytId = trackId?.takeIf { it.length == 11 && !it.contains(" ") }
+            ?: Regex("([A-Za-z0-9_-]{11})").find(baseName)?.groupValues?.get(1)
+        if (ytId != null) {
+            return "https://i.ytimg.com/vi/$ytId/hqdefault.jpg"
+        }
+
+        return null
     }
 
     private fun findArtworkInMediaStore(baseName: String): String? {
@@ -411,13 +469,23 @@ class MusicDownloadManager(
                 tempAudio.delete()
                 tempAudioFile = null
 
-                // Stage 4: Insert Artwork into Public Internal Storage (/Music/MasterWave/$baseName.jpg)
+                // Stage 4: Insert Artwork into persistent app storage and Public Internal Storage
                 var localArtworkUri: String? = null
                 if (artworkBytes != null && artworkBytes!!.isNotEmpty()) {
+                    val coversDir = File(context.filesDir, "download_covers").apply { mkdirs() }
+                    val safeHash = baseName.hashCode().toUInt().toString(16)
+                    val persistentCover = File(coversDir, "$safeHash.jpg")
+                    try {
+                        persistentCover.writeBytes(artworkBytes!!)
+                        localArtworkUri = "file://${persistentCover.absolutePath}"
+                    } catch (_: Exception) {}
+
                     val artFileInPublic = File(musicDir, "$baseName.jpg")
                     try {
                         FileOutputStream(artFileInPublic).use { it.write(artworkBytes) }
-                        localArtworkUri = "file://${artFileInPublic.absolutePath}"
+                        if (localArtworkUri == null) {
+                            localArtworkUri = "file://${artFileInPublic.absolutePath}"
+                        }
                     } catch (_: Exception) {}
 
                     // Also save companion copy in cache for instant local coil rendering

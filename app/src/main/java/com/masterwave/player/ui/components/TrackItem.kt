@@ -92,9 +92,19 @@ fun TrackItem(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                if (!track.artworkUrl.isNullOrBlank()) {
+                val artworkModel = androidx.compose.runtime.remember(track.artworkUrl, track.streamUrl) {
+                    val url = track.artworkUrl
+                    when {
+                        url.isNullOrBlank() -> null
+                        url.startsWith("http://") || url.startsWith("https://") -> url
+                        url.startsWith("content://") || url.startsWith("file://") -> android.net.Uri.parse(url)
+                        else -> java.io.File(url)
+                    }
+                }
+
+                if (artworkModel != null) {
                     AsyncImage(
-                        model = track.artworkUrl,
+                        model = artworkModel,
                         contentDescription = track.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize()

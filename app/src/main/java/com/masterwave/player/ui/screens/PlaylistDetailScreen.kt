@@ -134,7 +134,19 @@ fun PlaylistDetailScreen(
                     if (ytLiked != null && ytLiked.tracks.isNotEmpty()) {
                         tracksList = ytLiked.tracks
                     }
-                } else {
+                } else if (playlist.id.startsWith("yt_")) {
+                    val cloudManager = com.masterwave.player.data.cloud.CloudAccountManager.getInstance(context, repository)
+                    val cookies = cloudManager.ytCookies.value
+                    if (!cookies.isNullOrBlank()) {
+                        val ytFetcher = com.masterwave.player.data.cloud.YouTubeLibraryFetcher(com.masterwave.player.MasterWaveApp.instance.okHttpClient, repository)
+                        val realTracks = ytFetcher.fetchPlaylistTracks(playlist.id.removePrefix("yt_"), cookies)
+                        if (realTracks.isNotEmpty()) {
+                            tracksList = realTracks
+                            repository.addCustomPlaylist(playlist.copy(tracks = realTracks, trackCount = realTracks.size))
+                        }
+                    }
+                } else if (playlist.source != "YouTube Music") {
+                    // Only for pre-seeded mood/genre explore cards, NEVER for YouTube playlists
                     val q = playlist.description.ifBlank { playlist.title }
                     val results = repository.search(q).songs
                     if (results.isNotEmpty()) {
