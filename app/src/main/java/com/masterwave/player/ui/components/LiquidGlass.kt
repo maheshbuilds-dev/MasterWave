@@ -131,17 +131,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x941A1E2B), // Deep smoky obsidian crown with optical translucency
-                            Color(0x7812141F), // Translucent optical core revealing underlying content
-                            Color(0x820C0E16)  // Grounded base with air beneath
+                            Color(0xAD202636), // Luminous smoky obsidian crown
+                            Color(0x7D131622), // Translucent optical core revealing underlying content
+                            Color(0x8C0B0D15)  // Grounded base
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x99FFFFFF), // Cool porcelain crown with real optical translucency
-                            Color(0x75F4F8FE), // Crystal body revealing underlying content
-                            Color(0x85E8EFF8)  // Ground bounce
+                            Color(0xBDFFFFFF), // Luminous polished porcelain crown (74% pure white gloss)
+                            Color(0x7AF2F7FE), // Translucent optical core showing underlying content
+                            Color(0x8DE2ECF8)  // Ground bounce with subtle sky tint
                         )
                     )
                 }
@@ -246,19 +246,19 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xCCFFFFFF), // Brilliant top specular rim
-                            Color(0x45FFFFFF), // Mid transmission
-                            Color(0x12FFFFFF), // Floor alpha
-                            Color(0x38FFFFFF)  // Ground reflection
+                            Color(0xF0FFFFFF), // 94% white diamond specular rim
+                            Color(0x55FFFFFF), // Mid transmission
+                            Color(0x18FFFFFF), // Floor alpha
+                            Color(0x45FFFFFF)  // Bottom ground reflection
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF5FFFFFF), // Pure white diamond specular rim
-                            Color(0x75FFFFFF), // Mid sheen
-                            Color(0x18000000), // Shadow bevel keeps the pill legible on light backgrounds
-                            Color(0x45FFFFFF)  // Bottom ground reflection
+                            Color(0xFFFFFFFF), // 100% diamond specular rim
+                            Color(0x85FFFFFF), // High sheen
+                            Color(0x14000000), // Shadow bevel
+                            Color(0x55FFFFFF)  // Bottom ground reflection
                         )
                     )
                 }
@@ -352,14 +352,14 @@ fun Modifier.glassySurface(
                 Modifier.drawWithContent {
                     drawContent()
 
-                    // Soft radial overhead specular pool — light entering the top of the lens.
-                    val poolRadius = size.width * 0.50f
-                    val poolCenter = Offset(size.width * 0.50f, -size.height * 0.05f)
+                    // 1. Polished overhead light pool (centered, radiant flare)
+                    val poolRadius = size.width * 0.60f
+                    val poolCenter = Offset(size.width * 0.50f, -size.height * 0.12f)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.22f else 0.30f),
-                                Color.White.copy(alpha = if (isDark) 0.06f else 0.10f),
+                                Color.White.copy(alpha = if (isDark) 0.32f else 0.42f),
+                                Color.White.copy(alpha = if (isDark) 0.10f else 0.15f),
                                 Color.Transparent
                             ),
                             center = poolCenter,
@@ -369,28 +369,44 @@ fun Modifier.glassySurface(
                         center = poolCenter
                     )
 
-                    // Tight top-rim reflex: the crisp bright edge of a polished glass bevel.
+                    // 2. High-polish specular rim reflex along the top 22%
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.18f else 0.26f),
-                                Color.White.copy(alpha = if (isDark) 0.05f else 0.08f),
+                                Color.White.copy(alpha = if (isDark) 0.38f else 0.50f),
+                                Color.White.copy(alpha = if (isDark) 0.12f else 0.18f),
                                 Color.Transparent
                             ),
                             startY = 0f,
-                            endY = size.height * 0.16f
+                            endY = size.height * 0.22f
                         ),
-                        size = Size(size.width, size.height * 0.16f)
+                        size = Size(size.width, size.height * 0.22f)
                     )
 
-                    // Ground bounce: a faint counter-light at the bottom lip gives the slab thickness.
-                    val baseTop = size.height * 0.74f
+                    // 3. Diagonal polished light sweep (30-degree gloss beam across the lens)
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = if (isDark) 0.06f else 0.12f),
+                                Color.White.copy(alpha = if (isDark) 0.16f else 0.24f),
+                                Color.White.copy(alpha = if (isDark) 0.04f else 0.08f),
+                                Color.Transparent
+                            ),
+                            start = Offset(size.width * 0.12f, 0f),
+                            end = Offset(size.width * 0.60f, size.height)
+                        ),
+                        size = size
+                    )
+
+                    // 4. Ground bounce: a faint counter-light at the bottom lip gives the slab thickness
+                    val baseTop = size.height * 0.70f
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
                                 (if (isDark) Color.White else Color(0xFF1A2333))
-                                    .copy(alpha = if (isDark) 0.06f else 0.055f)
+                                    .copy(alpha = if (isDark) 0.10f else 0.07f)
                             ),
                             startY = baseTop,
                             endY = size.height

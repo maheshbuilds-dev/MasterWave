@@ -87,12 +87,12 @@ fun FloatingNavigationDock(
 
     // Neutral monochrome content colors
     val selectedBg = if (isAmoled) {
-        Color.White.copy(alpha = 0.18f)
+        Color.White.copy(alpha = 0.20f)
     } else {
         Color.White
     }
     val selectedBorder = if (isAmoled) {
-        Color.White.copy(alpha = 0.32f)
+        Color.White.copy(alpha = 0.35f)
     } else {
         Color.Black.copy(alpha = 0.08f)
     }
@@ -141,8 +141,8 @@ fun FloatingNavigationDock(
                     shape = CircleShape,
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.2.dp,
-                    elevation = if (minimized) 8.dp else 10.dp,
+                    borderWidth = 1.3.dp,
+                    elevation = if (minimized) 10.dp else 12.dp,
                     accentGlow = Color.Transparent,
                     tintColor = null,
                     hasSheen = true,
@@ -243,8 +243,8 @@ fun FloatingNavigationDock(
                     shape = CircleShape,
                     style = if (isSatelliteActive) GlassyStyle.PROMINENT else GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.2.dp,
-                    elevation = if (isSatelliteActive) 8.dp else 5.dp,
+                    borderWidth = 1.3.dp,
+                    elevation = if (isSatelliteActive) 10.dp else 6.dp,
                     accentGlow = Color.Transparent,
                     tintColor = null,
                     hasSheen = true,
