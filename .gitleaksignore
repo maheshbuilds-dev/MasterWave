@@ -1,0 +1,4 @@
+# Gitleaks ignore list
+# Public YouTube Innertube Web Client Key (Non-sensitive public client token)
+9e4993594e4aa866867ef8247dd59b067cd6c07e:app/src/main/java/com/masterwave/player/data/cloud/YouTubeLibraryFetcher.kt:generic-api-key:41
+48a1955d5ab295ab8b3ed7c5ae8901730f4cf6c9:app/src/main/java/com/masterwave/player/data/cloud/YouTubeLibraryFetcher.kt:generic-api-key:41
