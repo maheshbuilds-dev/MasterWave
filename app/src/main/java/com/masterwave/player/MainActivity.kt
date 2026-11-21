@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -32,12 +33,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -67,6 +70,7 @@ import com.masterwave.player.ui.components.FirstStartPermissionsDialog
 import com.masterwave.player.ui.components.FloatingNavigationDock
 import com.masterwave.player.ui.components.MainTab
 import com.masterwave.player.ui.components.MiniPlayerDock
+import com.masterwave.player.ui.components.NavigationJewelButton
 import com.masterwave.player.ui.components.hasRequiredPermissions
 import com.masterwave.player.ui.screens.AlbumDetailScreen
 import com.masterwave.player.ui.screens.AppUpdateScreen
@@ -241,6 +245,14 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     val liquidGlassEnabled by ThemeState.liquidGlassEnabled.collectAsState()
     val liquidState = rememberLiquidState()
     val useLiquidShader = liquidGlassEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    // True while the visible song feed is moving: the bottom dock splits into
+    // two compact, detached glass islands so it stops covering the list.
+    var isDockSplit by remember { mutableStateOf(false) }
+    var scrollToTopTrigger by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(currentTab) {
+        isDockSplit = false
+    }
 
     // Back handling for nested views
     BackHandler(
@@ -338,13 +350,17 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                         onNavigateToLikedSongs = { isLikedSongsOpen = true },
                         onPlaylistSelected = { playlist -> selectedPlaylistForDetail = playlist },
                         liquidState = liquidState,
-                        isGlassEnabled = liquidGlassEnabled
+                        isGlassEnabled = liquidGlassEnabled,
+                        onScrollStateChanged = { isDockSplit = it },
+                        scrollToTopTrigger = scrollToTopTrigger
                     )
                     MainTab.STATS -> StatsScreen(
                         player = player,
                         repository = repository,
                         onNavigateToSearch = { isSearchOpen = true },
-                        onNavigateToSettings = { isSettingsOpen = true }
+                        onNavigateToSettings = { isSettingsOpen = true },
+                        onScrollStateChanged = { isDockSplit = it },
+                        scrollToTopTrigger = scrollToTopTrigger
                     )
                     MainTab.LIBRARY -> PlaylistsScreen(
                         player = player,
@@ -355,7 +371,9 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                         onNavigateToLikedSongs = { isLikedSongsOpen = true },
                         onNavigateToDownloads = { isDownloadsOpen = true },
                         onNavigateToSearch = { isSearchOpen = true },
-                        onNavigateToSettings = { isSettingsOpen = true }
+                        onNavigateToSettings = { isSettingsOpen = true },
+                        onScrollStateChanged = { isDockSplit = it },
+                        scrollToTopTrigger = scrollToTopTrigger
                     )
                     MainTab.SEARCH -> SearchScreen(
                         player = player,
@@ -627,17 +645,19 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Stays on top of all screens; hidden when full-screen NowPlaying/Lyrics/Queue is active
         if (!isOverlayOpen) {
             val isAmoledTheme = ThemeState.isAmoledTheme()
+            // A whisper of a scrim only under the very bottom edge. The liquid glass
+            // does the legibility work now; a tall opaque band would kill the effect.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .height(128.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
-                            listOf(
-                                Color.Transparent,
-                                if (isAmoledTheme) Color(0x60000000) else Color(0x60FFFFFF),
-                                if (isAmoledTheme) Color(0xEE000000) else Color(0xFAFFFAF0)
+                            colorStops = arrayOf(
+                                0.0f to Color.Transparent,
+                                0.58f to Color.Transparent,
+                                1.0f to if (isAmoledTheme) Color(0x66000000) else Color(0x59FFFAF0)
                             )
                         )
                     )
@@ -654,40 +674,96 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                     .padding(bottom = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (currentTrack != null && !isSettingsRelatedOpen) {
-                        MiniPlayerDock(
-                            track = currentTrack!!,
-                            isPlaying = isPlaying,
-                            isLoading = isLoading,
-                            positionMs = positionMs,
-                            durationMs = durationMs,
-                            onExpand = { isNowPlayingExpanded = true },
-                            onPlayPause = { player.togglePlayPause() },
-                            onNext = { player.skipToNext() },
-                            liquidState = liquidState,
-                            isGlassEnabled = liquidGlassEnabled
-                        )
-                    }
+                val shouldSplit = isDockSplit && currentTrack != null && !isSecondaryScreenOpen && !isSettingsRelatedOpen
 
-                    if (!isSecondaryScreenOpen) {
-                        FloatingNavigationDock(
-                            currentTab = currentTab,
-                            onTabSelected = { selected ->
-                                if (selected == MainTab.SEARCH) {
-                                    isSearchOpen = true
-                                } else {
-                                    currentTab = selected
-                                }
-                            },
-                            onSearchClick = { isSearchOpen = true },
-                            isSearchActive = isSearchOpen || currentTab == MainTab.SEARCH,
-                            liquidState = liquidState,
-                            isGlassEnabled = liquidGlassEnabled
-                        )
+                AnimatedContent(
+                    targetState = shouldSplit,
+                    transitionSpec = {
+                        (fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
+                         scaleIn(initialScale = 0.94f, animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)))
+                            .togetherWith(
+                                fadeOut(spring(stiffness = Spring.StiffnessMediumLow)) +
+                                scaleOut(targetScale = 0.94f, animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow))
+                            )
+                    },
+                    label = "dock_split_morph"
+                ) { isSplitMode ->
+                    if (isSplitMode) {
+                        // SPLIT DOCK (Image 2): Single Horizontal Row when scrolling songs
+                        // Left: Navigation Jewel (Home icon), Right: Compact MiniPlayer
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            NavigationJewelButton(
+                                currentTab = currentTab,
+                                onClick = {
+                                    scrollToTopTrigger = System.currentTimeMillis()
+                                    isDockSplit = false
+                                },
+                                liquidState = liquidState,
+                                isGlassEnabled = liquidGlassEnabled
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            MiniPlayerDock(
+                                track = currentTrack!!,
+                                isPlaying = isPlaying,
+                                isLoading = isLoading,
+                                positionMs = positionMs,
+                                durationMs = durationMs,
+                                onExpand = { isNowPlayingExpanded = true },
+                                onPlayPause = { player.togglePlayPause() },
+                                onNext = { player.skipToNext() },
+                                liquidState = liquidState,
+                                isGlassEnabled = liquidGlassEnabled,
+                                isCompact = true,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    } else {
+                        // STACKED DOCK (Image 1): Full-width MiniPlayer above, NavigationDock below
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (currentTrack != null && !isSettingsRelatedOpen) {
+                                MiniPlayerDock(
+                                    track = currentTrack!!,
+                                    isPlaying = isPlaying,
+                                    isLoading = isLoading,
+                                    positionMs = positionMs,
+                                    durationMs = durationMs,
+                                    onExpand = { isNowPlayingExpanded = true },
+                                    onPlayPause = { player.togglePlayPause() },
+                                    onNext = { player.skipToNext() },
+                                    liquidState = liquidState,
+                                    isGlassEnabled = liquidGlassEnabled,
+                                    isCompact = false
+                                )
+                            }
+
+                            if (!isSecondaryScreenOpen) {
+                                FloatingNavigationDock(
+                                    currentTab = currentTab,
+                                    onTabSelected = { selected ->
+                                        if (selected == MainTab.SEARCH) {
+                                            isSearchOpen = true
+                                        } else {
+                                            currentTab = selected
+                                        }
+                                    },
+                                    liquidState = liquidState,
+                                    isGlassEnabled = liquidGlassEnabled,
+                                    isSplit = false
+                                )
+                            }
+                        }
                     }
                 }
             }

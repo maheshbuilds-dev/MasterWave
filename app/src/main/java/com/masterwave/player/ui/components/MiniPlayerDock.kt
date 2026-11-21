@@ -6,6 +6,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -92,12 +93,43 @@ fun MiniPlayerDock(
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
     liquidState: LiquidState? = null,
-    isGlassEnabled: Boolean = true
+    isGlassEnabled: Boolean = true,
+    isCompact: Boolean = false
 ) {
     val progress = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "mini_progress")
     val accentColor by ThemeState.effectiveAccentColor.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
+
+    val compactSpring = spring<androidx.compose.ui.unit.Dp>(
+        dampingRatio = 0.86f,
+        stiffness = Spring.StiffnessMediumLow
+    )
+    val outerPadding by animateDpAsState(
+        targetValue = if (isCompact) 0.dp else 14.dp,
+        animationSpec = compactSpring,
+        label = "mini_outer_padding"
+    )
+    val artworkSize by animateDpAsState(
+        targetValue = if (isCompact) 38.dp else 44.dp,
+        animationSpec = compactSpring,
+        label = "mini_artwork"
+    )
+    val playSize by animateDpAsState(
+        targetValue = if (isCompact) 38.dp else 42.dp,
+        animationSpec = compactSpring,
+        label = "mini_play"
+    )
+    val nextSize by animateDpAsState(
+        targetValue = if (isCompact) 34.dp else 38.dp,
+        animationSpec = compactSpring,
+        label = "mini_next"
+    )
+    val rowVertical by animateDpAsState(
+        targetValue = if (isCompact) 5.dp else 7.dp,
+        animationSpec = compactSpring,
+        label = "mini_row_vertical"
+    )
 
     val animatedAccent by animateColorAsState(
         targetValue = accentColor,
@@ -131,7 +163,7 @@ fun MiniPlayerDock(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = outerPadding),
         contentAlignment = Alignment.Center
     ) {
         // Floating Optical Capsule
@@ -139,7 +171,6 @@ fun MiniPlayerDock(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .clickable(onClick = onExpand)
                 .glassySurface(
                     shape = RoundedCornerShape(24.dp),
                     style = GlassyStyle.DOCK,
@@ -181,7 +212,7 @@ fun MiniPlayerDock(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                        .padding(start = 8.dp, end = 10.dp, top = rowVertical, bottom = rowVertical),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Artwork Thumbnail with directional micro-bevel rim & soft elevation
@@ -198,7 +229,7 @@ fun MiniPlayerDock(
 
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(artworkSize)
                             .shadow(
                                 elevation = 4.dp,
                                 shape = RoundedCornerShape(14.dp),
@@ -249,7 +280,7 @@ fun MiniPlayerDock(
                             text = track.title,
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
+                            fontSize = if (isCompact) 14.sp else 15.sp,
                             letterSpacing = (-0.3).sp,
                             color = if (isAmoled) Color.White else Color(0xFF0F1419),
                             maxLines = 1,
@@ -292,7 +323,7 @@ fun MiniPlayerDock(
                                 text = track.artist,
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.Normal,
-                                fontSize = 13.sp,
+                                fontSize = if (isCompact) 12.sp else 13.sp,
                                 color = if (isAmoled) Color(0xFFA2A7B8) else Color(0xFF6B7280),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -303,17 +334,22 @@ fun MiniPlayerDock(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     // Play / Pause Circular Liquid Glass Jewel Button (Apple Music Signature)
+                    val playColor = if (accentColor != Color(0xFFE53935) && accentColor != Color.Transparent) {
+                        animatedAccent
+                    } else {
+                        if (isAmoled) Color(0xFF2B557C) else Color(0xFF244866)
+                    }
                     val playJewelGradient = Brush.verticalGradient(
                         listOf(
-                            animatedAccent,
-                            animatedAccent.copy(alpha = 0.88f),
-                            animatedAccent.copy(alpha = 0.72f)
+                            playColor,
+                            playColor.copy(alpha = 0.90f),
+                            playColor.copy(alpha = 0.78f)
                         )
                     )
 
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(playSize)
                             .shadow(
                                 elevation = 6.dp,
                                 shape = CircleShape,
@@ -362,7 +398,7 @@ fun MiniPlayerDock(
                             if (loading) {
                                 CircularProgressIndicator(
                                     color = Color.White,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(if (isCompact) 18.dp else 20.dp),
                                     strokeWidth = 2.dp
                                 )
                             } else {
@@ -370,7 +406,7 @@ fun MiniPlayerDock(
                                     imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
                                     contentDescription = if (playing) "Pause" else "Play",
                                     tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(if (isCompact) 21.dp else 24.dp)
                                 )
                             }
                         }
@@ -381,7 +417,7 @@ fun MiniPlayerDock(
                     // Next Track Circular Frosted Lens Button
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(nextSize)
                             .shadow(
                                 elevation = 2.dp,
                                 shape = CircleShape,
@@ -408,7 +444,7 @@ fun MiniPlayerDock(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next Track",
                             tint = if (isAmoled) Color.White else Color(0xFF1D1F28),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(if (isCompact) 17.dp else 20.dp)
                         )
                     }
                 }

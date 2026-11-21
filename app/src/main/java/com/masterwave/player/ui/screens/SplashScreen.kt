@@ -105,7 +105,7 @@ fun SplashScreen(
                 .border(
                     width = 1.8.dp,
                     brush = Brush.radialGradient(
-                        listOf(Color(0xFF00F5D4), Color(0xFF8B5CF6), Color.Transparent)
+                        listOf(Color(0xFFF72743), Color(0xFFFF5270), Color.Transparent)
                     ),
                     shape = CircleShape
                 )
@@ -119,7 +119,7 @@ fun SplashScreen(
                 .border(
                     width = 1.dp,
                     brush = Brush.radialGradient(
-                        listOf(Color(0xFFFF2A55), Color(0xFF8B5CF6), Color.Transparent)
+                        listOf(Color(0xFFF72743), Color(0x80F72743), Color.Transparent)
                     ),
                     shape = CircleShape
                 )
@@ -138,21 +138,15 @@ fun SplashScreen(
                     .size(130.dp)
                     .clip(CircleShape)
                     .background(
-                        Brush.radialGradient(
-                            listOf(
-                                Color(0xFF20163A),
-                                Color(0xFF0F0B1E),
-                                Color(0xFF07050F)
-                            )
-                        )
+                        Color(0xFFFAF9F5)
                     )
                     .border(
-                        width = 1.5.dp,
+                        width = 2.dp,
                         brush = Brush.linearGradient(
                             listOf(
-                                Color(0xFF00F5D4),
-                                Color(0xFF8B5CF6),
-                                Color(0xFFFF2A55)
+                                Color(0xFFF72743),
+                                Color(0xFFFF5270),
+                                Color(0xFFF72743)
                             )
                         ),
                         shape = CircleShape
@@ -160,7 +154,7 @@ fun SplashScreen(
                 contentAlignment = Alignment.Center
             ) {
                 MasterWaveLogo(
-                    size = 84.dp,
+                    size = 80.dp,
                     animated = true
                 )
             }
@@ -188,7 +182,7 @@ fun SplashScreen(
                     letterSpacing = 2.5.sp,
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = Color(0xFF00F5D4).copy(alpha = 0.9f)
+                color = Color(0xFFFF4D6D).copy(alpha = 0.9f)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -216,9 +210,9 @@ fun SplashScreen(
                             .background(
                                 Brush.verticalGradient(
                                     listOf(
-                                        Color(0xFF00F5D4),
-                                        Color(0xFF8B5CF6),
-                                        Color(0xFFFF2A55)
+                                        Color(0xFFF72743),
+                                        Color(0xFFFF6B81),
+                                        Color(0xFFF72743)
                                     )
                                 )
                             )

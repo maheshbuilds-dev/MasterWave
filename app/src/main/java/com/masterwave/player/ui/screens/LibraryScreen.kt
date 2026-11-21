@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.masterwave.player.ui.components.bouncyClickable
 import androidx.compose.material.icons.Icons
@@ -166,7 +167,7 @@ fun LibraryScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
+                .padding(horizontal = 20.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val tabs = listOf(
@@ -218,7 +219,7 @@ fun LibraryScreen(
                             },
                             shape = RoundedCornerShape(19.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.92f) { selectedTab = index },
+                        .bouncyClickable(scaleDown = 0.94f) { selectedTab = index },
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -251,17 +252,18 @@ fun LibraryScreen(
             0 -> {
                 // Local Tracks
                 if (localTracks.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = if (isLoadingLocal) "Scanning on-device music..." else "No local tracks found",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = textSecondary
-                        )
-                    }
+                    LibraryEmptyState(
+                        icon = Icons.Default.Folder,
+                        title = if (isLoadingLocal) "Scanning Media" else "No Local Music Found",
+                        subtitle = if (isLoadingLocal) "Discovering on-device audio files..." else "Tracks saved on your device storage will appear here.",
+                        accentColor = accentColor,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                     ) {
                         items(localTracks) { track ->
                             val isFav = favorites.any { it.id == track.id }
@@ -280,17 +282,18 @@ fun LibraryScreen(
             1 -> {
                 // Favorites
                 if (favorites.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "No favorites yet. Tap ♡ on any track to add.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = textSecondary
-                        )
-                    }
+                    LibraryEmptyState(
+                        icon = Icons.Default.Favorite,
+                        title = "No Favorites Yet",
+                        subtitle = "Tap the heart icon on any song to add it to your favorites.",
+                        accentColor = accentColor,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                     ) {
                         items(favorites) { track ->
                             TrackItem(
@@ -308,17 +311,18 @@ fun LibraryScreen(
             2 -> {
                 // Recents
                 if (recentTracks.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "No recently played tracks",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = textSecondary
-                        )
-                    }
+                    LibraryEmptyState(
+                        icon = Icons.Default.History,
+                        title = "No Listening History",
+                        subtitle = "Songs you play will appear here for easy rediscovery.",
+                        accentColor = accentColor,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                     ) {
                         items(recentTracks) { track ->
                             val isFav = favorites.any { it.id == track.id }
@@ -337,17 +341,18 @@ fun LibraryScreen(
             3 -> {
                 // Downloaded
                 if (downloadedTracks.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "No offline tracks downloaded yet",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = textSecondary
-                        )
-                    }
+                    LibraryEmptyState(
+                        icon = Icons.Default.Download,
+                        title = "No Offline Downloads",
+                        subtitle = "Downloaded songs will show up here for offline playback without Wi-Fi or data.",
+                        accentColor = accentColor,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                     ) {
                         items(downloadedTracks) { track ->
                             val isFav = favorites.any { it.id == track.id }
@@ -364,5 +369,59 @@ fun LibraryScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LibraryEmptyState(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    accentColor: Color,
+    textPrimary: Color,
+    textSecondary: Color
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp, vertical = 64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(accentColor.copy(alpha = 0.12f))
+                .border(1.dp, accentColor.copy(alpha = 0.30f), RoundedCornerShape(20.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                letterSpacing = (-0.3).sp
+            ),
+            color = textPrimary
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 13.5.sp,
+                lineHeight = 19.sp
+            ),
+            color = textSecondary,
+            textAlign = TextAlign.Center
+        )
     }
 }

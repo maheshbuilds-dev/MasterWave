@@ -131,17 +131,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFA171A26), // 98% density: deep smoky obsidian
-                            Color(0xF212141F), // 95% density: translucent core
-                            Color(0xEA0D0F17)  // 92% density: grounded base
+                            Color(0x941A1E2B), // Deep smoky obsidian crown with optical translucency
+                            Color(0x7812141F), // Translucent optical core revealing underlying content
+                            Color(0x820C0E16)  // Grounded base with air beneath
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFFFFFF), // 100% luminous porcelain crown
-                            Color(0xFDFAFBFD), // 99% pure optical crystal body
-                            Color(0xF8F3F6FA)  // 97% ground light bounce
+                            Color(0x99FFFFFF), // Cool porcelain crown with real optical translucency
+                            Color(0x75F4F8FE), // Crystal body revealing underlying content
+                            Color(0x85E8EFF8)  // Ground bounce
                         )
                     )
                 }
@@ -246,19 +246,19 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x95FFFFFF), // Brilliant top specular rim
-                            Color(0x35FFFFFF), // Mid transmission
-                            Color(0x0CFFFFFF), // Floor alpha
-                            Color(0x30FFFFFF)  // Ground reflection
+                            Color(0xCCFFFFFF), // Brilliant top specular rim
+                            Color(0x45FFFFFF), // Mid transmission
+                            Color(0x12FFFFFF), // Floor alpha
+                            Color(0x38FFFFFF)  // Ground reflection
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFFFFFF), // Pure white diamond specular rim
-                            Color(0x80FFFFFF), // Mid sheen
-                            Color(0x14000000), // Shadow bevel
-                            Color(0x50FFFFFF)  // Bottom ground reflection
+                            Color(0xF5FFFFFF), // Pure white diamond specular rim
+                            Color(0x75FFFFFF), // Mid sheen
+                            Color(0x18000000), // Shadow bevel keeps the pill legible on light backgrounds
+                            Color(0x45FFFFFF)  // Bottom ground reflection
                         )
                     )
                 }
@@ -294,14 +294,32 @@ fun Modifier.glassySurface(
     val surfaceModifier = opticalState?.let { state ->
         Modifier.liquid(state) {
             this.shape = shape
-            frost = 8.dp
-            refraction = if (isPressed) 0.14f else 0.08f
-            curve = 0.14f
-            edge = 0.10f
-            saturation = 1.06f
-            contrast = 1.04f
-            dispersion = 0.015f
-            tint = tintColor?.copy(alpha = 0.12f) ?: Color.White.copy(alpha = 0.10f)
+            frost = when (style) {
+                GlassyStyle.DOCK -> 14.dp
+                GlassyStyle.PROMINENT -> 12.dp
+                else -> 10.dp
+            }
+            refraction = when (style) {
+                GlassyStyle.DOCK -> if (isPressed) 0.24f else 0.17f
+                GlassyStyle.PROMINENT -> if (isPressed) 0.20f else 0.14f
+                else -> if (isPressed) 0.16f else 0.10f
+            }
+            curve = if (style == GlassyStyle.DOCK) 0.20f else 0.16f
+            edge = if (style == GlassyStyle.DOCK) 0.14f else 0.11f
+            saturation = 1.12f
+            contrast = 1.05f
+            dispersion = if (style == GlassyStyle.DOCK) 0.022f else 0.015f
+            tint = when {
+                // Artwork-derived accent lens: a whisper of the current cover colour.
+                tintColor != null && style == GlassyStyle.DOCK ->
+                    tintColor.copy(alpha = if (isDark) 0.10f else 0.08f)
+                // Neutral dock glass: cool optical white on light paper, smoky graphite in the dark.
+                style == GlassyStyle.DOCK ->
+                    if (isDark) Color(0xFF262B3A).copy(alpha = 0.24f)
+                    else Color(0xFFF7FAFF).copy(alpha = 0.20f)
+                tintColor != null -> tintColor.copy(alpha = 0.12f)
+                else -> Color.White.copy(alpha = 0.10f)
+            }
         }
     } ?: Modifier.background(glassFillBrush)
 
@@ -334,33 +352,51 @@ fun Modifier.glassySurface(
                 Modifier.drawWithContent {
                     drawContent()
 
-                    // Soft radial overhead specular highlight pool
-                    val poolRadius = size.width * 0.70f
+                    // Soft radial overhead specular pool — light entering the top of the lens.
+                    val poolRadius = size.width * 0.50f
+                    val poolCenter = Offset(size.width * 0.50f, -size.height * 0.05f)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.22f else 0.35f),
-                                Color.White.copy(alpha = if (isDark) 0.06f else 0.12f),
+                                Color.White.copy(alpha = if (isDark) 0.22f else 0.30f),
+                                Color.White.copy(alpha = if (isDark) 0.06f else 0.10f),
                                 Color.Transparent
                             ),
-                            center = Offset(size.width * 0.40f, 0f),
+                            center = poolCenter,
                             radius = poolRadius
                         ),
                         radius = poolRadius,
-                        center = Offset(size.width * 0.40f, 0f)
+                        center = poolCenter
                     )
 
-                    // Subtle top-rim light reflex across top 22%
+                    // Tight top-rim reflex: the crisp bright edge of a polished glass bevel.
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.12f else 0.20f),
+                                Color.White.copy(alpha = if (isDark) 0.18f else 0.26f),
+                                Color.White.copy(alpha = if (isDark) 0.05f else 0.08f),
                                 Color.Transparent
                             ),
                             startY = 0f,
-                            endY = size.height * 0.22f
+                            endY = size.height * 0.16f
                         ),
-                        size = Size(size.width, size.height * 0.22f)
+                        size = Size(size.width, size.height * 0.16f)
+                    )
+
+                    // Ground bounce: a faint counter-light at the bottom lip gives the slab thickness.
+                    val baseTop = size.height * 0.74f
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                (if (isDark) Color.White else Color(0xFF1A2333))
+                                    .copy(alpha = if (isDark) 0.06f else 0.055f)
+                            ),
+                            startY = baseTop,
+                            endY = size.height
+                        ),
+                        topLeft = Offset(0f, baseTop),
+                        size = Size(size.width, size.height - baseTop)
                     )
                 }
             } else Modifier

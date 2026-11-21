@@ -267,15 +267,21 @@ fun SearchScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 6.dp),
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onBack,
+                Box(
                     modifier = Modifier
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(if (isAmoled) Color(0xFF14151E) else Color(0xFFE5E7EB))
-                        .size(38.dp)
+                        .border(
+                            width = 1.dp,
+                            color = if (isAmoled) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f),
+                            shape = CircleShape
+                        )
+                        .bouncyClickable(scaleDown = 0.92f, onClick = onBack),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -300,7 +306,7 @@ fun SearchScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 8.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 TextField(
                     value = query,
@@ -362,7 +368,7 @@ fun SearchScreen(
             // --- 3. Filter Chips Row (Material 3 Expressive Pill Capsules) ---
             if (query.isNotBlank() || searchResult != null) {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(SearchFilter.entries) { filter ->
@@ -402,7 +408,7 @@ fun SearchScreen(
                     // Suggestions List
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 120.dp),
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(suggestions) { suggestion ->
@@ -449,7 +455,7 @@ fun SearchScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 120.dp),
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         // Recent Searches (if available)
@@ -477,7 +483,10 @@ fun SearchScreen(
                                                 fontSize = 12.5.sp
                                             ),
                                             color = accentColor,
-                                            modifier = Modifier.clickable { clearSearchHistory() }
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .bouncyClickable(scaleDown = 0.94f) { clearSearchHistory() }
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
 
@@ -511,15 +520,21 @@ fun SearchScreen(
                                                         fontWeight = FontWeight.Medium,
                                                         color = textPrimary
                                                     )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = "Remove",
-                                                        tint = textSecondary,
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Box(
                                                         modifier = Modifier
-                                                            .size(14.dp)
-                                                            .clickable { removeSearchQuery(item) }
-                                                    )
+                                                            .size(24.dp)
+                                                            .clip(CircleShape)
+                                                            .bouncyClickable(scaleDown = 0.85f) { removeSearchQuery(item) },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Remove",
+                                                            tint = textSecondary,
+                                                            modifier = Modifier.size(13.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }

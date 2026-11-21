@@ -72,6 +72,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -127,6 +128,7 @@ import com.masterwave.player.ui.theme.SwissDisplayLarge
 import com.masterwave.player.ui.theme.SwissDisplayMedium
 import com.masterwave.player.ui.theme.SwissHeadline
 import io.github.fletchmckee.liquid.LiquidState
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -152,6 +154,8 @@ fun HomeScreen(
     onPlaylistSelected: (Playlist) -> Unit = {},
     liquidState: LiquidState? = null,
     isGlassEnabled: Boolean = true,
+    onScrollStateChanged: (Boolean) -> Unit = {},
+    scrollToTopTrigger: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -407,6 +411,22 @@ fun HomeScreen(
     }
     val isScrolled = homeListState.firstVisibleItemIndex > 0 ||
         homeListState.firstVisibleItemScrollOffset > 0
+
+    // Tell the shell when the feed starts moving so the bottom dock can split.
+    LaunchedEffect(homeListState, onScrollStateChanged) {
+        snapshotFlow {
+            homeListState.firstVisibleItemIndex > 0 ||
+                homeListState.firstVisibleItemScrollOffset > 25
+        }
+            .distinctUntilChanged()
+            .collect { onScrollStateChanged(it) }
+    }
+
+    LaunchedEffect(scrollToTopTrigger) {
+        if (scrollToTopTrigger > 0L) {
+            homeListState.animateScrollToItem(0)
+        }
+    }
 
     Box(
         modifier = modifier

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,8 +47,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,6 +66,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
@@ -82,6 +86,8 @@ fun StatsScreen(
     repository: MusicRepository,
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onScrollStateChanged: (Boolean) -> Unit = {},
+    scrollToTopTrigger: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     val totalPlays by repository.totalPlays.collectAsState()
@@ -108,7 +114,23 @@ fun StatsScreen(
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6A6A6A)
     val pillBg = if (isAmoled) Color(0xFF181824) else Color(0xFFF5F0E0)
 
+    val listState = rememberLazyListState()
+    LaunchedEffect(listState, onScrollStateChanged) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 25
+        }
+            .distinctUntilChanged()
+            .collect { onScrollStateChanged(it) }
+    }
+
+    LaunchedEffect(scrollToTopTrigger) {
+        if (scrollToTopTrigger > 0L) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
     LazyColumn(
+        state = listState,
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
