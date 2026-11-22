@@ -8,69 +8,78 @@ import com.masterwave.player.R
 /**
  * MASTERWAVE CURATED TYPOGRAPHY SYSTEM
  * High-craft typefaces engineered for modern audio streaming.
- * Includes geometric display, Swiss neo-grotesque, monospace metadata, and system default.
+ * Includes authentic Fucek display typeface, Swiss neo-grotesque, monospace metadata, and system default.
  */
 enum class AppFont(
     val id: String,
     val displayName: String,
     val previewSubtitle: String,
     val category: String,
-    val sampleText: String = "Aa Modern Sound • 120 BPM"
+    val sampleText: String = "Fear is the enemy of innovation."
 ) {
-    FUECK(
-        id = "FUECK",
-        displayName = "Fueck",
-        previewSubtitle = "Modern Geometric Display • Swiss Architecture",
-        category = "Display"
+    FUCEK(
+        id = "FUCEK",
+        displayName = "Fucek",
+        previewSubtitle = "Signature Clean Geometric Display • Modern Android",
+        category = "Display",
+        sampleText = "Fear is the enemy of innovation."
     ),
     PLUS_JAKARTA(
         id = "PLUS_JAKARTA",
         displayName = "Plus Jakarta Sans",
         previewSubtitle = "Contemporary Neo-Grotesque • International Standard",
-        category = "Sans-Serif"
+        category = "Sans-Serif",
+        sampleText = "Fear is the enemy of innovation."
     ),
     OUTFIT(
         id = "OUTFIT",
         displayName = "Outfit",
         previewSubtitle = "Balanced Geometric • Pure Apple Aesthetics",
-        category = "Sans-Serif"
+        category = "Sans-Serif",
+        sampleText = "Fear is the enemy of innovation."
     ),
     INTER(
         id = "INTER",
         displayName = "Inter",
         previewSubtitle = "High-Precision • Ultra-Legible Interface Scale",
-        category = "Sans-Serif"
+        category = "Sans-Serif",
+        sampleText = "Fear is the enemy of innovation."
     ),
     SYNE(
         id = "SYNE",
         displayName = "Syne",
         previewSubtitle = "Avant-Garde • Expressive Sound Culture",
-        category = "Artistic"
+        category = "Artistic",
+        sampleText = "Fear is the enemy of innovation."
     ),
     SPACE_GROTESK(
         id = "SPACE_GROTESK",
         displayName = "Space Grotesk",
         previewSubtitle = "Futuristic Tech • Studio Monospace Roots",
-        category = "Geometric"
+        category = "Geometric",
+        sampleText = "Fear is the enemy of innovation."
     ),
     JETBRAINS_MONO(
         id = "JETBRAINS_MONO",
         displayName = "JetBrains Mono",
         previewSubtitle = "Technical Code • Audio Metadata & Timing",
-        category = "Monospace"
+        category = "Monospace",
+        sampleText = "1234567890!@#%&*()_+-="
     ),
     SYSTEM(
         id = "SYSTEM",
         displayName = "System Default",
         previewSubtitle = "Device OS Native Font",
-        category = "System"
+        category = "System",
+        sampleText = "Fear is the enemy of innovation."
     );
 
     companion object {
-        val DEFAULT = FUECK
+        val DEFAULT = FUCEK
+        val FUECK = FUCEK // Alias for backwards compatibility
 
         fun fromId(id: String?): AppFont = when (id) {
-            "FUECK" -> FUECK
+            "FUCEK", "FUECK" -> FUCEK
             "PLUS_JAKARTA" -> PLUS_JAKARTA
             "OUTFIT" -> OUTFIT
             "INTER" -> INTER
@@ -83,13 +92,15 @@ enum class AppFont(
     }
 }
 
-val FontFueckFamily = FontFamily(
-    Font(R.font.font_fueck, FontWeight.Normal),
-    Font(R.font.font_fueck, FontWeight.Medium),
-    Font(R.font.font_fueck, FontWeight.SemiBold),
-    Font(R.font.font_fueck, FontWeight.Bold),
-    Font(R.font.font_fueck, FontWeight.ExtraBold)
+val FontFucekFamily = FontFamily(
+    Font(R.font.font_fucek, FontWeight.Normal),
+    Font(R.font.font_fucek, FontWeight.Medium),
+    Font(R.font.font_fucek, FontWeight.SemiBold),
+    Font(R.font.font_fucek, FontWeight.Bold),
+    Font(R.font.font_fucek, FontWeight.ExtraBold)
 )
+
+val FontFueckFamily = FontFucekFamily
 
 val FontPlusJakartaFamily = FontFamily(
     Font(R.font.font_plus_jakarta_sans, FontWeight.Normal),
@@ -133,7 +144,7 @@ val FontJetBrainsMonoFamily = FontFamily(
 )
 
 fun AppFont.toFontFamily(): FontFamily = when (this) {
-    AppFont.FUECK -> FontFueckFamily
+    AppFont.FUCEK -> FontFucekFamily
     AppFont.PLUS_JAKARTA -> FontPlusJakartaFamily
     AppFont.OUTFIT -> FontOutfitFamily
     AppFont.INTER -> FontInterFamily

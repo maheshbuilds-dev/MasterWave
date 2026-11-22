@@ -378,7 +378,7 @@ fun AppearanceScreen(
                                         fontSize = 15.sp,
                                         color = if (isSelected) effectiveAccent else textPrimary
                                     )
-                                    if (font == AppFont.FUECK) {
+                                    if (font == AppFont.FUCEK) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Box(
                                             modifier = Modifier
