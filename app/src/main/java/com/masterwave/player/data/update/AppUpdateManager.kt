@@ -592,10 +592,10 @@ class AppUpdateManager(
     companion object {
         private const val TAG = "AppUpdateManager"
         const val ACTION_CLOSE_FOR_UPDATE = "com.masterwave.player.ACTION_CLOSE_FOR_UPDATE"
-        const val GITHUB_REPO = "mahesh2008here-star/MasterWave"
-        const val GITHUB_RELEASES_API_URL = "https://api.github.com/repos/mahesh2008here-star/MasterWave/releases/latest"
-        const val GITHUB_RAW_MANIFEST_URL = "https://raw.githubusercontent.com/mahesh2008here-star/MasterWave/main/update.json"
-        const val GITHUB_RELEASES_PAGE_URL = "https://github.com/mahesh2008here-star/MasterWave/releases"
+        const val GITHUB_REPO = "maheshbuilds-dev/MasterWave"
+        const val GITHUB_RELEASES_API_URL = "https://api.github.com/repos/maheshbuilds-dev/MasterWave/releases/latest"
+        const val GITHUB_RAW_MANIFEST_URL = "https://raw.githubusercontent.com/maheshbuilds-dev/MasterWave/main/update.json"
+        const val GITHUB_RELEASES_PAGE_URL = "https://github.com/maheshbuilds-dev/MasterWave/releases"
         const val UPDATE_MANIFEST_URL = "https://masterwave.vercel.app/update.json"
         const val OFFICIAL_SITE_URL = "https://masterwave.vercel.app"
         private const val UPDATE_NOTIFICATION_ID = 20_001

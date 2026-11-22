@@ -1,5 +1,30 @@
 {
  "grade": "natural",
- "photos": [],
+ "photos": [
+   {
+     "id": "logo",
+     "file": "screenshot_active.png",
+     "from": "assets/photos",
+     "description": "MasterWave logo"
+   },
+   {
+     "id": "app_screenshot_1",
+     "file": "screenshot_home.png",
+     "from": "assets/photos",
+     "description": "MasterWave home screen"
+   },
+   {
+     "id": "app_screenshot_2",
+     "file": "screenshot_glassy_live.png",
+     "from": "assets/photos",
+     "description": "MasterWave liquid glass UI"
+   },
+   {
+     "id": "app_screenshot_3",
+     "file": "screenshot_final_rendered.png",
+     "from": "assets/photos",
+     "description": "MasterWave final render"
+   }
+ ],
  "recreations": []
 }
