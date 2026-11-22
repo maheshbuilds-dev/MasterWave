@@ -1,0 +1,18 @@
+# Gitleaks configuration for MasterWave
+# https://github.com/gitleaks/gitleaks
+
+[allowlist]
+description = "Global allowlist for public YouTube Music InnerTube client identifiers and research fixtures"
+regexes = [
+    '''AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30''',
+    '''QUl6YVN5QzlYTDNaandkZFh5YTZYNzRkSm9DVEwtV0VZRkROWDMw'''
+]
+fingerprints = [
+    "9e4993594e4aa866867ef8247dd59b067cd6c07e:app/src/main/java/com/masterwave/player/data/cloud/YouTubeLibraryFetcher.kt:generic-api-key:41",
+    "48a1955d5ab295ab8b3ed7c5ae8901730f4cf6c9:app/src/main/java/com/masterwave/player/data/cloud/YouTubeLibraryFetcher.kt:generic-api-key:41",
+    "048f467e75bf7cd1e90ee5fd03da8978ad6c902e:app/src/main/java/com/masterwave/player/data/cloud/YouTubeLibraryFetcher.kt:gcp-api-key:43"
+]
+paths = [
+    '''research/.*''',
+    '''\.gitleaksignore'''
+]
