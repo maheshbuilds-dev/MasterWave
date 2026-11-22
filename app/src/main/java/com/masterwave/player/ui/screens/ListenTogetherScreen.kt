@@ -106,7 +106,7 @@ fun ListenTogetherScreen(
         player?.let { ListenTogetherManager.getInstance(context, it) }
     }
 
-    val partyCode by listenManager?.currentRoomCode?.collectAsState() ?: remember { mutableStateOf("MW-7411") }
+    val partyCode by listenManager?.currentRoomCode?.collectAsState() ?: remember { mutableStateOf("MW7411") }
     val isBroadcasting by listenManager?.isBroadcasting?.collectAsState() ?: remember { mutableStateOf(false) }
     val isJoinedAsListener by listenManager?.isJoinedAsListener?.collectAsState() ?: remember { mutableStateOf(false) }
     val connectedRoomCode by listenManager?.connectedRoomCode?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -671,8 +671,11 @@ fun ListenTogetherScreen(
 
                             OutlinedTextField(
                                 value = roomCodeInput,
-                                onValueChange = { if (it.length <= 10) roomCodeInput = it.uppercase() },
-                                placeholder = { Text("e.g. MW-8K92", fontFamily = DisplayFontFamily, color = colors.muted) },
+                                onValueChange = { input ->
+                                    val cleaned = input.replace("-", "").replace(" ", "").uppercase()
+                                    if (cleaned.length <= 8) roomCodeInput = cleaned
+                                },
+                                placeholder = { Text("e.g. MW8K92", fontFamily = DisplayFontFamily, color = colors.muted) },
                                 singleLine = true,
                                 shape = RoundedCornerShape(16.dp),
                                 textStyle = TextStyle(fontFamily = DisplayFontFamily, fontSize = 15.sp),

@@ -177,9 +177,9 @@ fun MiniPlayerDock(
                     isDark = isAmoled,
                     borderWidth = 1.2.dp,
                     elevation = 10.dp,
-                    accentGlow = animatedAccent.copy(alpha = 0.18f),
+                    accentGlow = animatedAccent.copy(alpha = if (isAmoled) 0.16f else 0.05f),
                     hasSheen = true,
-                    tintColor = animatedAccent,
+                    tintColor = null,
                     liquidState = liquidState,
                     isGlassEnabled = isGlassEnabled,
                     onClick = onExpand

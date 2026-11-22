@@ -438,7 +438,7 @@ fun HomeScreen(
         LazyColumn(
             state = homeListState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = headerHeight + 8.dp, bottom = 170.dp)
+            contentPadding = PaddingValues(top = headerHeight + 8.dp, bottom = 220.dp)
         ) {
             // --- 1. Greeting, Infinite Radio Hero Card, My genres, and Discover New Music (Reference Page 1) ---
             if (selectedCategory == "All") {

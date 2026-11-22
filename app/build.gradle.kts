@@ -7,14 +7,14 @@ plugins {
 
 android {
     namespace = "com.masterwave.player"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.masterwave.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "2.1.8"
+        versionCode = 20
+        versionName = "2.1.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

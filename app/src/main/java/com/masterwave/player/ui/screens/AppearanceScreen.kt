@@ -50,10 +50,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.masterwave.player.ui.components.bouncyClickable
+import com.masterwave.player.ui.theme.AppFont
 import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeAccentPreset
 import com.masterwave.player.ui.theme.ThemeMode
 import com.masterwave.player.ui.theme.ThemeState
+import com.masterwave.player.ui.theme.toFontFamily
 
 /**
  * MasterWave Appearance Screen:
@@ -75,6 +77,8 @@ fun AppearanceScreen(
 
     val liquidGlassEnabled by ThemeState.liquidGlassEnabled.collectAsState()
     val highRefreshRateEnabled by ThemeState.highRefreshRateEnabled.collectAsState()
+    val selectedFont by ThemeState.selectedFont.collectAsState()
+    val animatedAlbumArtEnabled by ThemeState.animatedAlbumArtEnabled.collectAsState()
     val context = LocalContext.current
 
     val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFFFF)
@@ -310,9 +314,23 @@ fun AppearanceScreen(
             }
         }
 
-        // --- 3. Liquid Glass ---
+        // --- 3. Now Playing & Visual Materials ---
         item {
-            AppearanceCardSection(title = "Visual Materials", textSecondary = textSecondary) {
+            AppearanceCardSection(title = "Now Playing & Materials", textSecondary = textSecondary) {
+                AppearanceToggleRow(
+                    icon = Icons.Default.AutoAwesome,
+                    tint = effectiveAccent,
+                    title = "Album Cover Art Animation",
+                    subtitle = "Dynamic kinetic breathing and fluid ambient glow for album art in Now Playing",
+                    checked = animatedAlbumArtEnabled,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    onCheckedChange = {
+                        ThemeState.setAnimatedAlbumArtEnabled(it)
+                        Toast.makeText(context, if (it) "Album Cover Art animation enabled" else "Album Cover Art animation disabled", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                AppearanceDivider(dividerColor)
                 AppearanceToggleRow(
                     icon = Icons.Default.AutoAwesome,
                     tint = effectiveAccent,
@@ -326,6 +344,98 @@ fun AppearanceScreen(
                         Toast.makeText(context, if (it) "Liquid Glass enabled" else "Liquid Glass disabled", Toast.LENGTH_SHORT).show()
                     }
                 )
+            }
+        }
+
+        // --- 4. Fonts & Typography ---
+        item {
+            AppearanceCardSection(title = "Fonts & Typography", textSecondary = textSecondary) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    AppFont.entries.forEachIndexed { index, font ->
+                        val isSelected = selectedFont == font
+                        val fontFamily = font.toFontFamily()
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bouncyClickable(scaleDown = 0.98f) {
+                                    ThemeState.setSelectedFont(font)
+                                    Toast.makeText(context, "Font: ${font.displayName}", Toast.LENGTH_SHORT).show()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = font.displayName,
+                                        fontFamily = fontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = if (isSelected) effectiveAccent else textPrimary
+                                    )
+                                    if (font == AppFont.FUECK) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(effectiveAccent.copy(alpha = 0.16f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "DEFAULT",
+                                                fontFamily = fontFamily,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 9.sp,
+                                                color = effectiveAccent
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = font.previewSubtitle,
+                                    fontFamily = fontFamily,
+                                    fontSize = 12.sp,
+                                    color = textSecondary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = font.sampleText,
+                                    fontFamily = fontFamily,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 13.5.sp,
+                                    color = textPrimary.copy(alpha = 0.90f)
+                                )
+                            }
+
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(26.dp)
+                                        .clip(CircleShape)
+                                        .background(effectiveAccent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (index < AppFont.entries.size - 1) {
+                            AppearanceDivider(dividerColor)
+                        }
+                    }
+                }
             }
         }
     }

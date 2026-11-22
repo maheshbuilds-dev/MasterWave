@@ -93,6 +93,8 @@ object ThemeState {
     private const val KEY_LIQUID_GLASS = "liquid_glass_enabled"
     private const val KEY_WAVY_SEEKBAR = "wavy_seekbar_enabled"
     private const val KEY_HIGH_REFRESH_RATE = "high_refresh_rate_enabled"
+    private const val KEY_APP_FONT = "app_font"
+    private const val KEY_ANIMATED_ALBUM_ART = "animated_album_art_enabled"
 
     private val prefs: SharedPreferences by lazy {
         MasterWaveApp.instance.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -163,6 +165,26 @@ object ThemeState {
     )
     val wavySeekbarEnabled: StateFlow<Boolean> = _wavySeekbarEnabled.asStateFlow()
 
+    private val _selectedFont = MutableStateFlow(
+        try {
+            AppFont.fromId(prefs.getString(KEY_APP_FONT, AppFont.DEFAULT.id))
+        } catch (_: Exception) {
+            AppFont.DEFAULT
+        }
+    )
+    val selectedFont: StateFlow<AppFont> = _selectedFont.asStateFlow()
+
+    private val _animatedAlbumArtEnabled = MutableStateFlow(
+        prefs.getBoolean(KEY_ANIMATED_ALBUM_ART, true)
+    )
+    val animatedAlbumArtEnabled: StateFlow<Boolean> = _animatedAlbumArtEnabled.asStateFlow()
+
+    init {
+        try {
+            DisplayFontFamily = _selectedFont.value.toFontFamily()
+        } catch (_: Exception) {}
+    }
+
     private fun computeEffectiveAccent(): Color {
         val preset = _accentPreset.value
         return if (preset == ThemeAccentPreset.AUTOMATIC && _dynamicColorEnabled.value) {
@@ -219,6 +241,23 @@ object ThemeState {
         // Find nearest preset or fallback
         _effectiveAccentColor.value = color
         prefs.edit().putInt(KEY_ACCENT_COLOR, color.toArgb()).apply()
+    }
+
+    fun setSelectedFont(font: AppFont) {
+        _selectedFont.value = font
+        try {
+            DisplayFontFamily = font.toFontFamily()
+        } catch (_: Exception) {}
+        prefs.edit().putString(KEY_APP_FONT, font.id).apply()
+    }
+
+    fun setAnimatedAlbumArtEnabled(enabled: Boolean) {
+        _animatedAlbumArtEnabled.value = enabled
+        prefs.edit().putBoolean(KEY_ANIMATED_ALBUM_ART, enabled).apply()
+    }
+
+    fun currentFontFamily(): androidx.compose.ui.text.font.FontFamily {
+        return _selectedFont.value.toFontFamily()
     }
 
     fun isAmoledDark(): Boolean {

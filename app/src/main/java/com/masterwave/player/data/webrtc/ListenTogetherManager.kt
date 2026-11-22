@@ -103,7 +103,7 @@ class ListenTogetherManager private constructor(
         fun generateRandomRoomCode(): String {
             val chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
             val random = SecureRandom()
-            val codeBuilder = StringBuilder("MW-")
+            val codeBuilder = StringBuilder("MW")
             for (i in 0 until 4) {
                 codeBuilder.append(chars[random.nextInt(chars.length)])
             }
@@ -137,8 +137,11 @@ class ListenTogetherManager private constructor(
     }
 
     private fun loadOrGenerateRoomCode(): String {
-        val saved = prefs.getString("room_code", null)
-        if (!saved.isNullOrBlank()) return saved
+        val saved = prefs.getString("room_code", null)?.replace("-", "")?.trim()
+        if (!saved.isNullOrBlank()) {
+            prefs.edit().putString("room_code", saved).apply()
+            return saved
+        }
         val newCode = generateRandomRoomCode()
         prefs.edit().putString("room_code", newCode).apply()
         return newCode
@@ -337,7 +340,7 @@ class ListenTogetherManager private constructor(
      * Join an existing room via room code.
      */
     fun joinRoom(targetCode: String, onConnected: (Boolean) -> Unit) {
-        val cleanCode = targetCode.trim().uppercase()
+        val cleanCode = targetCode.replace("-", "").replace(" ", "").trim().uppercase()
         if (cleanCode.isBlank()) {
             onConnected(false)
             return

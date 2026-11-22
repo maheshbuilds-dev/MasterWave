@@ -292,13 +292,9 @@ class AppUpdateManager(
             }
 
             val packageInstaller = context.packageManager.packageInstaller
-            val silentUpdateAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                context.checkSelfPermission(Manifest.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION) ==
-                PackageManager.PERMISSION_GRANTED
             Log.i(
                 TAG,
-                "Starting update session (sdk=${Build.VERSION.SDK_INT}, " +
-                    "silent=$silentUpdateAvailable, apk=${apkFile.length()} bytes)"
+                "Starting update session (sdk=${Build.VERSION.SDK_INT}, apk=${apkFile.length()} bytes)"
             )
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(context.packageName)
@@ -308,16 +304,11 @@ class AppUpdateManager(
                 setReferrerUri(Uri.parse(OFFICIAL_SITE_URL))
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    // Mark the package as a locally downloaded file instead of an
-                    // internet-sideloaded one. This reduces Play Protect JIT interference.
                     setPackageSource(PackageInstaller.PACKAGE_SOURCE_DOWNLOADED_FILE)
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    // Silent self-update. Combined with UPDATE_PACKAGES_WITHOUT_USER_ACTION,
-                    // Android applies the update itself: no installer screen and no
-                    // Play Protect "App scan recommended" step on every release.
-                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
                 }
             }
 

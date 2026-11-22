@@ -123,22 +123,22 @@ private fun createLightColorScheme(accent: Color) = lightColorScheme(
     scrim = Color.Black
 )
 
-private fun MaterialTypography.withForegroundColor(color: Color) = copy(
-    displayLarge = displayLarge.copy(color = color),
-    displayMedium = displayMedium.copy(color = color),
-    displaySmall = displaySmall.copy(color = color),
-    headlineLarge = headlineLarge.copy(color = color),
-    headlineMedium = headlineMedium.copy(color = color),
-    headlineSmall = headlineSmall.copy(color = color),
-    titleLarge = titleLarge.copy(color = color),
-    titleMedium = titleMedium.copy(color = color),
-    titleSmall = titleSmall.copy(color = color),
-    bodyLarge = bodyLarge.copy(color = color),
-    bodyMedium = bodyMedium.copy(color = color),
-    bodySmall = bodySmall.copy(color = color),
-    labelLarge = labelLarge.copy(color = color),
-    labelMedium = labelMedium.copy(color = color),
-    labelSmall = labelSmall.copy(color = color)
+private fun MaterialTypography.withFontAndForegroundColor(fontFamily: androidx.compose.ui.text.font.FontFamily, color: Color) = copy(
+    displayLarge = displayLarge.copy(fontFamily = fontFamily, color = color),
+    displayMedium = displayMedium.copy(fontFamily = fontFamily, color = color),
+    displaySmall = displaySmall.copy(fontFamily = fontFamily, color = color),
+    headlineLarge = headlineLarge.copy(fontFamily = fontFamily, color = color),
+    headlineMedium = headlineMedium.copy(fontFamily = fontFamily, color = color),
+    headlineSmall = headlineSmall.copy(fontFamily = fontFamily, color = color),
+    titleLarge = titleLarge.copy(fontFamily = fontFamily, color = color),
+    titleMedium = titleMedium.copy(fontFamily = fontFamily, color = color),
+    titleSmall = titleSmall.copy(fontFamily = fontFamily, color = color),
+    bodyLarge = bodyLarge.copy(fontFamily = fontFamily, color = color),
+    bodyMedium = bodyMedium.copy(fontFamily = fontFamily, color = color),
+    bodySmall = bodySmall.copy(fontFamily = fontFamily, color = color),
+    labelLarge = labelLarge.copy(fontFamily = fontFamily, color = color),
+    labelMedium = labelMedium.copy(fontFamily = fontFamily, color = color),
+    labelSmall = labelSmall.copy(fontFamily = fontFamily, color = color)
 )
 
 @Composable
@@ -147,6 +147,8 @@ fun MasterWaveTheme(
 ) {
     val themeMode by ThemeState.themeMode.collectAsState()
     val accentColor by ThemeState.accentColor.collectAsState()
+    val selectedFont by ThemeState.selectedFont.collectAsState()
+    val activeFontFamily = selectedFont.toFontFamily()
     val systemInDark = isSystemInDarkTheme()
 
     val isDark = when (themeMode) {
@@ -175,7 +177,7 @@ fun MasterWaveTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography.withForegroundColor(colorScheme.onBackground),
+        typography = Typography.withFontAndForegroundColor(activeFontFamily, colorScheme.onBackground),
         shapes = ExpressiveShapes,
         content = content
     )

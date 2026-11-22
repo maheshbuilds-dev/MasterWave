@@ -12,6 +12,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -186,6 +187,38 @@ fun NowPlayingScreen(
         label = "animatedAmbientGlow"
     )
 
+    val animatedAlbumArtEnabled by ThemeState.animatedAlbumArtEnabled.collectAsState()
+    val isArtworkAnimating = animatedAlbumArtEnabled && isPlaying && !reduceMotion
+
+    val artTransition = rememberInfiniteTransition(label = "art_motion")
+    val animatedArtScale by artTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = if (isArtworkAnimating) 1.055f else 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 7000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "art_scale"
+    )
+    val animatedArtTilt by artTransition.animateFloat(
+        initialValue = -0.7f,
+        targetValue = if (isArtworkAnimating) 0.7f else 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 11000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "art_tilt"
+    )
+    val animatedGlowAlpha by artTransition.animateFloat(
+        initialValue = 0.20f,
+        targetValue = if (isArtworkAnimating) 0.50f else 0.20f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "art_glow_alpha"
+    )
+
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
@@ -262,7 +295,15 @@ fun NowPlayingScreen(
                         model = contentModel,
                         contentDescription = content.title,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                if (isArtworkAnimating) {
+                                    scaleX = animatedArtScale
+                                    scaleY = animatedArtScale
+                                    rotationZ = animatedArtTilt
+                                }
+                            }
                     )
                 } else {
                     Box(

@@ -700,7 +700,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                             colorStops = arrayOf(
                                 0.0f to Color.Transparent,
                                 0.58f to Color.Transparent,
-                                1.0f to if (isAmoledTheme) Color(0x66000000) else Color(0x59FFFAF0)
+                                1.0f to if (isAmoledTheme) Color(0x66000000) else Color(0x80FFFFFF)
                             )
                         )
                     )
