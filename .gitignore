@@ -15,4 +15,5 @@ research/
 .codex/
 .impeccable/
 screenshot_*.png
-screenshots/
+/screenshots/
+!store-assets/screenshots/
