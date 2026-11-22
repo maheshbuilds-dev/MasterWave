@@ -71,8 +71,8 @@ class YouTubeLibraryFetcher(
      * Computes the official Google SAPISIDHASH authentication header.
      */
     fun generateSapisidHash(cookies: String, origin: String = ORIGIN): String? {
-        val secure3Match = Regex("__Secure-3PAPISID=([^;\\s]+)").find(cookies)
-        val secure1Match = Regex("__Secure-1PAPISID=([^;\\s]+)").find(cookies)
+        val secure3Match = Regex("(?:^|[;\\s])__Secure-3PAPISID=([^;\\s]+)").find(cookies)
+        val secure1Match = Regex("(?:^|[;\\s])__Secure-1PAPISID=([^;\\s]+)").find(cookies)
         val plainMatch = Regex("(?:^|[;\\s])SAPISID=([^;\\s]+)").find(cookies)
         val apisidMatch = Regex("(?:^|[;\\s])APISID=([^;\\s]+)").find(cookies)
 
@@ -97,7 +97,19 @@ class YouTubeLibraryFetcher(
 
     private fun buildInnerTubeRequest(url: String, payloadJson: JSONObject, cookies: String): Request {
         val authHeader = generateSapisidHash(cookies)
-        val fullCookies = if (cookies.isNotBlank()) "$CONSENT_COOKIES; $cookies" else CONSENT_COOKIES
+        val userCookieMap = mutableMapOf<String, String>()
+        for (part in cookies.split(';')) {
+            val idx = part.indexOf('=')
+            if (idx > 0) {
+                val key = part.substring(0, idx).trim()
+                val value = part.substring(idx + 1).trim()
+                if (key.isNotBlank()) userCookieMap[key] = value
+            }
+        }
+        if (!userCookieMap.containsKey("CONSENT")) userCookieMap["CONSENT"] = "YES+cb.20210328-17-p0.en+FX+100"
+        if (!userCookieMap.containsKey("SOCS")) userCookieMap["SOCS"] = "CAISEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg"
+        val fullCookies = userCookieMap.entries.joinToString("; ") { "${it.key}=${it.value}" }
+
         val reqBuilder = Request.Builder()
             .url(url)
             .header("Content-Type", "application/json")
@@ -625,6 +637,14 @@ class YouTubeLibraryFetcher(
                         val track = parseSingleTrackRenderer(obj.getJSONObject("playlistVideoRenderer"))
                         if (track != null) tracks.add(track)
                     }
+                    obj.has("videoRenderer") -> {
+                        val track = parseSingleTrackRenderer(obj.getJSONObject("videoRenderer"))
+                        if (track != null) tracks.add(track)
+                    }
+                    obj.has("compactVideoRenderer") -> {
+                        val track = parseSingleTrackRenderer(obj.getJSONObject("compactVideoRenderer"))
+                        if (track != null) tracks.add(track)
+                    }
                 }
 
                 // Recurse into children
@@ -782,24 +802,58 @@ class YouTubeLibraryFetcher(
         }
 
         if (title.isBlank()) {
-            title = renderer.optJSONObject("title")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
-                ?: renderer.optJSONObject("title")?.optString("simpleText") ?: ""
+            val titleRuns = renderer.optJSONObject("title")?.optJSONArray("runs")
+            if (titleRuns != null && titleRuns.length() > 0) {
+                title = (0 until titleRuns.length()).joinToString("") { titleRuns.optJSONObject(it)?.optString("text", "") ?: "" }.trim()
+            } else {
+                title = renderer.optJSONObject("title")?.optString("simpleText")?.trim() ?: ""
+            }
         }
         if (title.isBlank()) return null
+
+        if (artist == "Unknown Artist") {
+            val bylineRuns = (renderer.optJSONObject("shortBylineText")
+                ?: renderer.optJSONObject("longBylineText")
+                ?: renderer.optJSONObject("ownerText"))
+                ?.optJSONArray("runs")
+            if (bylineRuns != null && bylineRuns.length() > 0) {
+                val byline = bylineRuns.optJSONObject(0)?.optString("text")?.trim()
+                if (!byline.isNullOrBlank()) {
+                    artist = byline
+                }
+            } else {
+                val bylineText = (renderer.optJSONObject("shortBylineText") ?: renderer.optJSONObject("ownerText"))?.optString("simpleText")?.trim()
+                if (!bylineText.isNullOrBlank()) {
+                    artist = bylineText
+                }
+            }
+        }
 
         if (durationSec == 0L) {
             val lengthSec = renderer.optString("lengthSeconds").toLongOrNull()
             if (lengthSec != null && lengthSec > 0) {
                 durationSec = lengthSec
             } else {
-                val fixed = renderer.optJSONArray("fixedColumns")
-                val fixedText = fixed?.optJSONObject(0)
-                    ?.optJSONObject("musicResponsiveListItemFixedColumnRenderer")
-                    ?.optJSONObject("text")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text") ?: ""
-                if (fixedText.matches(Regex("\\d+:\\d+"))) {
-                    val parts = fixedText.split(":")
+                val lengthText = (renderer.optJSONObject("lengthText") ?: renderer.optJSONArray("thumbnailOverlays")?.optJSONObject(0)?.optJSONObject("thumbnailOverlayTimeStatusRenderer")?.optJSONObject("text"))
+                    ?.let { obj ->
+                        obj.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
+                            ?: obj.optString("simpleText")
+                    } ?: ""
+                if (lengthText.matches(Regex("\\d+:\\d+"))) {
+                    val parts = lengthText.split(":")
                     if (parts.size == 2) {
                         durationSec = (parts[0].toLongOrNull() ?: 0L) * 60 + (parts[1].toLongOrNull() ?: 0L)
+                    }
+                } else {
+                    val fixed = renderer.optJSONArray("fixedColumns")
+                    val fixedText = fixed?.optJSONObject(0)
+                        ?.optJSONObject("musicResponsiveListItemFixedColumnRenderer")
+                        ?.optJSONObject("text")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text") ?: ""
+                    if (fixedText.matches(Regex("\\d+:\\d+"))) {
+                        val parts = fixedText.split(":")
+                        if (parts.size == 2) {
+                            durationSec = (parts[0].toLongOrNull() ?: 0L) * 60 + (parts[1].toLongOrNull() ?: 0L)
+                        }
                     }
                 }
             }
@@ -810,6 +864,9 @@ class YouTubeLibraryFetcher(
             ?.optJSONObject("thumbnail")
             ?.optJSONArray("thumbnails")
             ?.let { thumbs ->
+                if (thumbs.length() > 0) thumbs.optJSONObject(thumbs.length() - 1)?.optString("url") else null
+            }
+            ?: renderer.optJSONObject("thumbnail")?.optJSONArray("thumbnails")?.let { thumbs ->
                 if (thumbs.length() > 0) thumbs.optJSONObject(thumbs.length() - 1)?.optString("url") else null
             }
         val highResArtwork = upgradeToHighResArtwork(rawArtwork) ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
@@ -868,6 +925,10 @@ class YouTubeLibraryFetcher(
                 }
                 if (obj.has("nextContinuationData")) {
                     val token = obj.optJSONObject("nextContinuationData")?.optString("continuation")
+                    if (!token.isNullOrBlank()) return token
+                }
+                if (obj.has("reloadContinuationData")) {
+                    val token = obj.optJSONObject("reloadContinuationData")?.optString("continuation")
                     if (!token.isNullOrBlank()) return token
                 }
                 val keys = obj.keys()

@@ -283,6 +283,12 @@ class MusicDownloadManager(
         trackId: String? = null
     ): String? {
         val coversDir = File(context.filesDir, "download_covers").apply { mkdirs() }
+        if (!trackId.isNullOrBlank()) {
+            val byId = File(coversDir, "$trackId.jpg")
+            if (byId.exists() && byId.length() > 0) {
+                return "file://${byId.absolutePath}"
+            }
+        }
         val safeHash = baseName.hashCode().toUInt().toString(16)
         val persistentCover = File(coversDir, "$safeHash.jpg")
         if (persistentCover.exists() && persistentCover.length() > 0) {
@@ -479,6 +485,16 @@ class MusicDownloadManager(
                         persistentCover.writeBytes(artworkBytes!!)
                         localArtworkUri = "file://${persistentCover.absolutePath}"
                     } catch (_: Exception) {}
+
+                    if (track.id.isNotBlank()) {
+                        try {
+                            val idCover = File(coversDir, "${track.id}.jpg")
+                            idCover.writeBytes(artworkBytes!!)
+                            if (localArtworkUri == null) {
+                                localArtworkUri = "file://${idCover.absolutePath}"
+                            }
+                        } catch (_: Exception) {}
+                    }
 
                     val artFileInPublic = File(musicDir, "$baseName.jpg")
                     try {

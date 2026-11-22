@@ -427,7 +427,7 @@ fun YouTubeSyncScreen(
     WebAuthDialog(
         isOpen = showAuthDialog,
         providerTitle = "YouTube Music Sign In",
-        initialUrl = "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com",
+        initialUrl = "https://accounts.google.com/ServiceLogin?service=youtube&uilel=3&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26hl%3Den%26next%3Dhttps%253A%252F%252Fmusic.youtube.com%252F&hl=en",
         successDomain = "music.youtube.com",
         onDismiss = { showAuthDialog = false },
         onAuthCaptured = { cookies ->

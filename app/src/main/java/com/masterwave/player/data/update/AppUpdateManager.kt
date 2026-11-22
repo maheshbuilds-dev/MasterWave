@@ -255,60 +255,15 @@ class AppUpdateManager(
                 return
             }
 
-            // Method 1: Android PackageInstaller.Session (Official direct system update API)
-            // Displays the clean system "Update MasterWave? [Cancel] [Update]" prompt without Play Protect scan intercept
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                try {
-                    val packageInstaller = context.packageManager.packageInstaller
-                    val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-                        setAppPackageName(context.packageName)
-                        setInstallReason(android.content.pm.PackageManager.INSTALL_REASON_USER)
-                        setOriginatingUri(Uri.parse("https://masterwave.vercel.app"))
-                        setReferrerUri(Uri.parse("https://masterwave.vercel.app"))
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
-                        }
-                    }
-                    val sessionId = packageInstaller.createSession(params)
-                    val session = packageInstaller.openSession(sessionId)
-
-                    apkFile.inputStream().use { input ->
-                        session.openWrite("masterwave_update", 0, apkFile.length()).use { output ->
-                            input.copyTo(output)
-                            session.fsync(output)
-                        }
-                    }
-
-                    val callbackIntent = Intent(context, AppUpdateInstallReceiver::class.java).apply {
-                        action = AppUpdateInstallReceiver.ACTION_INSTALL_STATUS
-                    }
-                    val pendingIntent = PendingIntent.getBroadcast(
-                        context,
-                        sessionId,
-                        callbackIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
-                    )
-                    session.commit(pendingIntent.intentSender)
-                    session.close()
-
-                    // App remains open while PackageInstaller dialog is shown!
-                    // AppUpdateInstallReceiver delegates to AppUpdateInstallActivity, which closes
-                    // the app ONLY when the user clicks the real system [Update] button.
-                    return
-                } catch (e: Exception) {
-                    Log.w(TAG, "PackageInstaller session failed; using FileProvider fallback", e)
-                }
-            }
-
-            // Method 2: Standard Fallback via Intent.ACTION_VIEW
+            // Universal Trusted Installer Pattern via FileProvider & Intent.ACTION_VIEW
+            // (Used by OuterTune, Mihon, NewPipe, and Firefox without triggering security warnings)
             val authority = "${context.packageName}.provider"
             val apkUri: Uri = FileProvider.getUriForFile(context, authority, apkFile)
 
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
                 putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, context.packageName)
             }
             AppUpdateInstallActivity.launch(context, installIntent)
         } catch (e: Exception) {

@@ -268,12 +268,55 @@ fun WebAuthDialog(
                                 settings.setSupportZoom(true)
                                 settings.javaScriptCanOpenWindowsAutomatically = true
                                 settings.allowFileAccess = true
-                                // Clean Mobile Chrome UA (never flagged as bot/desktop mismatch)
-                                settings.userAgentString = "Mozilla/5.0 (Linux; Android 14; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.107 Mobile Safari/537.36"
+                                // Clean Device Chrome UA (strips embedded webview markers so Google does not block login)
+                                val defaultUa = settings.userAgentString
+                                if (!defaultUa.isNullOrBlank()) {
+                                    settings.userAgentString = defaultUa.replace("; wv", "")
+                                        .replace("Version/4.0 ", "")
+                                        .replace("Version/4.0", "")
+                                        .replace(Regex("Version/\\d+\\.\\d+\\s*"), "")
+                                }
 
                                 val cookieManager = CookieManager.getInstance()
                                 cookieManager.setAcceptCookie(true)
                                 cookieManager.setAcceptThirdPartyCookies(this, true)
+
+                                fun checkAndCapture(url: String?) {
+                                    if (url == null) return
+                                    try { cookieManager.flush() } catch (_: Exception) {}
+                                    val isAtTarget = url.contains("music.youtube.com") || url.contains("open.spotify.com")
+                                    val domains = listOf(
+                                        "https://music.youtube.com",
+                                        "https://www.youtube.com",
+                                        "https://accounts.google.com",
+                                        "https://youtube.com",
+                                        "https://open.spotify.com",
+                                        "https://accounts.spotify.com",
+                                        url
+                                    )
+                                    val map = mutableMapOf<String, String>()
+                                    for (d in domains) {
+                                        val raw = cookieManager.getCookie(d) ?: continue
+                                        for (part in raw.split(';')) {
+                                            val idx = part.indexOf('=')
+                                            if (idx > 0) {
+                                                val key = part.substring(0, idx).trim()
+                                                val value = part.substring(idx + 1).trim()
+                                                if (key.isNotBlank() && value.isNotBlank()) {
+                                                    map[key] = value
+                                                }
+                                            }
+                                        }
+                                    }
+                                    val mergedCookies = map.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                                    val hasSapisid = map.containsKey("SAPISID") || map.containsKey("__Secure-3PAPISID") || map.containsKey("APISID")
+                                    val hasSid = map.containsKey("SID") || map.containsKey("__Secure-3PSID")
+                                    val hasSpotify = map.containsKey("sp_dc")
+
+                                    if (isAtTarget && ((hasSapisid && hasSid) || hasSpotify)) {
+                                        onAuthCaptured(mergedCookies)
+                                    }
+                                }
 
                                 webChromeClient = object : WebChromeClient() {
                                     override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -291,46 +334,12 @@ fun WebAuthDialog(
                                     override fun onPageFinished(view: WebView?, url: String?) {
                                         super.onPageFinished(view, url)
                                         isLoading = false
-                                        if (url != null && (url.contains(successDomain) || url.contains("music.youtube.com") || url.contains("youtube.com") || url.contains("spotify.com"))) {
-                                            try { cookieManager.flush() } catch (_: Exception) {}
-                                            val domains = listOf(
-                                                "https://music.youtube.com",
-                                                "https://www.youtube.com",
-                                                "https://youtube.com",
-                                                "https://accounts.google.com",
-                                                "https://open.spotify.com",
-                                                "https://accounts.spotify.com",
-                                                url
-                                            )
-                                            val allCookies = domains.mapNotNull { d ->
-                                                cookieManager.getCookie(d)?.takeIf { it.isNotBlank() }
-                                            }.joinToString("; ")
-                                            if (allCookies.contains("SAPISID") || allCookies.contains("__Secure-3PAPISID") || allCookies.contains("LOGIN_INFO") || allCookies.contains("sp_dc")) {
-                                                onAuthCaptured(allCookies)
-                                            }
-                                        }
+                                        checkAndCapture(url)
                                     }
 
                                     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                                        val targetUrl = request?.url?.toString() ?: return false
-                                        if (targetUrl.contains(successDomain) || targetUrl.contains("music.youtube.com") || targetUrl.contains("youtube.com") || targetUrl.contains("spotify.com")) {
-                                            try { cookieManager.flush() } catch (_: Exception) {}
-                                            val domains = listOf(
-                                                "https://music.youtube.com",
-                                                "https://www.youtube.com",
-                                                "https://youtube.com",
-                                                "https://accounts.google.com",
-                                                "https://open.spotify.com",
-                                                "https://accounts.spotify.com",
-                                                targetUrl
-                                            )
-                                            val allCookies = domains.mapNotNull { d ->
-                                                cookieManager.getCookie(d)?.takeIf { it.isNotBlank() }
-                                            }.joinToString("; ")
-                                            if (allCookies.contains("SAPISID") || allCookies.contains("__Secure-3PAPISID") || allCookies.contains("LOGIN_INFO") || allCookies.contains("sp_dc")) {
-                                                onAuthCaptured(allCookies)
-                                            }
-                                        }
+                                        val targetUrl = request?.url?.toString()
+                                        checkAndCapture(targetUrl)
                                         return false
                                     }
                                 }
