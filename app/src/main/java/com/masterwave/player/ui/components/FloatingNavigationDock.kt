@@ -99,7 +99,7 @@ fun FloatingNavigationDock(
         Color.Black.copy(alpha = 0.06f)
     }
     val selectedContent = if (isAmoled) Color.White else Color(0xFF141720)
-    val unselectedColor = if (isAmoled) Color(0xFF9093A2) else Color(0xFF6B6E7D)
+    val unselectedColor = if (isAmoled) Color(0xFFB6BBCB) else Color(0xFF3D4250)
 
     val dockSpring = spring<androidx.compose.ui.unit.Dp>(
         dampingRatio = 0.86f,

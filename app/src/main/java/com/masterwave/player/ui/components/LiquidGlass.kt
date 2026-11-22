@@ -139,9 +139,9 @@ fun Modifier.glassySurface(
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xD9FFFFFF), // Polished porcelain crown
-                            Color(0x9CF4F8FE), // Translucent optical core
-                            Color(0xADE6EFFA)  // Ground bounce with subtle sky tint
+                            Color(0xE0FFFFFF), // Polished porcelain crown
+                            Color(0xA2F4F8FE), // Translucent optical core
+                            Color(0xB4E6EFFA)  // Ground bounce with subtle sky tint
                         )
                     )
                 }

@@ -2,6 +2,16 @@
 
 All notable changes and milestones for the MasterWave Android project will be documented in this file.
 
+## [2.1.6] - 2026-11-22
+
+### Fixed
+- Dock legibility: inactive tab icons were washing out against the frosted shelf. They now use a much stronger neutral (`#3D4250` light / `#B6BBCB` dark).
+- Slightly whiter dock glass so the shelf reads as porcelain rather than grey smoke over dark artwork.
+
+### Verified on device (Moto G45, Android 16)
+- 2.1.4 → 2.1.5 applied through the silent PackageInstaller path: versionCode 15 → 16 with no installer screen and no Play Protect scan prompt.
+- `UPDATE_PACKAGES_WITHOUT_USER_ACTION: granted=true`; `REQUEST_INSTALL_PACKAGES` had to be enabled by the user ("Allow from this source") before any in-app install could run.
+
 ## [2.1.5] - 2026-11-22
 
 ### Changed
