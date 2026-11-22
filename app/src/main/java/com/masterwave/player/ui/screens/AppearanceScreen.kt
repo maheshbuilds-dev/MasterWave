@@ -320,8 +320,8 @@ fun AppearanceScreen(
                 AppearanceToggleRow(
                     icon = Icons.Default.AutoAwesome,
                     tint = effectiveAccent,
-                    title = "Album Cover Art Animation",
-                    subtitle = "Dynamic kinetic breathing and fluid ambient glow for album art in Now Playing",
+                    title = "Ambient Album Art Glow",
+                    subtitle = "Fluid ambient color glow for album art in Now Playing",
                     checked = animatedAlbumArtEnabled,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,

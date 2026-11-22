@@ -1,9 +1,9 @@
 {
-  "versionCode": 24,
-  "versionName": "2.2.3",
-  "releaseNotes": "• Enhanced Liquid Glass Dock: Unified 5-tab floating translucent glass shelf with glowing tactile active capsules\n• Permanent Listen Together Codes: Dedicated permanent party ID per user that never resets or refreshes\n• Richer Audio & Sub-Bass: Calibrated LoudnessEnhancer (+3.8 dB) and punchy 60 Hz bass boost with zero distortion\n• Direct Together Navigation: One-tap access to Listen Together directly from the floating glass dock\n• Performance & Smoothness: Seamless spring physics and reduced memory footprint",
+  "versionCode": 25,
+  "versionName": "2.2.4",
+  "releaseNotes": "• Signature Split Liquid Glass Dock: Restored iconic 2-island architecture (Feed, Stats, Playlists + Search Satellite) with authentic optical frosted translucency and specular diamond rim\n• Clean Navigation Architecture: Listen Together smoothly hosted inside Settings without cluttering the primary dock\n• Rock-Solid Now Playing Artwork: Eliminated breathing motion and tilt oscillation for razor-sharp album covers\n• Studio Audio Tuning: Enhanced sub-bass punch and calibrated loudness enhancer (+3.8 dB) with zero distortion\n• Permanent Party Identity: Unchanging 1-user-1-code Listen Together synchronization",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
   "apkSize": "18.2 MB",
-  "publishedAt": "2026-11-22T14:46:00Z",
+  "publishedAt": "2026-11-22T15:15:00Z",
   "forceUpdate": false
 }

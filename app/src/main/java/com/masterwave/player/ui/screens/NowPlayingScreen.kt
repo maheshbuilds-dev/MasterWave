@@ -191,24 +191,6 @@ fun NowPlayingScreen(
     val isArtworkAnimating = animatedAlbumArtEnabled && isPlaying && !reduceMotion
 
     val artTransition = rememberInfiniteTransition(label = "art_motion")
-    val animatedArtScale by artTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = if (isArtworkAnimating) 1.055f else 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 7000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "art_scale"
-    )
-    val animatedArtTilt by artTransition.animateFloat(
-        initialValue = -0.7f,
-        targetValue = if (isArtworkAnimating) 0.7f else 0.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 11000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "art_tilt"
-    )
     val animatedGlowAlpha by artTransition.animateFloat(
         initialValue = 0.20f,
         targetValue = if (isArtworkAnimating) 0.50f else 0.20f,
@@ -295,15 +277,7 @@ fun NowPlayingScreen(
                         model = contentModel,
                         contentDescription = content.title,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                if (isArtworkAnimating) {
-                                    scaleX = animatedArtScale
-                                    scaleY = animatedArtScale
-                                    rotationZ = animatedArtTilt
-                                }
-                            }
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Box(

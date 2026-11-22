@@ -401,10 +401,6 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                         onScrollStateChanged = { isDockSplit = it },
                         scrollToTopTrigger = scrollToTopTrigger
                     )
-                    MainTab.TOGETHER -> ListenTogetherScreen(
-                        player = player,
-                        onBack = { currentTab = MainTab.HOME }
-                    )
                     MainTab.LIBRARY -> PlaylistsScreen(
                         player = player,
                         repository = repository,
@@ -460,10 +456,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 onNavigateToAppUpdate = { isAppUpdateOpen = true },
                 onNavigateToBackupRestore = { isBackupRestoreOpen = true },
                 onNavigateToYouTubeSync = { isYouTubeSyncOpen = true },
-                onNavigateToListenTogether = {
-                    isSettingsOpen = false
-                    currentTab = MainTab.TOGETHER
-                },
+                onNavigateToListenTogether = { isListenTogetherOpen = true },
                 onNavigateToSupport = { isSupportOpen = true },
                 player = player
             )
