@@ -3,6 +3,7 @@ package com.masterwave.player.ui.theme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.Shapes
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +30,7 @@ val ExpressiveShapes = Shapes(
 // ==========================================
 // SWISS EDITORIAL TYPOGRAPHY TOKENS
 // International Typographic Neo-Grotesque & Monospaced Metadata Architecture
+// Set color to Color.Unspecified so Compose's LocalContentColor or MaterialTheme handles theme contrast dynamically
 // ==========================================
 val SwissDisplayLarge = TextStyle(
     fontFamily = DisplayFontFamily,
@@ -36,7 +38,7 @@ val SwissDisplayLarge = TextStyle(
     fontSize = 38.sp,
     lineHeight = 44.sp,
     letterSpacing = (-0.8).sp,
-    color = TextPrimary
+    color = Color.Unspecified
 )
 
 val SwissDisplayMedium = TextStyle(
@@ -45,7 +47,7 @@ val SwissDisplayMedium = TextStyle(
     fontSize = 28.sp,
     lineHeight = 34.sp,
     letterSpacing = (-0.6).sp,
-    color = TextPrimary
+    color = Color.Unspecified
 )
 
 val SwissHeadline = TextStyle(
@@ -54,7 +56,7 @@ val SwissHeadline = TextStyle(
     fontSize = 22.sp,
     lineHeight = 28.sp,
     letterSpacing = (-0.4).sp,
-    color = TextPrimary
+    color = Color.Unspecified
 )
 
 val SwissSectionEyebrow = TextStyle(
@@ -63,7 +65,7 @@ val SwissSectionEyebrow = TextStyle(
     fontSize = 11.sp,
     lineHeight = 15.sp,
     letterSpacing = 1.3.sp,
-    color = TextSecondary
+    color = Color.Unspecified
 )
 
 val SwissSectionHeader = TextStyle(
@@ -72,7 +74,7 @@ val SwissSectionHeader = TextStyle(
     fontSize = 21.sp,
     lineHeight = 27.sp,
     letterSpacing = (-0.3).sp,
-    color = TextPrimary
+    color = Color.Unspecified
 )
 
 val SwissMono = TextStyle(
@@ -81,7 +83,7 @@ val SwissMono = TextStyle(
     fontSize = 11.sp,
     lineHeight = 15.sp,
     letterSpacing = 0.5.sp,
-    color = TextSecondary
+    color = Color.Unspecified
 )
 
 val SwissBody = TextStyle(
@@ -90,7 +92,7 @@ val SwissBody = TextStyle(
     fontSize = 15.sp,
     lineHeight = 21.sp,
     letterSpacing = (-0.1).sp,
-    color = TextSecondary
+    color = Color.Unspecified
 )
 
 val SwissMeta = TextStyle(
@@ -99,7 +101,7 @@ val SwissMeta = TextStyle(
     fontSize = 12.sp,
     lineHeight = 16.sp,
     letterSpacing = 0.2.sp,
-    color = TextTertiary
+    color = Color.Unspecified
 )
 
 val Typography = Typography(

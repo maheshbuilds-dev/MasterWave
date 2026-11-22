@@ -260,6 +260,8 @@ fun HomeScreen(
     val textPrimary = MaterialTheme.colorScheme.onBackground
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
     val chipInactiveBg = MaterialTheme.colorScheme.surfaceContainerHigh
+    val subtleBorder = if (isAmoled) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)
+    val cardBorder = if (isAmoled) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.10f)
 
     fun openCommunityPlaylist(playlist: CommunityPlaylist) {
         scope.launch {
@@ -1233,7 +1235,7 @@ fun HomeScreen(
                                     .size(135.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(chipInactiveBg)
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp))
+                                    .border(0.5.dp, subtleBorder, RoundedCornerShape(18.dp))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -1294,7 +1296,7 @@ fun HomeScreen(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = cardBg,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                    border = BorderStroke(1.dp, subtleBorder),
                     shadowElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1314,7 +1316,7 @@ fun HomeScreen(
                                     .size(64.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(chipInactiveBg)
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                                    .border(0.5.dp, subtleBorder, RoundedCornerShape(16.dp))
                             ) {
                                 if (collageArts.size >= 4) {
                                     Column(modifier = Modifier.fillMaxSize()) {
@@ -1416,7 +1418,7 @@ fun HomeScreen(
                                             .size(38.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(chipInactiveBg)
-                                            .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+                                            .border(0.5.dp, subtleBorder, RoundedCornerShape(12.dp))
                                     ) {
                                         if (!track.artworkUrl.isNullOrBlank()) {
                                             AsyncImage(
@@ -1496,7 +1498,7 @@ fun HomeScreen(
                             .size(36.dp)
                             .clip(RoundedCornerShape(14.dp))
                             .background(if (isAmoled) Color(0xFF161622) else Color(0xFFF1F3F5))
-                            .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                            .border(0.5.dp, cardBorder, RoundedCornerShape(14.dp))
                             .clickable {
                                 val shuffled = trendingTracks.shuffled()
                                 if (shuffled.isNotEmpty()) {
@@ -1532,7 +1534,7 @@ fun HomeScreen(
                                     .size(135.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(chipInactiveBg)
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp))
+                                    .border(0.5.dp, subtleBorder, RoundedCornerShape(18.dp))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -1740,7 +1742,7 @@ fun HomeScreen(
                                     .size(135.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(chipInactiveBg)
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp))
+                                    .border(0.5.dp, subtleBorder, RoundedCornerShape(18.dp))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -1818,7 +1820,7 @@ fun HomeScreen(
                                     .size(160.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(chipInactiveBg)
-                                    .border(1.dp, if (isAmoled) Color(0x28FFFFFF) else Color(0xFF101828), RoundedCornerShape(16.dp))
+                                    .border(1.dp, if (isAmoled) Color(0x28FFFFFF) else cardBorder, RoundedCornerShape(16.dp))
                             ) {
                                 AsyncImage(
                                     model = playlist.artworkUrl,
@@ -2041,12 +2043,12 @@ private fun HomeScreenHeader(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Download button (Apple HIG 44dp Touch Target)
+                        // Download button (48dp Touch Target - Fitts's Law)
                         IconButton(
                             onClick = onNavigateToDownloads,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
@@ -2056,10 +2058,10 @@ private fun HomeScreenHeader(
                             )
                         }
 
-                        // Search button (Apple HIG 44dp Touch Target)
+                        // Search button (48dp Touch Target - Fitts's Law)
                         IconButton(
                             onClick = onNavigateToSearch,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -2069,10 +2071,10 @@ private fun HomeScreenHeader(
                             )
                         }
 
-                        // User Avatar button (Settings - Apple HIG 44dp Touch Target)
+                        // User Avatar button (Settings - 48dp Touch Target)
                         IconButton(
                             onClick = onNavigateToSettings,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -2182,7 +2184,7 @@ private fun QuickPicksSection(
                     .size(44.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                    .border(0.5.dp, if (isAmoled) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                     .bouncyClickable(scaleDown = 0.94f, onClick = onShuffle),
                 contentAlignment = Alignment.Center
             ) {
@@ -2212,7 +2214,7 @@ private fun QuickPicksSection(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(cardBg)
-                                .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+                                .border(0.5.dp, if (isAmoled) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
                                 .bouncyClickable(scaleDown = 0.98f) { onTrackClick(track) }
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -2222,7 +2224,7 @@ private fun QuickPicksSection(
                                     .size(48.dp)
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(chipInactiveBg)
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+                                    .border(0.5.dp, if (isAmoled) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                             ) {
                                 if (!track.artworkUrl.isNullOrBlank()) {
                                     AsyncImage(
@@ -2327,7 +2329,7 @@ private fun RecommendationShelf(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.10f)),
+                        border = BorderStroke(0.5.dp, if (ThemeState.isAmoledTheme()) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.08f)),
                         color = chipInactiveBg,
                         modifier = Modifier
                             .size(135.dp)

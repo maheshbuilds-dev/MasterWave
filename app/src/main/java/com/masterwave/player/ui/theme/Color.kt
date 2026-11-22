@@ -18,12 +18,18 @@ import androidx.compose.ui.graphics.Color
 // ==========================================
 val SwissRed = Color(0xFFE53935)                  // International Typographic Style vermilion red
 val SwissRedGlow = Color(0x4DE53935)
-val SwissHairline = Color(0x1AFFFFFF)              // 10% white architectural rule
-val SwissHairlineStrong = Color(0x33FFFFFF)        // 20% white structural section divider
+val SwissHairline: Color
+    @Composable
+    get() = if (ThemeState.isAmoledTheme()) Color(0x1AFFFFFF) else Color(0xFFE4E7EC) // 10% white on dark, clean hairline on light
+val SwissHairlineStrong: Color
+    @Composable
+    get() = if (ThemeState.isAmoledTheme()) Color(0x33FFFFFF) else Color(0xFFD0D5DD)
 val SwissObsidian = Color(0xFF07080A)              // Deep obsidian canvas
 val SwissSurface = Color(0xFF0F1015)               // Layered dark card surface
 val SwissSurfaceElevated = Color(0xFF161820)       // Subtle elevated panel
-val SwissBorder = Color(0x14FFFFFF)                // Crisp hairline boundary
+val SwissBorder: Color
+    @Composable
+    get() = if (ThemeState.isAmoledTheme()) Color(0x14FFFFFF) else Color(0xFFE4E7EC) // Crisp hairline boundary
 val SwissTextPrimary = Color(0xFFFBFBFD)           // Stark neo-grotesque white
 val SwissTextSecondary = Color(0xFF8E8E93)         // Neutral typographic slate
 val SwissTextTertiary = Color(0xFF5C5E69)          // Muted metadata
