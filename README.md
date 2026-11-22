@@ -1,6 +1,6 @@
 # MasterWave
 
-[![Latest Release](https://img.shields.io/badge/Release-v2.2.2-blue?style=flat-square)](https://masterwave.vercel.app)
+[![Latest Release](https://img.shields.io/badge/Release-v2.2.3-blue?style=flat-square)](https://masterwave.vercel.app)
 [![Platform](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%2B)-green?style=flat-square)](https://developer.android.com)
 [![Language](https://img.shields.io/badge/Kotlin-2.0-purple?style=flat-square)](https://kotlinlang.org)
 [![UI](https://img.shields.io/badge/Jetpack%20Compose-Material%203-blueviolet?style=flat-square)](https://developer.android.com/jetpack/compose)
@@ -10,7 +10,7 @@
 MasterWave is a native Android music player and streaming client engineered with Jetpack Compose, Material 3, and AndroidX Media3. Built with a focus on studio-grade audio output, real-time WebRTC collaborative listening, tactile liquid glass UI, and zero ads or trackers.
 
 - **Website**: [https://masterwave.vercel.app](https://masterwave.vercel.app)
-- **Direct APK**: [Download Latest v2.2.2 APK](https://masterwave.vercel.app/assets/MasterWave.apk)
+- **Direct APK**: [Download Latest v2.2.3 APK](https://masterwave.vercel.app/assets/MasterWave.apk)
 - **Web App**: [https://masterwave-music.vercel.app](https://masterwave-music.vercel.app)
 
 ---

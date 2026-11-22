@@ -1,9 +1,9 @@
 {
-  "versionCode": 23,
-  "versionName": "2.2.2",
-  "releaseNotes": "• Package Security & Integrity: Added pre-installation cryptographic signature verification protecting against package tampering\n• Smart Post-Update Relaunch: Notification-based relaunch mechanism replacing background activity starts for seamless OS compliance\n• Fucek Exclusive Typography: Authentic Fucek font powering all UI components with optimized asset footprint\n• Animated Album Cover Art: Dynamic kinetic breathing and ambient glow pulse in Now Playing\n• Hardened Update Engine: USER_ACTION_NOT_REQUIRED silent update path on Android 12+ with zero Play Protect collisions",
-  "apkUrl": "https://github.com/mahesh2008here-star/MasterWave/releases/download/v2.2.2/app-release.apk",
+  "versionCode": 24,
+  "versionName": "2.2.3",
+  "releaseNotes": "• Enhanced Liquid Glass Dock: Unified 5-tab floating translucent glass shelf with glowing tactile active capsules\n• Permanent Listen Together Codes: Dedicated permanent party ID per user that never resets or refreshes\n• Richer Audio & Sub-Bass: Calibrated LoudnessEnhancer (+3.8 dB) and punchy 60 Hz bass boost with zero distortion\n• Direct Together Navigation: One-tap access to Listen Together directly from the floating glass dock\n• Performance & Smoothness: Seamless spring physics and reduced memory footprint",
+  "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
   "apkSize": "18.2 MB",
-  "publishedAt": "2026-11-22T10:07:42Z",
+  "publishedAt": "2026-11-22T14:46:00Z",
   "forceUpdate": false
 }
