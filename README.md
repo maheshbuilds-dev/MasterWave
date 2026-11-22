@@ -96,7 +96,7 @@ MasterWave/
 
 ```bash
 # Clone the repository
-git clone https://github.com/mahesh2008here-star/MasterWave.git
+git clone https://github.com/maheshbuilds-dev/MasterWave.git
 cd MasterWave
 
 # Build debug APK
