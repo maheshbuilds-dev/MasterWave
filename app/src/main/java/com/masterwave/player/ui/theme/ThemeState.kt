@@ -180,9 +180,7 @@ object ThemeState {
     val animatedAlbumArtEnabled: StateFlow<Boolean> = _animatedAlbumArtEnabled.asStateFlow()
 
     init {
-        try {
-            DisplayFontFamily = _selectedFont.value.toFontFamily()
-        } catch (_: Exception) {}
+        // App is exclusively powered by Fucek typography
     }
 
     private fun computeEffectiveAccent(): Color {
@@ -244,11 +242,8 @@ object ThemeState {
     }
 
     fun setSelectedFont(font: AppFont) {
-        _selectedFont.value = font
-        try {
-            DisplayFontFamily = font.toFontFamily()
-        } catch (_: Exception) {}
-        prefs.edit().putString(KEY_APP_FONT, font.id).apply()
+        _selectedFont.value = AppFont.FUCEK
+        prefs.edit().putString(KEY_APP_FONT, AppFont.FUCEK.id).apply()
     }
 
     fun setAnimatedAlbumArtEnabled(enabled: Boolean) {

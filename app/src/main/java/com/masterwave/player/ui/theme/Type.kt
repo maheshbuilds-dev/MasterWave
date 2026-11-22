@@ -16,8 +16,8 @@ import androidx.compose.ui.unit.sp
  * Features balanced line-heights, disciplined negative tracking on headlines,
  * and high-legibility body styles.
  */
-var DisplayFontFamily: FontFamily = FontFucekFamily
-val MonoFontFamily: FontFamily = FontJetBrainsMonoFamily
+val DisplayFontFamily: FontFamily = FontFucekFamily
+val MonoFontFamily: FontFamily = FontFucekFamily
 
 val ExpressiveShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),

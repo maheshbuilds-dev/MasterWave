@@ -411,6 +411,13 @@ fun AppearanceScreen(
                                     fontSize = 13.5.sp,
                                     color = textPrimary.copy(alpha = 0.90f)
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "1234567890!@#%&*()_+-=",
+                                    fontFamily = fontFamily,
+                                    fontSize = 12.sp,
+                                    color = textSecondary
+                                )
                             }
 
                             if (isSelected) {
