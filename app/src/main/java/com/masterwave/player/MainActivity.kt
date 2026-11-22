@@ -12,7 +12,7 @@ import android.os.Bundle
 import android.os.IBinder
 import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
-import com.masterwave.player.data.update.AppUpdateInstallActivity
+import com.masterwave.player.data.update.AppUpdateManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -110,7 +110,7 @@ class MainActivity : ComponentActivity() {
 
     private val closeForUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == AppUpdateInstallActivity.ACTION_CLOSE_FOR_UPDATE) {
+            if (intent?.action == AppUpdateManager.ACTION_CLOSE_FOR_UPDATE) {
                 finishAffinity()
             }
         }
@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
             ContextCompat.registerReceiver(
                 this,
                 closeForUpdateReceiver,
-                IntentFilter(AppUpdateInstallActivity.ACTION_CLOSE_FOR_UPDATE),
+                IntentFilter(AppUpdateManager.ACTION_CLOSE_FOR_UPDATE),
                 ContextCompat.RECEIVER_NOT_EXPORTED
             )
         } catch (_: Exception) {}

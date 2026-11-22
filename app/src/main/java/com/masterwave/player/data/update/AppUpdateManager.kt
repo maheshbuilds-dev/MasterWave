@@ -265,7 +265,7 @@ class AppUpdateManager(
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
                 putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
             }
-            AppUpdateInstallActivity.launch(context, installIntent)
+            context.startActivity(installIntent)
         } catch (e: Exception) {
             Log.e(TAG, "Could not launch package installer", e)
         } finally {
@@ -306,6 +306,7 @@ class AppUpdateManager(
 
     companion object {
         private const val TAG = "AppUpdateManager"
+        const val ACTION_CLOSE_FOR_UPDATE = "com.masterwave.player.ACTION_CLOSE_FOR_UPDATE"
         const val UPDATE_MANIFEST_URL = "https://masterwave.vercel.app/update.json"
         private const val UPDATE_NOTIFICATION_ID = 20_001
 

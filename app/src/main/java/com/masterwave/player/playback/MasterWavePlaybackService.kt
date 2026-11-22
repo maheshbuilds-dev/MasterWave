@@ -143,7 +143,7 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
             MasterWaveNotificationManager.ACTION_PLAY_PAUSE -> player.togglePlayPause()
             MasterWaveNotificationManager.ACTION_PREV -> player.playPrevious()
             MasterWaveNotificationManager.ACTION_NEXT -> player.playNext()
-            com.masterwave.player.data.update.AppUpdateInstallActivity.ACTION_CLOSE_FOR_UPDATE -> {
+            com.masterwave.player.data.update.AppUpdateManager.ACTION_CLOSE_FOR_UPDATE -> {
                 player.pause()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     stopForeground(STOP_FOREGROUND_REMOVE)

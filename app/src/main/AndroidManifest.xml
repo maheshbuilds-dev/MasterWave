@@ -17,8 +17,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29"
         tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"
-        tools:node="remove" />
+
 
     <application
         android:name=".MasterWaveApp"
@@ -74,13 +73,7 @@
             </intent-filter>
         </receiver>
 
-        <receiver
-            android:name=".data.update.AppUpdateInstallReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.masterwave.player.ACTION_INSTALL_STATUS" />
-            </intent-filter>
-        </receiver>
+
 
         <receiver
             android:name=".data.update.AppPackageReplacedReceiver"
@@ -99,10 +92,7 @@
             </intent-filter>
         </receiver>
 
-        <activity
-            android:name=".data.update.AppUpdateInstallActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
 
     </application>
 </manifest>
