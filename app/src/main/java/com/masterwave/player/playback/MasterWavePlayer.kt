@@ -32,6 +32,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+/**
+ * Serialisable snapshot of the listening session. Written continuously while a track
+ * is loaded so a service restart (process death, OEM task killer, reboot) can resume
+ * exactly where the listener left off instead of falling silent.
+ */
+@Serializable
+private data class PlaybackSnapshot(
+    val track: Track,
+    val queue: List<Track> = emptyList(),
+    val index: Int = 0,
+    val positionMs: Long = 0L,
+    val wasPlaying: Boolean = false,
+    val savedAt: Long = 0L
+)
 
 class MasterWavePlayer(
     private val context: Context,
@@ -75,11 +95,29 @@ class MasterWavePlayer(
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .setAudioAttributes(audioAttributes, true)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
+            // Streaming needs the network radio awake too, otherwise Wi-Fi power-save
+            // throttles the stream as soon as the screen turns off.
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .setHandleAudioBecomingNoisy(true)
             .build().apply {
                 addListener(playerListener)
             }
+    }
+
+    // --- Session snapshot (survives process death / lock-screen kills) ---
+    private val snapshotPrefs by lazy {
+        context.getSharedPreferences("masterwave_playback_snapshot", Context.MODE_PRIVATE)
+    }
+    private val snapshotJson = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+    @Volatile
+    private var isAdvancing = false
+
+    private companion object {
+        const val KEY_SNAPSHOT = "last_session"
+        const val SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000L
     }
 
     private val _currentTrack = MutableStateFlow<Track?>(null)
@@ -207,6 +245,7 @@ class MasterWavePlayer(
             } else {
                 stopProgressTracker()
             }
+            saveSnapshot()
         }
 
         override fun onPlaybackStateChanged(state: Int) {
@@ -286,6 +325,9 @@ class MasterWavePlayer(
             while (isActive) {
                 val curPos = exoPlayer.currentPosition.coerceAtLeast(0L)
                 _positionMs.value = curPos
+                // Cheap periodic snapshot (about once every 5 s) so a kill never
+                // loses more than a few seconds of the listening position.
+                if (curPos % 5_000L < 260L) saveSnapshot()
                 val curDuration = exoPlayer.duration
                 if (curDuration > 0) {
                     _durationMs.value = curDuration
@@ -337,7 +379,12 @@ class MasterWavePlayer(
         }
     }
 
-    fun playTrack(track: Track, newQueue: List<Track> = listOf(track)) {
+    fun playTrack(
+        track: Track,
+        newQueue: List<Track> = listOf(track),
+        startPositionMs: Long = 0L,
+        autoPlay: Boolean = true
+    ) {
         trackRetryCount = 0
         scope.launch {
             _isLoading.value = true
@@ -348,7 +395,10 @@ class MasterWavePlayer(
             repository.recommendationManager.eventTracker.onTrackStarted(track)
 
             try {
-                val streamUrl = repository.resolveStreamUrl(track)
+                // Ensure stream URL is resolved on IO dispatcher so Doze mode / screen off never stalls Main thread
+                val streamUrl = withContext(Dispatchers.IO) {
+                    repository.resolveStreamUrl(track)
+                }
                 val artworkUri = track.artworkUrl?.let { url ->
                     if (url.isNotBlank()) resolveMediaUri(url) else null
                 }
@@ -368,14 +418,86 @@ class MasterWavePlayer(
                     .setMediaMetadata(mediaMetadata)
                     .build()
 
-                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.setMediaItem(mediaItem, startPositionMs.coerceAtLeast(0L))
                 exoPlayer.prepare()
-                exoPlayer.play()
+                if (autoPlay) exoPlayer.play() else exoPlayer.pause()
+                saveSnapshot()
+
+                // Pre-warm the upcoming track stream URL so advance with locked screen is 0ms
+                val nextIndex = _currentIndex.value + 1
+                if (nextIndex < newQueue.size) {
+                    val upcoming = newQueue[nextIndex]
+                    launch(Dispatchers.IO) {
+                        try {
+                            repository.resolveStreamUrl(upcoming)
+                        } catch (_: Exception) {}
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _isLoading.value = false
+                // Auto-advance to next track on failure so playback never dies silently
+                delay(1200L)
+                playNext()
             }
         }
+    }
+
+    /** Persist the live session so a restarted service can pick it back up. */
+    fun saveSnapshot() {
+        val track = _currentTrack.value ?: return
+        try {
+            val snapshot = PlaybackSnapshot(
+                track = track,
+                queue = _queue.value,
+                index = _currentIndex.value,
+                positionMs = exoPlayer.currentPosition.coerceAtLeast(_positionMs.value),
+                wasPlaying = _isPlaying.value,
+                savedAt = System.currentTimeMillis()
+            )
+            snapshotPrefs.edit()
+                .putString(KEY_SNAPSHOT, snapshotJson.encodeToString(snapshot))
+                .apply()
+        } catch (_: Exception) {
+            // A failed snapshot must never interrupt playback.
+        }
+    }
+
+    fun clearSnapshot() {
+        try {
+            snapshotPrefs.edit().remove(KEY_SNAPSHOT).apply()
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Rebuild the last session after the system recreated the service (START_STICKY).
+     * Returns true when a session was found and queued for playback.
+     */
+    fun restoreLastSession(autoResume: Boolean = true): Boolean {
+        val raw = try {
+            snapshotPrefs.getString(KEY_SNAPSHOT, null)
+        } catch (_: Exception) {
+            null
+        } ?: return false
+
+        val snapshot = try {
+            snapshotJson.decodeFromString<PlaybackSnapshot>(raw)
+        } catch (_: Exception) {
+            return false
+        }
+
+        if (System.currentTimeMillis() - snapshot.savedAt > SNAPSHOT_MAX_AGE_MS) return false
+
+        val queue = snapshot.queue.ifEmpty { listOf(snapshot.track) }
+        val index = snapshot.index.coerceIn(0, queue.size - 1)
+        val track = queue.getOrNull(index) ?: snapshot.track
+        playTrack(
+            track = track,
+            newQueue = queue,
+            startPositionMs = snapshot.positionMs,
+            autoPlay = snapshot.wasPlaying && autoResume
+        )
+        return true
     }
 
     fun togglePlayPause() {
@@ -418,34 +540,58 @@ class MasterWavePlayer(
     private val aiRecommender = com.masterwave.player.data.recommendation.AiMusicRecommender()
 
     fun playNext() {
+        if (isAdvancing) return
         val q = _queue.value
         val cur = _currentTrack.value
         cur?.let { repository.recommendationManager.eventTracker.onTrackSkipped(it) }
 
+        // Fast path: the queue already knows the next track. No network, no coroutine,
+        // so auto-advance still works instantly with the screen off.
         if (q.isNotEmpty() && _currentIndex.value >= 0 && _currentIndex.value + 1 < q.size) {
             val nextIdx = _currentIndex.value + 1
             playTrack(q[nextIdx], q)
             return
         }
 
-        // Smart Dynamic Continuation powered by Recommendation Engine:
+        // Loop back to beginning when repeat mode is ALL
+        if (q.isNotEmpty() && _repeatMode.value == Player.REPEAT_MODE_ALL) {
+            playTrack(q[0], q)
+            return
+        }
+
+        // Smart Dynamic Continuation powered by the Recommendation Engine.
+        isAdvancing = true
         scope.launch {
-            if (cur != null) {
-                val smartRecs = repository.recommendationManager.getQueueRecommendations(cur, limit = 5)
+            try {
+                val smartRecs = if (cur != null) {
+                    withTimeoutOrNull(6_000L) {
+                        repository.recommendationManager.getQueueRecommendations(cur, limit = 5)
+                    } ?: emptyList()
+                } else {
+                    emptyList()
+                }
+
                 if (smartRecs.isNotEmpty()) {
                     val extendedQueue = q + smartRecs
                     _queue.value = extendedQueue
                     playTrack(smartRecs.first(), extendedQueue)
                     return@launch
                 }
-            }
-            // Fallback to pool
-            val pool = repository.recentTracks.value + repository.favorites.value + repository.localTracks.value
-            val aiTrack = aiRecommender.selectNextTrack(cur, pool, repository.recentTracks.value)
-            if (aiTrack != null) {
-                playTrack(aiTrack)
-            } else if (q.isNotEmpty()) {
-                playTrack(q.first(), q)
+
+                // Fallback to the local pool.
+                val pool = repository.recentTracks.value + repository.favorites.value + repository.localTracks.value
+                val aiTrack = aiRecommender.selectNextTrack(cur, pool, repository.recentTracks.value)
+                when {
+                    aiTrack != null -> playTrack(aiTrack)
+                    q.isNotEmpty() -> playTrack(q.first(), q)
+                    cur != null -> playTrack(cur, listOf(cur))
+                }
+            } catch (_: Exception) {
+                // Never let a failed recommendation end the session silently.
+                val fallback = q.ifEmpty { listOfNotNull(cur) }
+                if (fallback.isNotEmpty()) playTrack(fallback.first(), fallback)
+            } finally {
+                isAdvancing = false
             }
         }
     }
@@ -779,6 +925,7 @@ class MasterWavePlayer(
     }
 
     fun release() {
+        saveSnapshot()
         releaseAcousticTuning()
         stopProgressTracker()
         exoPlayer.removeListener(playerListener)

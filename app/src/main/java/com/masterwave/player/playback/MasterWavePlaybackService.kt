@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Build
 import android.os.Bundle
@@ -39,6 +40,39 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
     private lateinit var notificationManager: MasterWaveNotificationManager
     private var isForegroundService = false
 
+    // Hardware Locks to ensure CPU and Wi-Fi stay awake during background and lock-screen playback
+    private val wakeLock: PowerManager.WakeLock by lazy {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MasterWave:PlaybackWakeLock").apply {
+            setReferenceCounted(false)
+        }
+    }
+
+    private val wifiLock: WifiManager.WifiLock by lazy {
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "MasterWave:PlaybackWifiLock").apply {
+            setReferenceCounted(false)
+        }
+    }
+
+    private fun acquireLocks() {
+        try {
+            if (!wakeLock.isHeld) {
+                wakeLock.acquire(45 * 60 * 1000L) // 45-minute safety ceiling
+            }
+            if (!wifiLock.isHeld) {
+                wifiLock.acquire()
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun releaseLocks() {
+        try {
+            if (wakeLock.isHeld) wakeLock.release()
+            if (wifiLock.isHeld) wifiLock.release()
+        } catch (_: Exception) {}
+    }
+
     inner class LocalBinder : Binder() {
         fun getService(): MasterWavePlaybackService = this@MasterWavePlaybackService
     }
@@ -50,6 +84,10 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
 
         mediaSession = MediaSessionCompat(this, "MasterWaveMediaSession").apply {
             setCallback(MediaSessionCallback())
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
             isActive = true
         }
         sessionToken = mediaSession.sessionToken
@@ -75,6 +113,14 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
                 val track = player.currentTrack.value
                 if (track != null) {
                     updateNotification(track, isPlaying)
+                }
+            }
+        }
+
+        scope.launch {
+            player.isLoading.collectLatest { isLoading ->
+                if (isLoading) {
+                    acquireLocks()
                 }
             }
         }
@@ -110,31 +156,24 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
     private fun updateNotification(track: Track, isPlaying: Boolean) {
         notificationManager.updateNotification(track, isPlaying) { notification ->
             if (isPlaying) {
-                if (!isForegroundService) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        startForeground(
-                            MasterWaveNotificationManager.NOTIFICATION_ID,
-                            notification,
-                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                        )
-                    } else {
-                        startForeground(MasterWaveNotificationManager.NOTIFICATION_ID, notification)
-                    }
-                    isForegroundService = true
+                acquireLocks()
+            }
+
+            // CRITICAL: Maintain foreground status continuously while a session exists!
+            // Dropping foreground (stopForeground) when paused or between tracks strips process priority,
+            // causing Android to kill the service when the user closes the app or locks the phone.
+            if (!isForegroundService) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        MasterWaveNotificationManager.NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                    )
                 } else {
-                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    nm.notify(MasterWaveNotificationManager.NOTIFICATION_ID, notification)
+                    startForeground(MasterWaveNotificationManager.NOTIFICATION_ID, notification)
                 }
+                isForegroundService = true
             } else {
-                if (isForegroundService) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        stopForeground(STOP_FOREGROUND_DETACH)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        stopForeground(false)
-                    }
-                    isForegroundService = false
-                }
                 val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 nm.notify(MasterWaveNotificationManager.NOTIFICATION_ID, notification)
             }
@@ -204,6 +243,7 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
         val stopWhenCleared = prefs.getBoolean("stop_when_app_cleared", false)
         if (stopWhenCleared) {
             player.pause()
+            releaseLocks()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
             } else {
@@ -216,6 +256,7 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
 
     override fun onDestroy() {
         super.onDestroy()
+        releaseLocks()
         scope.cancel()
         mediaSession.release()
         player.release()

@@ -1,10 +1,10 @@
 {
-  "versionCode": 26,
-  "versionName": "2.2.5",
-  "releaseNotes": "• Background Playback Persistence: Service upgraded to START_STICKY for rock-solid background audio playback without OS termination\n• Restored Split Liquid Glass Dock: 2-island architecture with Feed, Stats, Playlists + Search Satellite\n• Rock-Solid Now Playing Artwork: Static, crisp, and stable album art display\n• Studio Audio Tuning: Enhanced loudness (+3.8 dB) and deep sub-bass punch with zero distortion\n• Permanent Listen Together Party ID: Unchanging 1-user-1-code synchronization",
+  "versionCode": 27,
+  "versionName": "2.2.6",
+  "releaseNotes": "• Authentic Image 1 Liquid Glass: Clean luminous frosted porcelain glass dock with zero chromatic dispersion or purple fringing, matching exact reference aesthetic\n• Spacious Luxury Dock: Refined 62dp height and generous touch targets with high-contrast slate icons\n• Permanent Background Playback: Continuous foreground lifecycle ensures playback NEVER stops when closing app or clearing from recents\n• Uninterrupted Lock-Screen Track Advancement: Dedicated WakeLock & WifiLock alongside pre-warmed stream URLs for seamless 0ms next-track playback while phone is locked\n• Queue Repeat & Robust Auto-Advance: Never stalls on stream resolution or network timeouts",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
   "apkSize": "18.2 MB",
-  "publishedAt": "2026-11-22T15:52:00Z",
+  "publishedAt": "2026-11-22T17:00:00Z",
   "minSupportedVersion": 1,
   "forceUpdate": false
 }

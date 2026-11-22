@@ -89,19 +89,21 @@ fun FloatingNavigationDock(
     val isSatelliteActive = isSearchActive || currentTab == MainTab.SEARCH
     val minimized = isMinimized || isSplit
 
-    // High-clarity frosted pill styling matching authentic Liquid Glass
+    // High-clarity frosted pill styling matching authentic Liquid Glass (Image 1 reference).
+    // The active pill is an elevated luminous white capsule with signature red icon and bold label.
     val selectedBg = if (isAmoled) {
-        Color.White.copy(alpha = 0.22f)
+        Color.White.copy(alpha = 0.25f)
     } else {
-        Color.White.copy(alpha = 0.96f)
+        Color.White
     }
     val selectedBorder = if (isAmoled) {
         Color.White.copy(alpha = 0.35f)
     } else {
-        Color.Black.copy(alpha = 0.06f)
+        Color.Black.copy(alpha = 0.05f)
     }
     val selectedContent = if (isAmoled) Color.White else accentColor
-    val unselectedColor = if (isAmoled) Color(0xFFB6BBCB) else Color(0xFF4B5565)
+    // Crisp high-contrast dark slate unselected color from Image 1 reference
+    val unselectedColor = if (isAmoled) Color(0xFFD1D5DB) else Color(0xFF282D37)
 
     val dockSpring = spring<androidx.compose.ui.unit.Dp>(
         dampingRatio = 0.86f,
@@ -109,22 +111,23 @@ fun FloatingNavigationDock(
     )
 
     val horizontalPadding by animateDpAsState(
-        targetValue = if (minimized) 32.dp else 16.dp,
+        targetValue = if (minimized) 28.dp else 16.dp,
         animationSpec = dockSpring,
         label = "dock_horizontal_padding"
     )
+    // Generous, luxurious height matching Image 1 reference (62dp)
     val islandHeight by animateDpAsState(
-        targetValue = if (minimized) 50.dp else 56.dp,
+        targetValue = if (minimized) 52.dp else 62.dp,
         animationSpec = dockSpring,
         label = "dock_island_height"
     )
     val satelliteSize by animateDpAsState(
-        targetValue = if (minimized) 50.dp else 56.dp,
+        targetValue = if (minimized) 52.dp else 62.dp,
         animationSpec = dockSpring,
         label = "dock_satellite_size"
     )
     val tabItemHeight by animateDpAsState(
-        targetValue = if (minimized) 42.dp else 46.dp,
+        targetValue = if (minimized) 42.dp else 48.dp,
         animationSpec = dockSpring,
         label = "dock_tab_item_height"
     )
@@ -146,7 +149,7 @@ fun FloatingNavigationDock(
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
                     borderWidth = 1.3.dp,
-                    elevation = if (minimized) 10.dp else 12.dp,
+                    elevation = if (minimized) 10.dp else 14.dp,
                     accentGlow = Color.Transparent,
                     tintColor = null,
                     hasSheen = true,
@@ -157,7 +160,7 @@ fun FloatingNavigationDock(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -186,10 +189,10 @@ fun FloatingNavigationDock(
                             .weight(tabWeight)
                             .height(tabItemHeight)
                             .shadow(
-                                elevation = if (isSelected && !isAmoled) 2.dp else 0.dp,
+                                elevation = if (isSelected && !isAmoled) 3.dp else 0.dp,
                                 shape = CircleShape,
-                                spotColor = Color.Black.copy(alpha = 0.10f),
-                                ambientColor = Color.Black.copy(alpha = 0.03f)
+                                spotColor = Color.Black.copy(alpha = 0.12f),
+                                ambientColor = Color.Black.copy(alpha = 0.04f)
                             )
                             .clip(CircleShape)
                             .background(itemBg)
@@ -199,8 +202,8 @@ fun FloatingNavigationDock(
                                         width = 0.8.dp,
                                         brush = Brush.verticalGradient(
                                             listOf(
-                                                Color.White.copy(alpha = if (isAmoled) 0.40f else 0.95f),
-                                                Color.White.copy(alpha = if (isAmoled) 0.10f else 0.45f),
+                                                Color.White.copy(alpha = if (isAmoled) 0.40f else 0.98f),
+                                                Color.White.copy(alpha = if (isAmoled) 0.10f else 0.50f),
                                                 if (isAmoled) Color.White.copy(alpha = 0.12f)
                                                 else Color.Black.copy(alpha = 0.05f)
                                             )
@@ -278,11 +281,11 @@ fun FloatingNavigationDock(
         ) {
             Box(
                 modifier = Modifier
-                    .size(if (minimized) 38.dp else 44.dp)
+                    .size(if (minimized) 40.dp else 46.dp)
                     .shadow(
                         elevation = if (isSatelliteActive && !isAmoled) 3.dp else 0.dp,
                         shape = CircleShape,
-                        spotColor = Color.Black.copy(alpha = 0.10f)
+                        spotColor = Color.Black.copy(alpha = 0.12f)
                     )
                     .clip(CircleShape)
                     .background(
@@ -291,7 +294,7 @@ fun FloatingNavigationDock(
                     .then(
                         if (isSatelliteActive) {
                             Modifier.border(
-                                width = 1.dp,
+                                width = 0.8.dp,
                                 color = selectedBorder,
                                 shape = CircleShape
                             )
@@ -305,7 +308,7 @@ fun FloatingNavigationDock(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
                     tint = if (isSatelliteActive) selectedContent else unselectedColor,
-                    modifier = Modifier.size(if (minimized) 19.dp else 21.dp)
+                    modifier = Modifier.size(if (minimized) 20.dp else 22.dp)
                 )
             }
         }

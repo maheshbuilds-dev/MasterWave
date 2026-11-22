@@ -128,20 +128,23 @@ fun Modifier.glassySurface(
             )
         } else when (style) {
             GlassyStyle.DOCK -> {
+                // Milky optical body matching Image 1: High-clarity frosted porcelain crystal
+                // with authentic translucency that diffuses background artwork cleanly
+                // without dark purple smudges or chromatic distortion.
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xAA1E2333), // Luminous smoky obsidian crown (translucent)
-                            Color(0x75131622), // Translucent optical core revealing underlying content
-                            Color(0x8A0B0D15)  // Grounded base
+                            Color(0xCC1A1E29), // Luminous smoky obsidian crown
+                            Color(0xA611141E), // Translucent optical core
+                            Color(0xB80B0D15)  // Grounded base
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xC8FFFFFF), // Polished high-clarity porcelain crown (78% opacity)
-                            Color(0x85F6F8FC), // Luminous translucent optical core (52% opacity)
-                            Color(0xA5E8EEF8)  // Ground bounce with pure crystal tint (65% opacity)
+                            Color(0xF5FFFFFF), // Crisp translucent porcelain top (96%)
+                            Color(0xE8F6F9FD), // Luminous frosted core (91%)
+                            Color(0xEEECF2F8)  // Ground bounce with pure soft white tint (93%)
                         )
                     )
                 }
@@ -246,19 +249,19 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xD9FFFFFF), // Fine diamond specular rim
-                            Color(0x40FFFFFF), // Mid transmission
-                            Color(0x14FFFFFF), // Floor alpha
-                            Color(0x33FFFFFF)  // Bottom ground reflection
+                            Color(0xCCFFFFFF), // Fine diamond specular rim
+                            Color(0x33FFFFFF), // Mid transmission
+                            Color(0x0AFFFFFF), // Floor alpha
+                            Color(0x2EFFFFFF)  // Bottom ground reflection
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF2FFFFFF), // Fine diamond specular rim
-                            Color(0x66FFFFFF), // High sheen
-                            Color(0x0F000000), // Shadow bevel
-                            Color(0x40FFFFFF)  // Bottom ground reflection
+                            Color(0xFFFFFFFF), // Brilliant porcelain top rim
+                            Color(0x8CFFFFFF), // High sheen shoulder
+                            Color(0x12000000), // Fine shadow bevel
+                            Color(0x66FFFFFF)  // Bottom ground reflection
                         )
                     )
                 }
@@ -295,32 +298,36 @@ fun Modifier.glassySurface(
         Modifier.liquid(state) {
             this.shape = shape
             frost = when (style) {
-                GlassyStyle.DOCK -> 24.dp
+                GlassyStyle.DOCK -> 28.dp
                 GlassyStyle.PROMINENT -> 14.dp
                 else -> 10.dp
             }
             refraction = when (style) {
-                GlassyStyle.DOCK -> if (isPressed) 0.25f else 0.18f
+                GlassyStyle.DOCK -> 0.02f
                 GlassyStyle.PROMINENT -> if (isPressed) 0.22f else 0.16f
                 else -> if (isPressed) 0.16f else 0.10f
             }
-            curve = if (style == GlassyStyle.DOCK) 0.24f else 0.16f
-            edge = if (style == GlassyStyle.DOCK) 0.18f else 0.11f
-            saturation = 1.15f
-            contrast = 1.08f
-            dispersion = if (style == GlassyStyle.DOCK) 0.035f else 0.015f
+            curve = if (style == GlassyStyle.DOCK) 0.04f else 0.16f
+            edge = if (style == GlassyStyle.DOCK) 0.04f else 0.11f
+            saturation = if (style == GlassyStyle.DOCK) 1.0f else 1.15f
+            contrast = if (style == GlassyStyle.DOCK) 1.0f else 1.08f
+            dispersion = if (style == GlassyStyle.DOCK) 0.0f else 0.015f
             tint = when {
                 // Artwork-derived accent lens: a whisper of the current cover colour.
                 tintColor != null && style == GlassyStyle.DOCK ->
-                    tintColor.copy(alpha = if (isDark) 0.12f else 0.08f)
-                // Neutral dock glass: cool optical white on light paper, smoky graphite in the dark.
+                    tintColor.copy(alpha = if (isDark) 0.10f else 0.06f)
+                // Neutral dock glass: clean frosted crystal white on light paper, smoky graphite in dark.
                 style == GlassyStyle.DOCK ->
-                    if (isDark) Color(0xFF262B3A).copy(alpha = 0.20f)
-                    else Color(0xFFF7FAFF).copy(alpha = 0.15f)
+                    if (isDark) Color(0xFF1E222D).copy(alpha = 0.18f)
+                    else Color.White.copy(alpha = 0.25f)
                 tintColor != null -> tintColor.copy(alpha = 0.12f)
                 else -> Color.White.copy(alpha = 0.10f)
             }
-        }
+        }.then(
+            // Milky veil ON TOP of the liquid layer for the dock family. Without this
+            // the shelf is a clear film and turns grey / takes the artwork's colour.
+            if (style == GlassyStyle.DOCK) Modifier.background(glassFillBrush) else Modifier
+        )
     } ?: Modifier.background(glassFillBrush)
 
     return this
@@ -352,14 +359,16 @@ fun Modifier.glassySurface(
                 Modifier.drawWithContent {
                     drawContent()
 
+                    val isDock = style == GlassyStyle.DOCK
+
                     // 1. Polished overhead light pool (centered, radiant flare)
                     val poolRadius = size.width * 0.60f
                     val poolCenter = Offset(size.width * 0.50f, -size.height * 0.12f)
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.24f else 0.28f),
-                                Color.White.copy(alpha = if (isDark) 0.08f else 0.10f),
+                                Color.White.copy(alpha = if (isDark) 0.22f else 0.30f),
+                                Color.White.copy(alpha = if (isDark) 0.07f else 0.10f),
                                 Color.Transparent
                             ),
                             center = poolCenter,
@@ -373,8 +382,8 @@ fun Modifier.glassySurface(
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.26f else 0.34f),
-                                Color.White.copy(alpha = if (isDark) 0.08f else 0.12f),
+                                Color.White.copy(alpha = if (isDark) 0.24f else 0.44f),
+                                Color.White.copy(alpha = if (isDark) 0.07f else 0.12f),
                                 Color.Transparent
                             ),
                             startY = 0f,
@@ -383,14 +392,14 @@ fun Modifier.glassySurface(
                         size = Size(size.width, size.height * 0.22f)
                     )
 
-                    // 3. Diagonal polished light sweep (30-degree gloss beam across the lens)
+                    // 3. Diagonal polished light sweep (restrained gloss beam)
                     drawRect(
                         brush = Brush.linearGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.White.copy(alpha = if (isDark) 0.04f else 0.08f),
-                                Color.White.copy(alpha = if (isDark) 0.10f else 0.14f),
-                                Color.White.copy(alpha = if (isDark) 0.03f else 0.05f),
+                                Color.White.copy(alpha = if (isDark) 0.03f else 0.06f),
+                                Color.White.copy(alpha = if (isDark) 0.07f else 0.10f),
+                                Color.White.copy(alpha = if (isDark) 0.02f else 0.04f),
                                 Color.Transparent
                             ),
                             start = Offset(size.width * 0.12f, 0f),
@@ -406,7 +415,7 @@ fun Modifier.glassySurface(
                             colors = listOf(
                                 Color.Transparent,
                                 (if (isDark) Color.White else Color(0xFF1A2333))
-                                    .copy(alpha = if (isDark) 0.10f else 0.07f)
+                                    .copy(alpha = if (isDark) 0.08f else 0.06f)
                             ),
                             startY = baseTop,
                             endY = size.height
@@ -414,6 +423,38 @@ fun Modifier.glassySurface(
                         topLeft = Offset(0f, baseTop),
                         size = Size(size.width, size.height - baseTop)
                     )
+
+                    if (isDock) {
+                        // 5. Inner optical bevel: a second, softer light line just under
+                        //    the rim. This is what makes the shelf read as thick glass.
+                        val bevel = 1.4.dp.toPx()
+                        val innerWidth = (size.width - bevel * 2f).coerceAtLeast(0f)
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.20f else 0.55f),
+                                    Color.Transparent
+                                ),
+                                startY = bevel,
+                                endY = bevel * 4f
+                            ),
+                            topLeft = Offset(bevel, bevel),
+                            size = Size(innerWidth, bevel * 3f)
+                        )
+                        // 6. Bottom inner reflection line
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.White.copy(alpha = if (isDark) 0.10f else 0.30f)
+                                ),
+                                startY = size.height - bevel * 2f,
+                                endY = size.height - bevel
+                            ),
+                            topLeft = Offset(bevel, size.height - bevel * 2f),
+                            size = Size(innerWidth, bevel)
+                        )
+                    }
                 }
             } else Modifier
         )
