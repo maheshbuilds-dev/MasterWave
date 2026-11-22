@@ -1,10 +1,10 @@
 {
-  "versionCode": 28,
-  "versionName": "2.2.7",
-  "releaseNotes": "• Authentic Apple Liquid Glass: True translucent optical crystal navigation dock with 26dp backdrop blur, 1.25x saturation boost, optical refraction, and delicate specular edge highlight\n• Pure Backdrop Transmission: Underlying album art, titles, and artist portraits visibly refract and shine through the floating dock with zero milky opacity\n• Retained Signature Dock Buttons: 4-tab split island with elevated white active pill capsule and circular Search jewel intact\n• Permanent Background & Lock-Screen Playback: Continuous foreground lifecycle, dedicated WakeLock, WifiLock, and pre-warmed stream URLs guarantee playback never stops",
+  "versionCode": 29,
+  "versionName": "2.2.8",
+  "releaseNotes": "• Liquid Glass Skill Architecture (deepika-builds/liquid-glass): Adopted proven optical displacement recipe with perimeter refraction bulge, neutral interior inset, and 1.5x saturation boost\n• Chromatic Prism Fringe: Staggered three-channel chromatic aberration (chroma: 6 / dispersion: 0.032) delivering Apple-grade refraction rim\n• Optical Material Dressing: Translucent gradient tint (rgba(14, 14, 22, 0.18-0.32) in dark, rgba(255, 255, 255, 0.32-0.18) in light) with specular hairline top highlight and deep elevation drop shadow\n• 100% Preserved Button Style: Feed active capsule, Stats, Playlists, and circular Search satellite intact\n• Permanent Background & Lock-Screen Playback: Continuous foreground lifecycle, dedicated WakeLock, WifiLock, and pre-warmed streams",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
   "apkSize": "18.3 MB",
-  "publishedAt": "2026-11-22T17:25:00Z",
+  "publishedAt": "2026-11-22T17:35:00Z",
   "minSupportedVersion": 1,
   "forceUpdate": false
 }

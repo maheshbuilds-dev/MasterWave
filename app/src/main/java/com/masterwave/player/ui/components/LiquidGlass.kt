@@ -128,22 +128,24 @@ fun Modifier.glassySurface(
             )
         } else when (style) {
             GlassyStyle.DOCK -> {
-                // Apple Liquid Glass: authentic translucent crystal body allowing rich underlying
-                // album art, text, and imagery to shine and refract cleanly through the material.
+                // Liquid Glass Skill (deepika-builds/liquid-glass):
+                // Translucent gradient tint preserving full backdrop optical refraction:
+                // Dark mode: rgba(14, 14, 22, 0.18) -> rgba(14, 14, 22, 0.32)
+                // Light mode: rgba(255, 255, 255, 0.32) -> rgba(240, 244, 252, 0.18)
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x551E2333), // Luminous obsidian crown (~33% alpha)
-                            Color(0x28131622), // Translucent optical core (~16% alpha)
-                            Color(0x380B0D15)  // Ground base (~22% alpha)
+                            Color(0x2E0E0E16), // rgba(14, 14, 22, 0.18)
+                            Color(0x3B0E0E16), // Mid tone
+                            Color(0x520E0E16)  // rgba(14, 14, 22, 0.32)
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x50FFFFFF), // Translucent crystal crown (~31% alpha)
-                            Color(0x20F4F8FC), // Translucent optical core (~13% alpha)
-                            Color(0x32E8EEF8)  // Ground base with soft reflection tint (~20% alpha)
+                            Color(0x52FFFFFF), // rgba(255, 255, 255, 0.32)
+                            Color(0x3DF0F4FC), // Translucent optical core
+                            Color(0x2EF0F4FC)  // rgba(240, 244, 252, 0.18)
                         )
                     )
                 }
@@ -297,28 +299,28 @@ fun Modifier.glassySurface(
         Modifier.liquid(state) {
             this.shape = shape
             frost = when (style) {
-                GlassyStyle.DOCK -> 26.dp
+                GlassyStyle.DOCK -> 24.dp
                 GlassyStyle.PROMINENT -> 14.dp
                 else -> 10.dp
             }
             refraction = when (style) {
-                GlassyStyle.DOCK -> if (isPressed) 0.22f else 0.16f
+                GlassyStyle.DOCK -> if (isPressed) 0.24f else 0.18f
                 GlassyStyle.PROMINENT -> if (isPressed) 0.22f else 0.16f
                 else -> if (isPressed) 0.16f else 0.10f
             }
-            curve = if (style == GlassyStyle.DOCK) 0.20f else 0.16f
-            edge = if (style == GlassyStyle.DOCK) 0.16f else 0.11f
-            saturation = if (style == GlassyStyle.DOCK) 1.25f else 1.15f
+            curve = if (style == GlassyStyle.DOCK) 0.22f else 0.16f
+            edge = if (style == GlassyStyle.DOCK) 0.14f else 0.11f
+            saturation = if (style == GlassyStyle.DOCK) 1.50f else 1.15f
             contrast = 1.05f
-            dispersion = if (style == GlassyStyle.DOCK) 0.028f else 0.015f
+            dispersion = if (style == GlassyStyle.DOCK) 0.032f else 0.015f
             tint = when {
                 // Artwork-derived accent lens: a whisper of the current cover colour.
                 tintColor != null && style == GlassyStyle.DOCK ->
                     tintColor.copy(alpha = if (isDark) 0.12f else 0.08f)
-                // Neutral dock glass: clean translucent optical tint in light mode, smoky obsidian in dark.
+                // Neutral dock glass: translucent optical tint matching liquid-glass skill recipe
                 style == GlassyStyle.DOCK ->
-                    if (isDark) Color(0xFF1E222D).copy(alpha = 0.22f)
-                    else Color(0xFFF7FAFF).copy(alpha = 0.16f)
+                    if (isDark) Color(0xFF0E0E16).copy(alpha = 0.20f)
+                    else Color(0xFFFFFFFF).copy(alpha = 0.18f)
                 tintColor != null -> tintColor.copy(alpha = 0.12f)
                 else -> Color.White.copy(alpha = 0.10f)
             }
