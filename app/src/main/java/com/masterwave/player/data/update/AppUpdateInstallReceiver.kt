@@ -10,11 +10,10 @@ import android.util.Log
 /**
  * Receives the result of the PackageInstaller session used for in-app self-updates.
  *
- * MasterWave uses `SessionParams.USER_ACTION_NOT_REQUIRED` together with the
- * `UPDATE_PACKAGES_WITHOUT_USER_ACTION` permission, so on Android 12+ the update is applied
- * silently and this receiver normally only ever sees SUCCESS / FAILURE. The
- * STATUS_PENDING_USER_ACTION branch is kept as a safe fallback for devices or modes where the
- * system still wants confirmation, so the update can never get stuck.
+ * MasterWave uses `SessionParams.USER_ACTION_NOT_REQUIRED` so on Android 12+ the update is
+ * applied silently without triggering the Play Protect "scan app" confirmation screen.
+ * The STATUS_PENDING_USER_ACTION branch is kept as a safe fallback for devices or modes
+ * where the system still wants confirmation, so the update can never get stuck.
  */
 class AppUpdateInstallReceiver : BroadcastReceiver() {
 

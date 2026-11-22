@@ -52,17 +52,32 @@ class AppPackageReplacedReceiver : BroadcastReceiver() {
                 Log.w(TAG, "Could not record post-update version preferences", e)
             }
 
-            // 4. Automatically relaunch the app into the new version
+            // 4. Post a notification to relaunch instead of forcing a relaunch,
+            // which can be flagged as suspicious background activity.
             try {
+                val nm = NotificationManagerCompat.from(context)
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra("post_update_relaunch", true)
                 }
-                if (launchIntent != null) {
-                    context.startActivity(launchIntent)
-                }
+                val pendingIntent = android.app.PendingIntent.getActivity(
+                    context,
+                    0,
+                    launchIntent,
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+
+                val notification = androidx.core.app.NotificationCompat.Builder(context, "update_channel")
+                    .setSmallIcon(com.masterwave.player.R.mipmap.ic_launcher)
+                    .setContentTitle("Update Complete")
+                    .setContentText("MasterWave has been updated. Tap to open.")
+                    .setContentIntent(pendingIntent)
+                    .setAutoCancel(true)
+                    .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                    .build()
+
+                nm.notify(30_001, notification)
             } catch (e: Exception) {
-                Log.w(TAG, "Could not auto-relaunch MasterWave after update", e)
+                Log.w(TAG, "Could not post post-update notification", e)
             }
         }
     }
