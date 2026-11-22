@@ -2,6 +2,15 @@
 
 All notable changes and milestones for the MasterWave Android project will be documented in this file.
 
+## [2.1.4] - 2026-11-22
+
+### Fixed
+- **Play Protect "App scan recommended" prompt on every update — permanently removed.** Updates are now installed through a `PackageInstaller.Session` with `USER_ACTION_NOT_REQUIRED` plus the `UPDATE_PACKAGES_WITHOUT_USER_ACTION` permission, so on Android 12+ the system applies the update silently with no installer screen and no scan step.
+- Replaced the `Intent.ACTION_VIEW` + FileProvider install path (which forced a fresh Play Protect scan for every new APK hash).
+- Added a non-exported `AppUpdateInstallReceiver` for install results, with abort/failure recovery that resets state so the update can be retried without a re-download loop.
+- No translucent trampoline activity was reintroduced (the pattern Play Protect flagged as tapjacking).
+- Added inline install-error feedback on the update modal and update screen.
+
 ## [Unreleased] - 2026-11-19
 
 ### Completed

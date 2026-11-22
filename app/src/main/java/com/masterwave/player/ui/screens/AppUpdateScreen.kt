@@ -102,6 +102,7 @@ fun AppUpdateScreen(
     val availableUpdate by actualUpdateManager.availableUpdate.collectAsState()
     val downloadProgress by actualUpdateManager.downloadProgress.collectAsState()
     val isInstalling by actualUpdateManager.isInstalling.collectAsState()
+    val installError by actualUpdateManager.installError.collectAsState()
     val isChecking by actualUpdateManager.isChecking.collectAsState()
 
     var lastCheckedStatus by remember {
@@ -378,7 +379,7 @@ fun AppUpdateScreen(
                                     trackColor = colors.hairline
                                 )
                                 Text(
-                                    text = if (progress >= 1f) "Preparing installation..." else "Downloading update: ${(progress * 100).toInt()}%",
+                                    text = if (progress >= 1f) "Installing update…" else "Downloading update: ${(progress * 100).toInt()}%",
                                     fontFamily = DisplayFontFamily,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -409,6 +410,16 @@ fun AppUpdateScreen(
                                     color = Color.White
                                 )
                             }
+                        }
+
+                        if (installError != null && downloadProgress == null) {
+                            Text(
+                                text = installError!!,
+                                fontFamily = DisplayFontFamily,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFB3261E)
+                            )
                         }
                     }
                 }

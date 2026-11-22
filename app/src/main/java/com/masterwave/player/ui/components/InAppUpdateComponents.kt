@@ -191,6 +191,7 @@ fun InAppUpdateModal(
     val colors = rememberAppThemeColors()
     val downloadProgress by updateManager.downloadProgress.collectAsState()
     val isInstalling by updateManager.isInstalling.collectAsState()
+    val installError by updateManager.installError.collectAsState()
 
     val infiniteTransition = rememberInfiniteTransition(label = "update_spin")
     val rotation by infiniteTransition.animateFloat(
@@ -320,7 +321,7 @@ fun InAppUpdateModal(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = if (isInstalling) "Opening Installer..." else "Downloading update package...",
+                                text = if (isInstalling) "Installing update…" else "Downloading update package…",
                                 fontFamily = DisplayFontFamily,
                                 fontSize = 12.sp,
                                 color = colors.muted
@@ -334,6 +335,18 @@ fun InAppUpdateModal(
                             )
                         }
                     }
+                }
+
+                // Install failure feedback (e.g. storage, signature mismatch, blocked install)
+                if (installError != null && currentProgress == null) {
+                    Text(
+                        text = installError!!,
+                        fontFamily = DisplayFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFB3261E),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 // Action Buttons
