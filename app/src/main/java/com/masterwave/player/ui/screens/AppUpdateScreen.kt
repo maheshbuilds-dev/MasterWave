@@ -601,6 +601,17 @@ fun AppUpdateScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { openUrl("https://github.com/mahesh2008here-star/MasterWave/releases") },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "GitHub Official Releases", fontFamily = DisplayFontFamily, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = colors.ink)
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, tint = colors.ink, modifier = Modifier.size(16.dp))
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .clickable { openUrl("https://masterwave.vercel.app") },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically

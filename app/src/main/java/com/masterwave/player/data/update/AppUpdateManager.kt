@@ -112,51 +112,32 @@ class AppUpdateManager(
 
         scope.launch {
             try {
-                val request = Request.Builder()
-                    .url(UPDATE_MANIFEST_URL)
-                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
-                    .header("Pragma", "no-cache")
-                    .build()
+                val update = fetchUpdateMetadata()
+                val currentCode = BuildConfig.VERSION_CODE
+                val currentName = BuildConfig.VERSION_NAME
 
-                val response = okHttpClient.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    throw IOException("HTTP ${response.code} from update manifest")
+                val isNewer = if (update != null) {
+                    if (update.versionCode > currentCode) {
+                        true
+                    } else {
+                        isVersionNewer(update.versionName, currentName)
+                    }
+                } else {
+                    false
                 }
 
-                val bodyString = response.body?.string().orEmpty()
-                val json = JSONObject(bodyString)
+                Log.d(TAG, "Update check result: localCode=$currentCode, localName=$currentName, isNewer=$isNewer, update=$update")
 
-                val remoteVersionCode = json.optInt("versionCode", 0)
-                val remoteVersionName = json.optString("versionName", "2.0.2")
-                val releaseNotes = json.optString("releaseNotes", "New performance and visual enhancements.")
-                val apkUrl = json.optString("apkUrl", "https://masterwave.vercel.app/assets/MasterWave.apk")
-                val apkSize = json.optString("apkSize", "25 MB")
-                val publishedAt = json.optString("publishedAt", "")
-                val forceUpdate = json.optBoolean("forceUpdate", false)
-
-                val currentCode = BuildConfig.VERSION_CODE
-                Log.d(TAG, "Update check: local=$currentCode, remote=$remoteVersionCode ($remoteVersionName)")
-
-                // Only trigger update if remote is strictly newer than installed build!
-                if (remoteVersionCode > currentCode) {
-                    val update = UpdateInfo(
-                        versionCode = remoteVersionCode,
-                        versionName = remoteVersionName,
-                        releaseNotes = releaseNotes,
-                        apkUrl = apkUrl,
-                        apkSize = apkSize,
-                        publishedAt = publishedAt,
-                        forceUpdate = forceUpdate
-                    )
+                if (update != null && isNewer) {
                     _availableUpdate.value = update
 
                     val dismissedCode = prefs.getInt("dismissed_version_code", -1)
-                    _isDismissed.value = (dismissedCode >= remoteVersionCode && !forceUpdate)
+                    _isDismissed.value = (dismissedCode >= update.versionCode && !update.forceUpdate)
 
                     val lastNotified = prefs.getInt("last_notified_version", -1)
-                    if (!silent && !_isDismissed.value && lastNotified < remoteVersionCode) {
+                    if (!silent && !_isDismissed.value && lastNotified < update.versionCode) {
                         postUpdateNotification(update)
-                        prefs.edit().putInt("last_notified_version", remoteVersionCode).apply()
+                        prefs.edit().putInt("last_notified_version", update.versionCode).apply()
                     }
 
                     withContext(Dispatchers.Main) {
@@ -186,6 +167,161 @@ class AppUpdateManager(
                 _isChecking.value = false
             }
         }
+    }
+
+    /**
+     * Resolves update metadata across multi-tiered sources:
+     * 1. Direct GitHub Releases API (latest release tag, notes, and APK assets)
+     * 2. Direct GitHub Raw Repository Manifest (unmetered high-availability CDN)
+     * 3. Official Website Mirror (Vercel)
+     */
+    private fun fetchUpdateMetadata(): UpdateInfo? {
+        fetchFromGitHubReleases()?.let {
+            Log.i(TAG, "Resolved update metadata from GitHub Releases API: v${it.versionName}")
+            return it
+        }
+
+        fetchFromManifestUrl(GITHUB_RAW_MANIFEST_URL)?.let {
+            Log.i(TAG, "Resolved update metadata from GitHub Raw Manifest: v${it.versionName}")
+            return it
+        }
+
+        fetchFromManifestUrl(UPDATE_MANIFEST_URL)?.let {
+            Log.i(TAG, "Resolved update metadata from Vercel mirror: v${it.versionName}")
+            return it
+        }
+
+        return null
+    }
+
+    private fun fetchFromGitHubReleases(): UpdateInfo? {
+        try {
+            val request = Request.Builder()
+                .url(GITHUB_RELEASES_API_URL)
+                .header("User-Agent", "MasterWave/${BuildConfig.VERSION_NAME}")
+                .header("Accept", "application/vnd.github+json")
+                .header("Cache-Control", "no-cache")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                Log.d(TAG, "GitHub Releases API returned HTTP ${response.code}")
+                return null
+            }
+
+            val body = response.body?.string().orEmpty()
+            if (body.isBlank()) return null
+            val json = JSONObject(body)
+
+            val tagName = json.optString("tag_name", "").trim()
+            if (tagName.isBlank()) return null
+            val remoteVersionName = tagName.removePrefix("v").removePrefix("V").trim()
+            val releaseNotes = json.optString("body", "MasterWave $tagName release available directly on GitHub.")
+            val publishedAt = json.optString("published_at", "")
+
+            var apkUrl: String? = null
+            var apkSizeBytes = 0L
+            val assets = json.optJSONArray("assets")
+            if (assets != null) {
+                for (i in 0 until assets.length()) {
+                    val asset = assets.optJSONObject(i) ?: continue
+                    val name = asset.optString("name", "")
+                    if (name.endsWith(".apk", ignoreCase = true)) {
+                        apkUrl = asset.optString("browser_download_url", "")
+                        apkSizeBytes = asset.optLong("size", 0L)
+                        break
+                    }
+                }
+            }
+
+            if (apkUrl.isNullOrBlank()) {
+                apkUrl = "https://github.com/mahesh2008here-star/MasterWave/releases/latest/download/app-release.apk"
+            }
+
+            val apkSize = formatApkSize(apkSizeBytes)
+
+            val codeRegex = Regex("""(?i)(?:versionCode|code)[\s:=]+(\d+)""")
+            val parsedCode = codeRegex.find(releaseNotes)?.groupValues?.get(1)?.toIntOrNull()
+
+            val remoteVersionCode = parsedCode ?: run {
+                if (isVersionNewer(remoteVersionName, BuildConfig.VERSION_NAME)) {
+                    BuildConfig.VERSION_CODE + 1
+                } else {
+                    BuildConfig.VERSION_CODE
+                }
+            }
+
+            return UpdateInfo(
+                versionCode = remoteVersionCode,
+                versionName = remoteVersionName,
+                releaseNotes = releaseNotes,
+                apkUrl = apkUrl,
+                apkSize = apkSize,
+                publishedAt = publishedAt,
+                forceUpdate = false
+            )
+        } catch (e: Exception) {
+            Log.d(TAG, "GitHub Releases API check failed: ${e.message}")
+            return null
+        }
+    }
+
+    private fun fetchFromManifestUrl(url: String): UpdateInfo? {
+        try {
+            val request = Request.Builder()
+                .url(url)
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .header("Pragma", "no-cache")
+                .header("User-Agent", "MasterWave/${BuildConfig.VERSION_NAME}")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) return null
+
+            val bodyString = response.body?.string().orEmpty()
+            if (bodyString.isBlank()) return null
+            val json = JSONObject(bodyString)
+
+            val remoteVersionCode = json.optInt("versionCode", 0)
+            val remoteVersionName = json.optString("versionName", "")
+            if (remoteVersionCode <= 0 && remoteVersionName.isBlank()) return null
+
+            return UpdateInfo(
+                versionCode = remoteVersionCode,
+                versionName = remoteVersionName.ifBlank { "2.2.2" },
+                releaseNotes = json.optString("releaseNotes", "New performance and visual enhancements."),
+                apkUrl = json.optString("apkUrl", "https://github.com/mahesh2008here-star/MasterWave/releases/latest/download/app-release.apk"),
+                apkSize = json.optString("apkSize", "18.5 MB"),
+                publishedAt = json.optString("publishedAt", ""),
+                forceUpdate = json.optBoolean("forceUpdate", false)
+            )
+        } catch (e: Exception) {
+            Log.d(TAG, "Manifest check failed for $url: ${e.message}")
+            return null
+        }
+    }
+
+    private fun isVersionNewer(remote: String, local: String): Boolean {
+        val cleanRemote = remote.removePrefix("v").removePrefix("V").trim()
+        val cleanLocal = local.removePrefix("v").removePrefix("V").trim()
+        if (cleanRemote == cleanLocal) return false
+
+        val remoteParts = cleanRemote.split(".").mapNotNull { it.toIntOrNull() }
+        val localParts = cleanLocal.split(".").mapNotNull { it.toIntOrNull() }
+        val maxParts = maxOf(remoteParts.size, localParts.size)
+        for (i in 0 until maxParts) {
+            val r = remoteParts.getOrElse(i) { 0 }
+            val l = localParts.getOrElse(i) { 0 }
+            if (r > l) return true
+            if (r < l) return false
+        }
+        return false
+    }
+
+    private fun formatApkSize(bytes: Long): String {
+        if (bytes <= 0L) return "18.5 MB"
+        val mb = bytes.toDouble() / (1024 * 1024)
+        return String.format(java.util.Locale.US, "%.1f MB", mb)
     }
 
     fun downloadAndInstall(update: UpdateInfo, onComplete: ((Boolean) -> Unit)? = null) {
@@ -456,6 +592,10 @@ class AppUpdateManager(
     companion object {
         private const val TAG = "AppUpdateManager"
         const val ACTION_CLOSE_FOR_UPDATE = "com.masterwave.player.ACTION_CLOSE_FOR_UPDATE"
+        const val GITHUB_REPO = "mahesh2008here-star/MasterWave"
+        const val GITHUB_RELEASES_API_URL = "https://api.github.com/repos/mahesh2008here-star/MasterWave/releases/latest"
+        const val GITHUB_RAW_MANIFEST_URL = "https://raw.githubusercontent.com/mahesh2008here-star/MasterWave/main/update.json"
+        const val GITHUB_RELEASES_PAGE_URL = "https://github.com/mahesh2008here-star/MasterWave/releases"
         const val UPDATE_MANIFEST_URL = "https://masterwave.vercel.app/update.json"
         const val OFFICIAL_SITE_URL = "https://masterwave.vercel.app"
         private const val UPDATE_NOTIFICATION_ID = 20_001
