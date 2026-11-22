@@ -688,19 +688,19 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Stays on top of all screens; hidden when full-screen NowPlaying/Lyrics/Queue is active
         if (!isOverlayOpen) {
             val isAmoledTheme = ThemeState.isAmoledTheme()
-            // A whisper of a scrim only under the very bottom edge. The liquid glass
-            // does the legibility work now; a tall opaque band would kill the effect.
+            // Subtle edge fade so the content extends cleanly beneath the glass dock
+            // without washing out the backdrop with heavy opaque scrim.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(128.dp)
+                    .height(96.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
                                 0.0f to Color.Transparent,
-                                0.58f to Color.Transparent,
-                                1.0f to if (isAmoledTheme) Color(0x66000000) else Color(0x80FFFFFF)
+                                0.72f to Color.Transparent,
+                                1.0f to if (isAmoledTheme) Color(0x40000000) else Color(0x18FFFFFF)
                             )
                         )
                     )

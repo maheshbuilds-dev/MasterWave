@@ -1,10 +1,10 @@
 {
-  "versionCode": 27,
-  "versionName": "2.2.6",
-  "releaseNotes": "• Authentic Image 1 Liquid Glass: Clean luminous frosted porcelain glass dock with zero chromatic dispersion or purple fringing, matching exact reference aesthetic\n• Spacious Luxury Dock: Refined 62dp height and generous touch targets with high-contrast slate icons\n• Permanent Background Playback: Continuous foreground lifecycle ensures playback NEVER stops when closing app or clearing from recents\n• Uninterrupted Lock-Screen Track Advancement: Dedicated WakeLock & WifiLock alongside pre-warmed stream URLs for seamless 0ms next-track playback while phone is locked\n• Queue Repeat & Robust Auto-Advance: Never stalls on stream resolution or network timeouts",
+  "versionCode": 28,
+  "versionName": "2.2.7",
+  "releaseNotes": "• Authentic Apple Liquid Glass: True translucent optical crystal navigation dock with 26dp backdrop blur, 1.25x saturation boost, optical refraction, and delicate specular edge highlight\n• Pure Backdrop Transmission: Underlying album art, titles, and artist portraits visibly refract and shine through the floating dock with zero milky opacity\n• Retained Signature Dock Buttons: 4-tab split island with elevated white active pill capsule and circular Search jewel intact\n• Permanent Background & Lock-Screen Playback: Continuous foreground lifecycle, dedicated WakeLock, WifiLock, and pre-warmed stream URLs guarantee playback never stops",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
-  "apkSize": "18.2 MB",
-  "publishedAt": "2026-11-22T17:00:00Z",
+  "apkSize": "18.3 MB",
+  "publishedAt": "2026-11-22T17:25:00Z",
   "minSupportedVersion": 1,
   "forceUpdate": false
 }
