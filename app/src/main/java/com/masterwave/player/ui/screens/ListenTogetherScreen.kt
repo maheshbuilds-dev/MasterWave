@@ -341,28 +341,30 @@ fun ListenTogetherScreen(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = "YOUR UNIQUE PARTY CODE",
+                                        text = "YOUR PERMANENT PARTY CODE",
                                         fontFamily = DisplayFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 11.sp,
                                         color = colors.muted,
                                         letterSpacing = 1.5.sp
                                     )
-                                    IconButton(
-                                        onClick = {
-                                            val newCode = listenManager?.regenerateRoomCode() ?: partyCode
-                                            Toast.makeText(context, "New Party Code: $newCode", Toast.LENGTH_SHORT).show()
-                                        },
-                                        modifier = Modifier.size(24.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color(0xFFE8F5E9))
+                                            .border(1.dp, Color(0xFF81C784), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Refresh,
-                                            contentDescription = "New Code",
-                                            tint = colors.muted,
-                                            modifier = Modifier.size(15.dp)
+                                        Text(
+                                            text = "PERMANENT ID",
+                                            fontFamily = DisplayFontFamily,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 9.sp,
+                                            color = Color(0xFF2E7D32),
+                                            letterSpacing = 0.8.sp
                                         )
                                     }
                                 }

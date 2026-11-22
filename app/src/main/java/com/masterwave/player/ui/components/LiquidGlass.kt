@@ -131,17 +131,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xC2202636), // Luminous smoky obsidian crown
-                            Color(0x8F131622), // Translucent optical core revealing underlying content
-                            Color(0x9E0B0D15)  // Grounded base
+                            Color(0xAA1E2333), // Luminous smoky obsidian crown (translucent)
+                            Color(0x75131622), // Translucent optical core revealing underlying content
+                            Color(0x8A0B0D15)  // Grounded base
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF8FFFFFF), // Polished high-clarity porcelain crown
-                            Color(0xF0F8FAFC), // Luminous neutral optical core (prevents dirty background bleeding)
-                            Color(0xE8EEF2F6)  // Ground bounce with pure crystal tint
+                            Color(0xC8FFFFFF), // Polished high-clarity porcelain crown (78% opacity)
+                            Color(0x85F6F8FC), // Luminous translucent optical core (52% opacity)
+                            Color(0xA5E8EEF8)  // Ground bounce with pure crystal tint (65% opacity)
                         )
                     )
                 }
@@ -295,28 +295,28 @@ fun Modifier.glassySurface(
         Modifier.liquid(state) {
             this.shape = shape
             frost = when (style) {
-                GlassyStyle.DOCK -> 20.dp
-                GlassyStyle.PROMINENT -> 12.dp
+                GlassyStyle.DOCK -> 24.dp
+                GlassyStyle.PROMINENT -> 14.dp
                 else -> 10.dp
             }
             refraction = when (style) {
-                GlassyStyle.DOCK -> if (isPressed) 0.22f else 0.15f
-                GlassyStyle.PROMINENT -> if (isPressed) 0.20f else 0.14f
+                GlassyStyle.DOCK -> if (isPressed) 0.25f else 0.18f
+                GlassyStyle.PROMINENT -> if (isPressed) 0.22f else 0.16f
                 else -> if (isPressed) 0.16f else 0.10f
             }
-            curve = if (style == GlassyStyle.DOCK) 0.20f else 0.16f
-            edge = if (style == GlassyStyle.DOCK) 0.14f else 0.11f
-            saturation = 1.12f
-            contrast = 1.05f
-            dispersion = if (style == GlassyStyle.DOCK) 0.022f else 0.015f
+            curve = if (style == GlassyStyle.DOCK) 0.24f else 0.16f
+            edge = if (style == GlassyStyle.DOCK) 0.18f else 0.11f
+            saturation = 1.15f
+            contrast = 1.08f
+            dispersion = if (style == GlassyStyle.DOCK) 0.035f else 0.015f
             tint = when {
                 // Artwork-derived accent lens: a whisper of the current cover colour.
                 tintColor != null && style == GlassyStyle.DOCK ->
-                    tintColor.copy(alpha = if (isDark) 0.10f else 0.08f)
+                    tintColor.copy(alpha = if (isDark) 0.12f else 0.08f)
                 // Neutral dock glass: cool optical white on light paper, smoky graphite in the dark.
                 style == GlassyStyle.DOCK ->
-                    if (isDark) Color(0xFF262B3A).copy(alpha = 0.24f)
-                    else Color(0xFFF7FAFF).copy(alpha = 0.20f)
+                    if (isDark) Color(0xFF262B3A).copy(alpha = 0.20f)
+                    else Color(0xFFF7FAFF).copy(alpha = 0.15f)
                 tintColor != null -> tintColor.copy(alpha = 0.12f)
                 else -> Color.White.copy(alpha = 0.10f)
             }

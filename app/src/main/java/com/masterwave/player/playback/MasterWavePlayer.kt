@@ -153,16 +153,16 @@ class MasterWavePlayer(
     private val _equalizerPreset = MutableStateFlow(audioPrefs.getString("equalizer_preset", "Apple Music Master") ?: "Apple Music Master")
     val equalizerPreset: StateFlow<String> = _equalizerPreset.asStateFlow()
 
-    private val _equalizerBands = MutableStateFlow(listOf(4, 1, 1, 2, 3))
+    private val _equalizerBands = MutableStateFlow(listOf(5, 2, 1, 2, 3))
     val equalizerBands: StateFlow<List<Int>> = _equalizerBands.asStateFlow()
 
     val equalizerPresetMap = mapOf(
-        "Apple Music Master" to listOf(4, 1, 1, 2, 3),
-        "Harman Target" to listOf(5, 2, 0, 3, 2),
-        "AirPods Spatial" to listOf(3, 1, 2, 2, 4),
+        "Apple Music Master" to listOf(5, 2, 1, 2, 3),
+        "Harman Target" to listOf(6, 3, 0, 3, 2),
+        "AirPods Spatial" to listOf(4, 2, 2, 2, 4),
         "Studio Pure" to listOf(0, 0, 0, 0, 0),
         "Flat" to listOf(0, 0, 0, 0, 0),
-        "Bass Boost" to listOf(6, 4, 1, 0, 0),
+        "Bass Boost" to listOf(7, 5, 2, 0, 0),
         "Vocal Booster" to listOf(-1, 1, 5, 4, 1),
         "Electronic" to listOf(5, 3, -1, 2, 4),
         "Rock" to listOf(5, 2, -2, 3, 5),
@@ -629,13 +629,13 @@ class MasterWavePlayer(
         try {
             releaseAcousticTuning()
             // 1. Studio Loudness Enhancer (EBU R128 transparent headroom without clipping)
-            val targetGain = if (_appleMusicMasterMode.value) 220 else 250
+            val targetGain = if (_appleMusicMasterMode.value) 350 else 380
             loudnessEnhancer = LoudnessEnhancer(sessionId).apply {
                 setTargetGain(targetGain)
                 enabled = _acousticTuningEnabled.value
             }
             // 2. Punchy Warm Bass Acoustic Tuning (tight, non-muddy sub-bass for all phone DACs)
-            val bassStrength = if (_appleMusicMasterMode.value) 200 else 220
+            val bassStrength = if (_appleMusicMasterMode.value) 350 else 380
             bassBoost = BassBoost(0, sessionId).apply {
                 if (strengthSupported) {
                     setStrength(bassStrength.toShort())

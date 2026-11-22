@@ -137,24 +137,26 @@ class ListenTogetherManager private constructor(
     }
 
     private fun loadOrGenerateRoomCode(): String {
-        val saved = prefs.getString("room_code", null)?.replace("-", "")?.trim()
-        if (!saved.isNullOrBlank()) {
-            prefs.edit().putString("room_code", saved).apply()
-            return saved
+        // Enforce user requirement: Only ONE permanent code for ONE user.
+        // Do not change or refresh it. New user gets a new unique code once and keeps it for lifetime.
+        val existing = prefs.getString("persistent_user_room_code", null)?.trim()
+        if (!existing.isNullOrBlank()) {
+            return existing
         }
-        val newCode = generateRandomRoomCode()
-        prefs.edit().putString("room_code", newCode).apply()
-        return newCode
+        val legacy = prefs.getString("room_code", null)?.replace("-", "")?.trim()
+        val finalCode = if (!legacy.isNullOrBlank()) legacy else generateRandomRoomCode()
+        prefs.edit()
+            .putString("persistent_user_room_code", finalCode)
+            .putString("room_code", finalCode)
+            .apply()
+        return finalCode
     }
 
     fun regenerateRoomCode(): String {
-        val newCode = generateRandomRoomCode()
-        _currentRoomCode.value = newCode
-        prefs.edit().putString("room_code", newCode).apply()
-        if (_isBroadcasting.value) {
-            startBroadcasting()
-        }
-        return newCode
+        // Enforce invariant: Always preserve the user's single permanent room code (no refresh)
+        val permanentCode = loadOrGenerateRoomCode()
+        _currentRoomCode.value = permanentCode
+        return permanentCode
     }
 
     /**
@@ -247,10 +249,12 @@ class ListenTogetherManager private constructor(
             webSocket = MasterWaveApp.instance.okHttpClient.newWebSocket(request, object : WebSocketListener() {
                 override fun onOpen(ws: WebSocket, response: Response) {
                     Log.d(TAG, "Host WebSocket connected to $WS_JAM_SERVER_URL")
+                    val persistentCode = loadOrGenerateRoomCode()
                     val createRoomMsg = JSONObject().apply {
                         put("type", "create_room")
                         put("payload", JSONObject().apply {
                             put("name", "MasterWave Host")
+                            put("room_code", persistentCode)
                             put("room_mode", "collaborative")
                         })
                     }
@@ -264,12 +268,11 @@ class ListenTogetherManager private constructor(
                         val payload = envelope.optJSONObject("payload") ?: return
 
                         if (type == "room_created") {
-                            val serverRoomCode = payload.optString("room_code")
-                            if (serverRoomCode.isNotBlank()) {
-                                _currentRoomCode.value = serverRoomCode
-                                prefs.edit().putString("room_code", serverRoomCode).apply()
-                                Log.d(TAG, "Room created on Jam server: $serverRoomCode")
-                            }
+                            // Retain user's persistent code invariant - never overwrite with server random codes
+                            val persistentCode = loadOrGenerateRoomCode()
+                            _currentRoomCode.value = persistentCode
+                            prefs.edit().putString("persistent_user_room_code", persistentCode).putString("room_code", persistentCode).apply()
+                            Log.d(TAG, "Host active on permanent user party code: $persistentCode")
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Host error parsing WS message: ${e.message}")
