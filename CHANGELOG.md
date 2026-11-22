@@ -2,6 +2,16 @@
 
 All notable changes and milestones for the MasterWave Android project will be documented in this file.
 
+## [2.1.5] - 2026-11-22
+
+### Changed
+- **Liquid glass dock polish:** softer, denser frosted glass on the floating dock, mini player and search satellite (deeper blur, gentler specular rim, restrained sheen) for a cleaner shelf look instead of glossy plastic.
+- Active tab pill now cross-fades its fill and uses a hairline top-lit rim with a lighter shadow.
+- Mini player: larger artwork, softer progress groove, slightly reduced elevation, and a wider air gap above the dock so the two glass objects no longer visually merge.
+
+### Diagnostics
+- The updater now logs whether silent self-update is actually available (`silent=true/false`) and the APK size before opening the installer session, so any fallback to the system confirmation screen can be diagnosed from logcat.
+
 ## [2.1.4] - 2026-11-22
 
 ### Fixed

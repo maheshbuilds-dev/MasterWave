@@ -106,12 +106,12 @@ fun MiniPlayerDock(
         stiffness = Spring.StiffnessMediumLow
     )
     val outerPadding by animateDpAsState(
-        targetValue = if (isCompact) 26.dp else 14.dp,
+        targetValue = if (isCompact) 30.dp else 16.dp,
         animationSpec = compactSpring,
         label = "mini_outer_padding"
     )
     val artworkSize by animateDpAsState(
-        targetValue = if (isCompact) 36.dp else 44.dp,
+        targetValue = if (isCompact) 38.dp else 46.dp,
         animationSpec = compactSpring,
         label = "mini_artwork"
     )
@@ -170,14 +170,14 @@ fun MiniPlayerDock(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(26.dp))
                 .glassySurface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(26.dp),
                     style = GlassyStyle.DOCK,
                     isDark = isAmoled,
-                    borderWidth = 1.3.dp,
-                    elevation = 12.dp,
-                    accentGlow = animatedAccent.copy(alpha = 0.22f),
+                    borderWidth = 1.2.dp,
+                    elevation = 10.dp,
+                    accentGlow = animatedAccent.copy(alpha = 0.18f),
                     hasSheen = true,
                     tintColor = animatedAccent,
                     liquidState = liquidState,
@@ -190,19 +190,19 @@ fun MiniPlayerDock(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(2.dp)
-                        .background(if (isAmoled) Color(0x18FFFFFF) else Color(0x10000000))
+                        .height(1.5.dp)
+                        .background(if (isAmoled) Color(0x14FFFFFF) else Color(0x0D000000))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(animatedProgress)
-                            .height(2.dp)
+                            .height(1.5.dp)
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(
-                                        animatedAccent.copy(alpha = 0.50f),
-                                        animatedAccent,
-                                        Color.White.copy(alpha = 0.90f)
+                                        animatedAccent.copy(alpha = 0.35f),
+                                        animatedAccent.copy(alpha = 0.85f),
+                                        Color.White.copy(alpha = 0.75f)
                                     )
                                 )
                             )

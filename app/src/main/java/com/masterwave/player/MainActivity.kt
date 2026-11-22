@@ -714,11 +714,11 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 10.dp),
+                    .padding(bottom = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 val dockGap by animateDpAsState(
-                    targetValue = if (isDockSplit) 6.dp else 8.dp,
+                    targetValue = if (isDockSplit) 7.dp else 10.dp,
                     animationSpec = spring(
                         dampingRatio = 0.86f,
                         stiffness = Spring.StiffnessMediumLow

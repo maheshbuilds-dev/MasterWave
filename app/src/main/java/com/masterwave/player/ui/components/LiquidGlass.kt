@@ -131,17 +131,17 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xAD202636), // Luminous smoky obsidian crown
-                            Color(0x7D131622), // Translucent optical core revealing underlying content
-                            Color(0x8C0B0D15)  // Grounded base
+                            Color(0xC2202636), // Luminous smoky obsidian crown
+                            Color(0x8F131622), // Translucent optical core revealing underlying content
+                            Color(0x9E0B0D15)  // Grounded base
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xBDFFFFFF), // Luminous polished porcelain crown (74% pure white gloss)
-                            Color(0x7AF2F7FE), // Translucent optical core showing underlying content
-                            Color(0x8DE2ECF8)  // Ground bounce with subtle sky tint
+                            Color(0xD9FFFFFF), // Polished porcelain crown
+                            Color(0x9CF4F8FE), // Translucent optical core
+                            Color(0xADE6EFFA)  // Ground bounce with subtle sky tint
                         )
                     )
                 }
@@ -246,19 +246,19 @@ fun Modifier.glassySurface(
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF0FFFFFF), // 94% white diamond specular rim
-                            Color(0x55FFFFFF), // Mid transmission
-                            Color(0x18FFFFFF), // Floor alpha
-                            Color(0x45FFFFFF)  // Bottom ground reflection
+                            Color(0xD9FFFFFF), // Fine diamond specular rim
+                            Color(0x40FFFFFF), // Mid transmission
+                            Color(0x14FFFFFF), // Floor alpha
+                            Color(0x33FFFFFF)  // Bottom ground reflection
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFFFFFF), // 100% diamond specular rim
-                            Color(0x85FFFFFF), // High sheen
-                            Color(0x14000000), // Shadow bevel
-                            Color(0x55FFFFFF)  // Bottom ground reflection
+                            Color(0xF2FFFFFF), // Fine diamond specular rim
+                            Color(0x66FFFFFF), // High sheen
+                            Color(0x0F000000), // Shadow bevel
+                            Color(0x40FFFFFF)  // Bottom ground reflection
                         )
                     )
                 }
@@ -295,12 +295,12 @@ fun Modifier.glassySurface(
         Modifier.liquid(state) {
             this.shape = shape
             frost = when (style) {
-                GlassyStyle.DOCK -> 14.dp
+                GlassyStyle.DOCK -> 20.dp
                 GlassyStyle.PROMINENT -> 12.dp
                 else -> 10.dp
             }
             refraction = when (style) {
-                GlassyStyle.DOCK -> if (isPressed) 0.24f else 0.17f
+                GlassyStyle.DOCK -> if (isPressed) 0.22f else 0.15f
                 GlassyStyle.PROMINENT -> if (isPressed) 0.20f else 0.14f
                 else -> if (isPressed) 0.16f else 0.10f
             }
@@ -358,8 +358,8 @@ fun Modifier.glassySurface(
                     drawCircle(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.32f else 0.42f),
-                                Color.White.copy(alpha = if (isDark) 0.10f else 0.15f),
+                                Color.White.copy(alpha = if (isDark) 0.24f else 0.28f),
+                                Color.White.copy(alpha = if (isDark) 0.08f else 0.10f),
                                 Color.Transparent
                             ),
                             center = poolCenter,
@@ -373,8 +373,8 @@ fun Modifier.glassySurface(
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.38f else 0.50f),
-                                Color.White.copy(alpha = if (isDark) 0.12f else 0.18f),
+                                Color.White.copy(alpha = if (isDark) 0.26f else 0.34f),
+                                Color.White.copy(alpha = if (isDark) 0.08f else 0.12f),
                                 Color.Transparent
                             ),
                             startY = 0f,
@@ -388,9 +388,9 @@ fun Modifier.glassySurface(
                         brush = Brush.linearGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.White.copy(alpha = if (isDark) 0.06f else 0.12f),
-                                Color.White.copy(alpha = if (isDark) 0.16f else 0.24f),
                                 Color.White.copy(alpha = if (isDark) 0.04f else 0.08f),
+                                Color.White.copy(alpha = if (isDark) 0.10f else 0.14f),
+                                Color.White.copy(alpha = if (isDark) 0.03f else 0.05f),
                                 Color.Transparent
                             ),
                             start = Offset(size.width * 0.12f, 0f),

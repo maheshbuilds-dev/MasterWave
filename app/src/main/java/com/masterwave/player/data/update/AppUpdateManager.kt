@@ -1,6 +1,7 @@
 package com.masterwave.player.data.update
 
 import android.app.PendingIntent
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
@@ -291,6 +292,14 @@ class AppUpdateManager(
             }
 
             val packageInstaller = context.packageManager.packageInstaller
+            val silentUpdateAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                context.checkSelfPermission(Manifest.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION) ==
+                PackageManager.PERMISSION_GRANTED
+            Log.i(
+                TAG,
+                "Starting update session (sdk=${Build.VERSION.SDK_INT}, " +
+                    "silent=$silentUpdateAvailable, apk=${apkFile.length()} bytes)"
+            )
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(context.packageName)
                 setInstallReason(PackageManager.INSTALL_REASON_USER)

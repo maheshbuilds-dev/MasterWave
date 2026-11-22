@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -87,14 +89,14 @@ fun FloatingNavigationDock(
 
     // Neutral monochrome content colors
     val selectedBg = if (isAmoled) {
-        Color.White.copy(alpha = 0.20f)
+        Color.White.copy(alpha = 0.22f)
     } else {
-        Color.White
+        Color.White.copy(alpha = 0.96f)
     }
     val selectedBorder = if (isAmoled) {
-        Color.White.copy(alpha = 0.35f)
+        Color.White.copy(alpha = 0.34f)
     } else {
-        Color.Black.copy(alpha = 0.08f)
+        Color.Black.copy(alpha = 0.06f)
     }
     val selectedContent = if (isAmoled) Color.White else Color(0xFF141720)
     val unselectedColor = if (isAmoled) Color(0xFF9093A2) else Color(0xFF6B6E7D)
@@ -170,23 +172,37 @@ fun FloatingNavigationDock(
                         label = "dock_weight_${tab.name}"
                     )
 
+                    // Smooth, unhurried fill so the active pill glides instead of popping.
+                    val itemBg by animateColorAsState(
+                        targetValue = if (isSelected) selectedBg else Color.Transparent,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "dock_bg_${tab.name}"
+                    )
+
                     Box(
                         modifier = Modifier
                             .weight(tabWeight)
                             .height(tabItemHeight)
                             .shadow(
-                                elevation = if (isSelected && !isAmoled) 3.dp else 0.dp,
+                                elevation = if (isSelected && !isAmoled) 2.dp else 0.dp,
                                 shape = CircleShape,
-                                spotColor = Color.Black.copy(alpha = 0.12f),
-                                ambientColor = Color.Black.copy(alpha = 0.04f)
+                                spotColor = Color.Black.copy(alpha = 0.10f),
+                                ambientColor = Color.Black.copy(alpha = 0.03f)
                             )
                             .clip(CircleShape)
-                            .background(if (isSelected) selectedBg else Color.Transparent)
+                            .background(itemBg)
                             .then(
                                 if (isSelected) {
                                     Modifier.border(
-                                        width = 1.dp,
-                                        color = selectedBorder,
+                                        width = 0.8.dp,
+                                        brush = Brush.verticalGradient(
+                                            listOf(
+                                                Color.White.copy(alpha = if (isAmoled) 0.40f else 0.95f),
+                                                Color.White.copy(alpha = if (isAmoled) 0.10f else 0.45f),
+                                                if (isAmoled) Color.White.copy(alpha = 0.12f)
+                                                else Color.Black.copy(alpha = 0.05f)
+                                            )
+                                        ),
                                         shape = CircleShape
                                     )
                                 } else {
