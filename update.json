@@ -1,9 +1,10 @@
 {
-  "versionCode": 25,
-  "versionName": "2.2.4",
-  "releaseNotes": "• Signature Split Liquid Glass Dock: Restored iconic 2-island architecture (Feed, Stats, Playlists + Search Satellite) with authentic optical frosted translucency and specular diamond rim\n• Clean Navigation Architecture: Listen Together smoothly hosted inside Settings without cluttering the primary dock\n• Rock-Solid Now Playing Artwork: Eliminated breathing motion and tilt oscillation for razor-sharp album covers\n• Studio Audio Tuning: Enhanced sub-bass punch and calibrated loudness enhancer (+3.8 dB) with zero distortion\n• Permanent Party Identity: Unchanging 1-user-1-code Listen Together synchronization",
+  "versionCode": 26,
+  "versionName": "2.2.5",
+  "releaseNotes": "• Background Playback Persistence: Service upgraded to START_STICKY for rock-solid background audio playback without OS termination\n• Restored Split Liquid Glass Dock: 2-island architecture with Feed, Stats, Playlists + Search Satellite\n• Rock-Solid Now Playing Artwork: Static, crisp, and stable album art display\n• Studio Audio Tuning: Enhanced loudness (+3.8 dB) and deep sub-bass punch with zero distortion\n• Permanent Listen Together Party ID: Unchanging 1-user-1-code synchronization",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
   "apkSize": "18.2 MB",
-  "publishedAt": "2026-11-22T15:15:00Z",
+  "publishedAt": "2026-11-22T15:52:00Z",
+  "minSupportedVersion": 1,
   "forceUpdate": false
 }
