@@ -358,7 +358,7 @@ fun StatsScreen(
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 10.sp,
-                            color = Color(0xFF0A0A0A)
+                            color = Color(0xFF101828)
                         )
                     }
                 }
@@ -570,7 +570,7 @@ fun StatsScreen(
                                         fontFamily = DisplayFontFamily,
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 11.sp,
-                                        color = Color(0xFF0A0A0A)
+                                        color = Color(0xFF101828)
                                     )
                                 }
 
@@ -680,7 +680,7 @@ fun StatsScreen(
                                         fontFamily = DisplayFontFamily,
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 11.sp,
-                                        color = Color(0xFF0A0A0A)
+                                        color = Color(0xFF101828)
                                     )
                                 }
 
@@ -708,7 +708,7 @@ fun StatsScreen(
                                             fontFamily = DisplayFontFamily,
                                             fontWeight = FontWeight.ExtraBold,
                                             fontSize = 18.sp,
-                                            color = Color(0xFF0A0A0A)
+                                            color = Color(0xFF101828)
                                         )
                                     }
                                 }
@@ -787,7 +787,7 @@ fun StatsScreen(
                                         fontFamily = DisplayFontFamily,
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 11.sp,
-                                        color = Color(0xFF0A0A0A)
+                                        color = Color(0xFF101828)
                                     )
                                 }
 
@@ -895,7 +895,7 @@ private fun InteractiveMetricCard(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color(0xFF0A0A0A),
+                        tint = Color(0xFF101828),
                         modifier = Modifier.size(18.dp)
                     )
                 }

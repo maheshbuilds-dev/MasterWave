@@ -601,7 +601,7 @@ fun HomeScreen(
                                     )
                                     .clip(RoundedCornerShape(26.dp))
                                     .background(
-                                        if (isAmoled) Color(0xFF161824) else Color(0xFFF5F0E0)
+                                        if (isAmoled) Color(0xFF161824) else Color(0xFFF1F3F5)
                                     )
                                     .border(
                                         width = 1.dp,
@@ -728,11 +728,11 @@ fun HomeScreen(
                                                     spotColor = Color.Black.copy(alpha = if (isAmoled) 0.45f else 0.12f)
                                                 )
                                                 .clip(RoundedCornerShape(18.dp))
-                                                .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF5F0E0))
+                                                .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF1F3F5))
                                                 .border(
                                                     BorderStroke(
                                                         1.dp,
-                                                        if (isAmoled) Color(0x28FFFFFF) else Color(0xFF0A0A0A)
+                                                        if (isAmoled) Color(0x28FFFFFF) else Color(0xFF101828)
                                                     ),
                                                     RoundedCornerShape(18.dp)
                                                 )
@@ -828,8 +828,8 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(135.dp)
                                             .clip(RoundedCornerShape(14.dp))
-                                            .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF5F0E0))
-                                            .border(BorderStroke(1.dp, if (isAmoled) Color(0x25FFFFFF) else Color(0xFF0A0A0A)), RoundedCornerShape(14.dp))
+                                            .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF1F3F5))
+                                            .border(BorderStroke(1.dp, if (isAmoled) Color(0x25FFFFFF) else Color(0xFF101828)), RoundedCornerShape(14.dp))
                                     ) {
                                         if (!track.artworkUrl.isNullOrBlank()) {
                                             AsyncImage(
@@ -1495,7 +1495,7 @@ fun HomeScreen(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(if (isAmoled) Color(0xFF161622) else Color(0xFFF5F0E0))
+                            .background(if (isAmoled) Color(0xFF161622) else Color(0xFFF1F3F5))
                             .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
                             .clickable {
                                 val shuffled = trendingTracks.shuffled()
@@ -1672,7 +1672,7 @@ fun HomeScreen(
                                 modifier = Modifier
                                     .size(76.dp)
                                     .clip(RoundedCornerShape(18.dp))
-                                    .background(if (isAmoled) Color(0xFF141624) else Color(0xFFF5F0E0))
+                                    .background(if (isAmoled) Color(0xFF141624) else Color(0xFFF1F3F5))
                                     .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(18.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1818,7 +1818,7 @@ fun HomeScreen(
                                     .size(160.dp)
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(chipInactiveBg)
-                                    .border(1.dp, if (isAmoled) Color(0x28FFFFFF) else Color(0xFF0A0A0A), RoundedCornerShape(16.dp))
+                                    .border(1.dp, if (isAmoled) Color(0x28FFFFFF) else Color(0xFF101828), RoundedCornerShape(16.dp))
                             ) {
                                 AsyncImage(
                                     model = playlist.artworkUrl,

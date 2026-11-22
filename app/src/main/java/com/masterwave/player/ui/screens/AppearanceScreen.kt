@@ -77,10 +77,10 @@ fun AppearanceScreen(
     val highRefreshRateEnabled by ThemeState.highRefreshRateEnabled.collectAsState()
     val context = LocalContext.current
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFAF0)
-    val cardBg = if (isAmoled) Color(0xFF101118) else Color(0xFFF5F0E0)
-    val cardBorder = if (isAmoled) Color(0x1FFFFFFF) else Color(0xFF0A0A0A)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFFFF)
+    val cardBg = if (isAmoled) Color(0xFF101118) else Color(0xFFF1F3F5)
+    val cardBorder = if (isAmoled) Color(0x1FFFFFFF) else Color(0xFF101828)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF101828)
     val textSecondary = if (isAmoled) Color(0xFFA0A5B8) else Color(0xFF6A6A6A)
     val dividerColor = if (isAmoled) Color(0x14FFFFFF) else Color(0xFFE5E5E5)
 

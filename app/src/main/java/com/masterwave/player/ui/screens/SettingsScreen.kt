@@ -384,7 +384,7 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = itemData.icon,
                                             contentDescription = null,
-                                            tint = Color(0xFF0A0A0A),
+                                            tint = Color(0xFF101828),
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }

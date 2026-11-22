@@ -89,10 +89,10 @@ fun QueueScreen(
     val isPlaying by player.isPlaying.collectAsState()
     val isAmoled = ThemeState.isAmoledTheme()
 
-    val bgColor = if (isAmoled) Color(0xFF090A0F) else Color(0xFFFFFAF0)
-    val cardBg = if (isAmoled) Color(0xFF12141C) else Color(0xFFF5F0E0)
-    val cardBorder = if (isAmoled) Color(0xFF1E2230) else Color(0xFF0A0A0A)
-    val textPrimary = if (isAmoled) Color(0xFFF5F6FA) else Color(0xFF0A0A0A)
+    val bgColor = if (isAmoled) Color(0xFF090A0F) else Color(0xFFFFFFFF)
+    val cardBg = if (isAmoled) Color(0xFF12141C) else Color(0xFFF1F3F5)
+    val cardBorder = if (isAmoled) Color(0xFF1E2230) else Color(0xFF101828)
+    val textPrimary = if (isAmoled) Color(0xFFF5F6FA) else Color(0xFF101828)
     val textSecondary = if (isAmoled) Color(0xFF989EAF) else Color(0xFF6A6A6A)
 
     // Recommended candidates for the current song

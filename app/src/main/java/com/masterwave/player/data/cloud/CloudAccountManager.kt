@@ -123,11 +123,8 @@ class CloudAccountManager(
                     .putString("photo_url", avatar)
                     .putString("provider", profile.provider)
                     .apply()
-
-                // Immediately fetch Real Liked Songs & User Playlists
-                ytFetcher.fetchRealUserPlaylists(cookies)
             } catch (e: Exception) {
-                android.util.Log.e("CloudAccountManager", "Error during YouTube Music sync", e)
+                android.util.Log.e("CloudAccountManager", "Error during YouTube Music profile fetch", e)
             }
         }
     }

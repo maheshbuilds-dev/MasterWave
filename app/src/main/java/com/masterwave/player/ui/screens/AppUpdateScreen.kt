@@ -192,7 +192,7 @@ fun AppUpdateScreen(
                                 fontFamily = DisplayFontFamily,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0A0A0A)
+                                color = Color(0xFF101828)
                             )
                         }
                     }
@@ -231,7 +231,7 @@ fun AppUpdateScreen(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF0A0A0A),
+                            tint = Color(0xFF101828),
                             modifier = Modifier.size(38.dp)
                         )
                     }
@@ -267,7 +267,7 @@ fun AppUpdateScreen(
                         onClick = { checkForUpdates() },
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0A0A0A),
+                            containerColor = Color(0xFF101828),
                             contentColor = Color.White
                         ),
                         modifier = Modifier
@@ -323,7 +323,7 @@ fun AppUpdateScreen(
                                         .border(1.5.dp, colors.border, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color(0xFF0A0A0A), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color(0xFF101828), modifier = Modifier.size(20.dp))
                                 }
                                 Text(
                                     text = "Update Available",
@@ -345,7 +345,7 @@ fun AppUpdateScreen(
                                     fontFamily = DisplayFontFamily,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF0A0A0A)
+                                    color = Color(0xFF101828)
                                 )
                             }
                         }
@@ -393,7 +393,7 @@ fun AppUpdateScreen(
                                 },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF0A0A0A),
+                                    containerColor = Color(0xFF101828),
                                     contentColor = Color.White
                                 ),
                                 modifier = Modifier
@@ -453,7 +453,7 @@ fun AppUpdateScreen(
                                     .border(1.5.dp, colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF0A0A0A), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF101828), modifier = Modifier.size(20.dp))
                             }
                             Text(
                                 text = "Share MasterWave",
@@ -470,7 +470,7 @@ fun AppUpdateScreen(
                                 .border(1.dp, colors.border, RoundedCornerShape(999.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text(text = "Invite Friends", fontFamily = DisplayFontFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0A0A0A))
+                            Text(text = "Invite Friends", fontFamily = DisplayFontFamily, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF101828))
                         }
                     }
 
@@ -496,7 +496,7 @@ fun AppUpdateScreen(
                         },
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF0A0A0A),
+                            containerColor = Color(0xFF101828),
                             contentColor = Color.White
                         ),
                         modifier = Modifier
@@ -565,7 +565,7 @@ fun AppUpdateScreen(
                                     .border(1.5.dp, colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "✓", fontFamily = DisplayFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFF0A0A0A))
+                                Text(text = "✓", fontFamily = DisplayFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFF101828))
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {

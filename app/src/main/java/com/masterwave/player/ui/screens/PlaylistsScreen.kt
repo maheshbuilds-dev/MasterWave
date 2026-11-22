@@ -135,7 +135,7 @@ fun PlaylistsScreen(
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
     val fieldBg = MaterialTheme.colorScheme.surface
     val cardBg = MaterialTheme.colorScheme.surface
-    val borderColor = if (isAmoled) Color(0x18FFFFFF) else Color(0xFF0A0A0A)
+    val borderColor = if (isAmoled) Color(0x18FFFFFF) else Color(0xFF101828)
     val brandTurquoise = com.masterwave.player.ui.theme.MasterWaveTurquoise
     val brandCyan = com.masterwave.player.ui.theme.MasterWaveCyan
     val ytRed = Color(0xFFFF0000)

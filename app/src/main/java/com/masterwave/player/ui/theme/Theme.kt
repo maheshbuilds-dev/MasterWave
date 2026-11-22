@@ -151,7 +151,8 @@ fun MasterWaveTheme(
 
     val isDark = when (themeMode) {
         ThemeMode.LIGHT -> false
-        else -> true // Dark theme means pure AMOLED Dark
+        ThemeMode.DARK, ThemeMode.AMOLED -> true
+        ThemeMode.SYSTEM -> systemInDark
     }
 
     val colorScheme = if (isDark) {
@@ -164,9 +165,8 @@ fun MasterWaveTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            val bgColor = (if (isDark) AmoledBackground else WebCanvas).toArgb()
-            window.statusBarColor = bgColor
-            window.navigationBarColor = bgColor
+            window.statusBarColor = Color.Transparent.toArgb()
+            window.navigationBarColor = Color.Transparent.toArgb()
             val insetsController = WindowCompat.getInsetsController(window, view)
             insetsController.isAppearanceLightStatusBars = !isDark
             insetsController.isAppearanceLightNavigationBars = !isDark

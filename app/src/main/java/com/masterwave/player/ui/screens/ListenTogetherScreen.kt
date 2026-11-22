@@ -208,7 +208,7 @@ fun ListenTogetherScreen(
                                 fontFamily = DisplayFontFamily,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0A0A0A)
+                                color = Color(0xFF101828)
                             )
                         }
                     }
@@ -238,7 +238,7 @@ fun ListenTogetherScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(if (selectedMode == 0) (if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A)) else Color.Transparent)
+                        .background(if (selectedMode == 0) (if (colors.isDark) Color(0xFF165B33) else Color(0xFF101828)) else Color.Transparent)
                         .clickable { selectedMode = 0 }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -257,7 +257,7 @@ fun ListenTogetherScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(if (selectedMode == 1) (if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A)) else Color.Transparent)
+                        .background(if (selectedMode == 1) (if (colors.isDark) Color(0xFF165B33) else Color(0xFF101828)) else Color.Transparent)
                         .clickable { selectedMode = 1 }
                         .padding(vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -323,7 +323,7 @@ fun ListenTogetherScreen(
                                     fontFamily = DisplayFontFamily,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.sp,
-                                    color = Color(0xFF0A0A0A)
+                                    color = Color(0xFF101828)
                                 )
                             }
                         }
@@ -383,7 +383,7 @@ fun ListenTogetherScreen(
                                         onClick = { copyCode(partyCode) },
                                         shape = RoundedCornerShape(999.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A),
+                                            containerColor = if (colors.isDark) Color(0xFF165B33) else Color(0xFF101828),
                                             contentColor = Color.White
                                         ),
                                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
@@ -441,7 +441,7 @@ fun ListenTogetherScreen(
                                         Icon(
                                             imageVector = Icons.Default.PlayArrow,
                                             contentDescription = null,
-                                            tint = Color(0xFF0A0A0A),
+                                            tint = Color(0xFF101828),
                                             modifier = Modifier.size(22.dp)
                                         )
                                     }
@@ -528,7 +528,7 @@ fun ListenTogetherScreen(
                                         fontFamily = DisplayFontFamily,
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 15.sp,
-                                        color = Color(0xFF0A0A0A)
+                                        color = Color(0xFF101828)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -620,7 +620,7 @@ fun ListenTogetherScreen(
                                                 .background(WebAccentGreen)
                                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                                         ) {
-                                            Text(text = "ROOM $connectedRoomCode", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF0A0A0A))
+                                            Text(text = "ROOM $connectedRoomCode", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = Color(0xFF101828))
                                         }
                                     }
 
@@ -701,7 +701,7 @@ fun ListenTogetherScreen(
                                 },
                                 shape = RoundedCornerShape(999.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A),
+                                    containerColor = if (colors.isDark) Color(0xFF165B33) else Color(0xFF101828),
                                     contentColor = Color.White
                                 ),
                                 modifier = Modifier
@@ -757,7 +757,7 @@ fun ListenTogetherScreen(
                                     fontFamily = DisplayFontFamily,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF0A0A0A)
+                                    color = Color(0xFF101828)
                                 )
                             }
                         }
@@ -785,7 +785,7 @@ fun ListenTogetherScreen(
                                     .border(1.5.dp, colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF0A0A0A), modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF101828), modifier = Modifier.size(20.dp))
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
@@ -795,7 +795,7 @@ fun ListenTogetherScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
-                                    .background(if (colors.isDark) Color(0xFF165B33) else Color(0xFF0A0A0A))
+                                    .background(if (colors.isDark) Color(0xFF165B33) else Color(0xFF101828))
                                     .padding(horizontal = 14.dp, vertical = 6.dp)
                             ) {
                                 Text(text = "Connect", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)

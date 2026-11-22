@@ -171,7 +171,7 @@ fun SupportCommunityScreen(
                                 fontFamily = DisplayFontFamily,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0A0A0A)
+                                color = Color(0xFF101828)
                             )
                         }
                     }
@@ -215,7 +215,7 @@ fun SupportCommunityScreen(
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 10.sp,
-                                color = Color(0xFF0A0A0A)
+                                color = Color(0xFF101828)
                             )
                         }
                         Icon(Icons.Default.Favorite, contentDescription = null, tint = WebAccentPink, modifier = Modifier.size(24.dp))
@@ -327,7 +327,7 @@ fun SupportCommunityScreen(
                                             .border(1.5.dp, colors.border, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = "₹", fontFamily = DisplayFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color(0xFF0A0A0A))
+                                        Text(text = "₹", fontFamily = DisplayFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color(0xFF101828))
                                     }
                                     Column {
                                         Text(
@@ -420,7 +420,7 @@ fun SupportCommunityScreen(
                                 fontFamily = DisplayFontFamily,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF0A0A0A)
+                                color = Color(0xFF101828)
                             )
                         }
                     }

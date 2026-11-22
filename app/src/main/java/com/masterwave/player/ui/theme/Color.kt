@@ -158,16 +158,17 @@ val AMDarkOutline = Color(0xFF48484A)
 val AMDarkSeparator = Color(0xFF2C2C2E)
 
 // ==========================================
-// MASTERWAVE WEBSITE DESIGN SYSTEM TOKENS
-// Warm floral white, tactile bento surfaces, neo-brutalist ink outlines & pastel badges
+// PURE WHITE STUDIO DESIGN SYSTEM TOKENS
+// Pristine Pure White Canvas (#FFFFFF), refined tactile surfaces, high-contrast ink
 // ==========================================
-val WebCanvas = Color(0xFFFFFAF0)            // Warm floral white canvas (#fffaf0)
-val WebSurfaceSoft = Color(0xFFFAF5E8)       // Soft cream surface (#faf5e8)
-val WebSurfaceCard = Color(0xFFF5F0E0)       // Tactile bento card surface (#f5f0e0)
-val WebInk = Color(0xFF0A0A0A)               // Crisp ink black (#0a0a0a)
-val WebBody = Color(0xFF3A3A3A)              // Crisp body charcoal (#3a3a3a)
-val WebMuted = Color(0xFF6A6A6A)             // Subtle metadata grey (#6a6a6a)
-val WebHairline = Color(0xFFE5E5E5)          // Clean hairline rule (#e5e5e5)
+val WebCanvas = Color(0xFFFFFFFF)            // Pristine Pure White canvas (#FFFFFF)
+val WebSurfaceSoft = Color(0xFFF8F9FA)       // Ultra-clean light panel (#F8F9FA)
+val WebSurfaceCard = Color(0xFFF1F3F5)       // Tactile light card surface (#F1F3F5)
+val WebInk = Color(0xFF101828)               // Crisp ink black (#101828, 15.2:1 contrast)
+val WebBody = Color(0xFF344054)              // Slate charcoal body (#344054, 7.4:1 contrast)
+val WebMuted = Color(0xFF475467)             // High-contrast secondary metadata (#475467, 5.8:1 on card)
+val WebBorder = Color(0xFFE4E7EC)            // Crisp architectural hairline border (#E4E7EC)
+val WebHairline = Color(0xFFF2F4F7)          // Clean subtle divider (#F2F4F7)
 
 // Website Pastel Accent Badges
 val WebAccentViolet = Color(0xFFB8A4ED)
@@ -222,14 +223,14 @@ fun rememberAppThemeColors(): AppThemeColors {
             )
         } else {
             AppThemeColors(
-                canvas = WebCanvas,                     // Warm floral white (#fffaf0)
-                surfaceSoft = WebSurfaceSoft,           // Soft cream (#faf5e8)
-                surfaceCard = WebSurfaceCard,           // Bento card surface (#f5f0e0)
-                ink = WebInk,                           // Crisp ink black (#0a0a0a)
-                body = WebBody,                         // Crisp charcoal body (#3a3a3a)
-                muted = WebMuted,                       // Muted metadata (#6a6a6a)
-                border = Color(0xFF0A0A0A),             // Bold 2dp ink border
-                hairline = WebHairline,                 // Clean hairline rule (#e5e5e5)
+                canvas = WebCanvas,                     // Pure White (#FFFFFF)
+                surfaceSoft = WebSurfaceSoft,           // Ultra-clean light panel (#F8F9FA)
+                surfaceCard = WebSurfaceCard,           // Tactile light card (#F1F3F5)
+                ink = WebInk,                           // Crisp ink black (#101828)
+                body = WebBody,                         // Crisp charcoal body (#344054)
+                muted = WebMuted,                       // High-contrast metadata (#475467)
+                border = WebBorder,                     // Crisp architectural hairline border (#E4E7EC)
+                hairline = WebHairline,                 // Clean hairline rule (#F2F4F7)
                 isDark = false
             )
         }

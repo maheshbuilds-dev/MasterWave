@@ -367,16 +367,25 @@ class MusicRepository(private val context: Context) {
         return result
     }
 
-    fun addCustomPlaylist(playlist: Playlist) {
-        val list = _playlists.value.toMutableList()
-        val index = list.indexOfFirst { it.id == playlist.id }
-        if (index != -1) {
-            list[index] = playlist
-        } else {
-            list.add(playlist)
+    fun addCustomPlaylists(newPlaylists: List<Playlist>) {
+        if (newPlaylists.isEmpty()) return
+        synchronized(this) {
+            val list = _playlists.value.toMutableList()
+            for (playlist in newPlaylists) {
+                val index = list.indexOfFirst { it.id == playlist.id }
+                if (index != -1) {
+                    list[index] = playlist
+                } else {
+                    list.add(playlist)
+                }
+            }
+            _playlists.value = list
+            saveCachedPlaylists()
         }
-        _playlists.value = list
-        saveCachedPlaylists()
+    }
+
+    fun addCustomPlaylist(playlist: Playlist) {
+        addCustomPlaylists(listOf(playlist))
     }
 
     fun createCustomPlaylist(title: String, description: String = ""): Playlist {

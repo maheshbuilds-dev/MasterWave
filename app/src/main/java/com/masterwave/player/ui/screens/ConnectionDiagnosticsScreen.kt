@@ -96,11 +96,11 @@ fun ConnectionDiagnosticsScreen(
         )
     }
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFAF0)
-    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFF5F0E0)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF0A0A0A)
+    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFFFF)
+    val cardBg = if (isAmoled) Color(0xFF101018) else Color(0xFFF1F3F5)
+    val textPrimary = if (isAmoled) Color.White else Color(0xFF101828)
     val textSecondary = if (isAmoled) Color(0xFFB0B0C0) else Color(0xFF6A6A6A)
-    val backBg = if (isAmoled) Color(0xFF161622) else Color(0xFFFAF5E8)
+    val backBg = if (isAmoled) Color(0xFF161622) else Color(0xFFF8F9FA)
 
     fun runNetworkDiagnostic() {
         if (isPinging) return

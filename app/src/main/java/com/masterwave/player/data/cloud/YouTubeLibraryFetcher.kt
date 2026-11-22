@@ -6,6 +6,12 @@ import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.provider.PlaylistImporter
 import com.masterwave.player.data.repository.MusicRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -355,10 +361,10 @@ class YouTubeLibraryFetcher(
             }
         }
 
-        // Paginate continuations up to 10 pages to capture complete library
+        // Paginate continuations up to 3 pages for fast responsive sync (~100-150 most recent liked tracks in ~1s)
         var page = 0
         var currentToken = continuationToken
-        while (!currentToken.isNullOrBlank() && page < 10) {
+        while (!currentToken.isNullOrBlank() && page < 3) {
             val (nextTracks, nextToken) = fetchContinuationTracks(currentToken, cookies)
             if (nextTracks.isEmpty()) break
             tracks.addAll(nextTracks)
@@ -472,10 +478,10 @@ class YouTubeLibraryFetcher(
             }
         }
 
-        // 3. Paginate continuations up to 10 pages
+        // 3. Paginate continuations up to 2 pages (fast initial sync, up to 75-100 tracks per playlist)
         var page = 0
         var currentToken = continuationToken
-        while (!currentToken.isNullOrBlank() && page < 10) {
+        while (!currentToken.isNullOrBlank() && page < 2) {
             val (nextTracks, nextToken) = fetchContinuationTracks(currentToken, cookies)
             if (nextTracks.isEmpty()) break
             tracks.addAll(nextTracks)
@@ -572,26 +578,38 @@ class YouTubeLibraryFetcher(
             repository.addAllToFavorites(likedTracks)
         }
 
-        // 2. Import tracks for each real playlist discovered
-        for (summary in discoveredPlaylists.distinctBy { it.id }) {
-            try {
-                val tracks = fetchPlaylistTracks(summary.id, cookies)
-                val playlist = Playlist(
-                    id = "yt_${summary.id}",
-                    title = summary.title,
-                    description = "Synced from YouTube Music",
-                    trackCount = if (tracks.isNotEmpty()) tracks.size else summary.trackCount,
-                    tracks = tracks,
-                    artworkUrl = summary.thumbnailUrl ?: tracks.firstOrNull()?.artworkUrl,
-                    source = "YouTube Music",
-                    isPinned = false,
-                    createdAt = today
-                )
-                importedPlaylists.add(playlist)
-                repository.addCustomPlaylist(playlist)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error importing playlist ${summary.id}", e)
+        // 2. Concurrently import tracks for discovered playlists with Semaphore(2) and pacing jitter
+        val uniqueSummaries = discoveredPlaylists.distinctBy { it.id }
+        val concurrencyLimit = Semaphore(2)
+
+        coroutineScope {
+            val deferreds = uniqueSummaries.map { summary ->
+                async(Dispatchers.IO) {
+                    concurrencyLimit.withPermit {
+                        try {
+                            delay(kotlin.random.Random.nextLong(100L, 250L))
+                            val tracks = fetchPlaylistTracks(summary.id, cookies)
+                            Playlist(
+                                id = "yt_${summary.id}",
+                                title = summary.title,
+                                description = "Synced from YouTube Music",
+                                trackCount = if (tracks.isNotEmpty()) tracks.size else summary.trackCount,
+                                tracks = tracks,
+                                artworkUrl = summary.thumbnailUrl ?: tracks.firstOrNull()?.artworkUrl,
+                                source = "YouTube Music",
+                                isPinned = false,
+                                createdAt = today
+                            )
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error importing playlist ${summary.id}", e)
+                            null
+                        }
+                    }
+                }
             }
+            val loaded = deferreds.awaitAll().filterNotNull()
+            importedPlaylists.addAll(loaded)
+            repository.addCustomPlaylists(loaded)
         }
 
         importedPlaylists
