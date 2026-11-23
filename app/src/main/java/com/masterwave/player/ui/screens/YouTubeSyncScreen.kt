@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,6 +72,7 @@ fun YouTubeSyncScreen(
     player: MasterWavePlayer,
     repository: MusicRepository,
     onBack: () -> Unit,
+    onNavigateToSpotify: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -127,6 +129,62 @@ fun YouTubeSyncScreen(
                     ),
                     color = textPrimary
                 )
+            }
+        }
+
+        // Spotify Integration Card in Cloud & Integrations
+        item {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = cardBg,
+                border = BorderStroke(1.dp, Color(0xFF1DB954).copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1DB954).copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayCircle,
+                            contentDescription = "Spotify",
+                            tint = Color(0xFF1DB954),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Import from Spotify",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            ),
+                            color = textPrimary
+                        )
+                        Text(
+                            text = "Official Web API (PKCE) • Playlists & Liked Songs",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                            color = textSecondary
+                        )
+                    }
+                    Button(
+                        onClick = onNavigateToSpotify,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1DB954)),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text("Open", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
             }
         }
 

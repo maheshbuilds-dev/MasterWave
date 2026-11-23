@@ -29,7 +29,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
@@ -78,6 +80,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import com.masterwave.player.data.cloud.CloudAccountManager
+import com.masterwave.player.data.spotify.SpotifyAuthManager
 import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.repository.MusicRepository
@@ -103,6 +106,7 @@ fun PlaylistsScreen(
     onNavigateToSearch: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToYouTubeSync: () -> Unit = {},
+    onNavigateToSpotifySync: () -> Unit = {},
     onScrollStateChanged: (Boolean) -> Unit = {},
     scrollToTopTrigger: Long = 0L,
     modifier: Modifier = Modifier
@@ -115,6 +119,9 @@ fun PlaylistsScreen(
     val scope = rememberCoroutineScope()
     val cloudManager = remember { CloudAccountManager.getInstance(context, repository) }
     val userProfile by cloudManager.userProfile.collectAsState()
+    val spotifyAuth = remember { SpotifyAuthManager.getInstance(context) }
+    val isSpotifyConnected by spotifyAuth.isConnected.collectAsState()
+    val spUserProfile by spotifyAuth.userProfile.collectAsState()
     var isSyncingCloud by remember { mutableStateOf(false) }
     var showGoogleAuth by remember { mutableStateOf(false) }
 
@@ -143,7 +150,11 @@ fun PlaylistsScreen(
 
     val playCounts by repository.playCounts.collectAsState()
     val ytLikedPlaylist = playlists.find { it.id == "yt_liked_songs" }
-    val userPlaylists = playlists.filter { it.id != "liked_songs" && it.id != "local_songs" && it.id != "yt_liked_songs" }
+    val spLikedPlaylist = playlists.find { it.id == "spotify_liked_songs" }
+    val userPlaylists = playlists.filter {
+        it.id != "liked_songs" && it.id != "local_songs" && it.id != "yt_liked_songs" && it.id != "spotify_liked_songs" &&
+        (it.source != "Spotify" || isSpotifyConnected)
+    }
     val sortedPlaylists = remember(userPlaylists, activeSortOption, searchQuery) {
         val filtered = if (searchQuery.isBlank()) {
             userPlaylists
@@ -360,74 +371,176 @@ fun PlaylistsScreen(
             }
         }
 
-        // --- Smart Collections: Liked Songs, YouTube Liked & Local Audio Cards ---
+        // --- Smart Collections: Liked Songs, Spotify Liked, YouTube Liked & Local Audio Cards ---
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SmartCollectionCard(
-                    title = "Liked Songs",
-                    subtitle = "${favorites.size} songs",
-                    icon = Icons.Default.Favorite,
-                    tint = brandTurquoise,
-                    background = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = onNavigateToLikedSongs,
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
-                )
+            if (isSpotifyConnected) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Row 1: Liked Songs & Spotify Liked
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SmartCollectionCard(
+                            title = "Liked Songs",
+                            subtitle = "${favorites.size} songs",
+                            icon = Icons.Default.Favorite,
+                            tint = brandTurquoise,
+                            background = cardBg,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onClick = onNavigateToLikedSongs,
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                        )
 
-                SmartCollectionCard(
-                    title = "YouTube Liked",
-                    subtitle = "${ytLikedPlaylist?.trackCount ?: ytLikedPlaylist?.tracks?.size ?: 0} songs",
-                    icon = Icons.Default.MusicNote,
-                    tint = ytRed,
-                    background = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = {
-                        val pl = ytLikedPlaylist ?: Playlist(
-                            id = "yt_liked_songs",
+                        SmartCollectionCard(
+                            title = "Spotify Liked",
+                            subtitle = "${spLikedPlaylist?.trackCount ?: spLikedPlaylist?.tracks?.size ?: favorites.count { it.providerId == "spotify" || it.id.startsWith("sp_") }} songs",
+                            icon = Icons.Default.PlayCircle,
+                            tint = Color(0xFF1DB954),
+                            background = cardBg,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onClick = {
+                                val pl = spLikedPlaylist ?: Playlist(
+                                    id = "spotify_liked_songs",
+                                    title = "Spotify Liked",
+                                    description = "Your favorite tracks from Spotify",
+                                    source = "Spotify",
+                                    isPinned = true
+                                )
+                                onPlaylistSelected(pl)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                        )
+                    }
+
+                    // Row 2: YouTube Liked & Local Audio
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SmartCollectionCard(
                             title = "YouTube Liked",
-                            description = "Your favorite tracks from YouTube Music",
-                            source = "YouTube Music",
-                            isPinned = true
+                            subtitle = "${ytLikedPlaylist?.trackCount ?: ytLikedPlaylist?.tracks?.size ?: 0} songs",
+                            icon = Icons.Default.MusicNote,
+                            tint = ytRed,
+                            background = cardBg,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onClick = {
+                                val pl = ytLikedPlaylist ?: Playlist(
+                                    id = "yt_liked_songs",
+                                    title = "YouTube Liked",
+                                    description = "Your favorite tracks from YouTube Music",
+                                    source = "YouTube Music",
+                                    isPinned = true
+                                )
+                                onPlaylistSelected(pl)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
                         )
-                        onPlaylistSelected(pl)
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
-                )
 
-                SmartCollectionCard(
-                    title = "Local Audio",
-                    subtitle = "${localTracks.size} ${if (localTracks.size == 1) "song" else "songs"}",
-                    icon = Icons.Default.Folder,
-                    tint = brandCyan,
-                    background = cardBg,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onClick = {
-                        val localPlaylist = Playlist(
-                            id = "local_device_audio",
+                        SmartCollectionCard(
                             title = "Local Audio",
-                            description = "Audio files stored on this device",
-                            trackCount = localTracks.size,
-                            tracks = localTracks,
-                            artworkUrl = localTracks.firstOrNull { !it.artworkUrl.isNullOrBlank() }?.artworkUrl,
-                            source = "On Device",
-                            isPinned = true
+                            subtitle = "${localTracks.size} ${if (localTracks.size == 1) "song" else "songs"}",
+                            icon = Icons.Default.Folder,
+                            tint = brandCyan,
+                            background = cardBg,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onClick = {
+                                val localPlaylist = Playlist(
+                                    id = "local_device_audio",
+                                    title = "Local Audio",
+                                    description = "Audio files stored on this device",
+                                    trackCount = localTracks.size,
+                                    tracks = localTracks,
+                                    artworkUrl = localTracks.firstOrNull { !it.artworkUrl.isNullOrBlank() }?.artworkUrl,
+                                    source = "On Device",
+                                    isPinned = true
+                                )
+                                onPlaylistSelected(localPlaylist)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
                         )
-                        onPlaylistSelected(localPlaylist)
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
-                )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    SmartCollectionCard(
+                        title = "Liked Songs",
+                        subtitle = "${favorites.size} songs",
+                        icon = Icons.Default.Favorite,
+                        tint = brandTurquoise,
+                        background = cardBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = onNavigateToLikedSongs,
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                    )
+
+                    SmartCollectionCard(
+                        title = "YouTube Liked",
+                        subtitle = "${ytLikedPlaylist?.trackCount ?: ytLikedPlaylist?.tracks?.size ?: 0} songs",
+                        icon = Icons.Default.MusicNote,
+                        tint = ytRed,
+                        background = cardBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = {
+                            val pl = ytLikedPlaylist ?: Playlist(
+                                id = "yt_liked_songs",
+                                title = "YouTube Liked",
+                                description = "Your favorite tracks from YouTube Music",
+                                source = "YouTube Music",
+                                isPinned = true
+                            )
+                            onPlaylistSelected(pl)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                    )
+
+                    SmartCollectionCard(
+                        title = "Local Audio",
+                        subtitle = "${localTracks.size} ${if (localTracks.size == 1) "song" else "songs"}",
+                        icon = Icons.Default.Folder,
+                        tint = brandCyan,
+                        background = cardBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        onClick = {
+                            val localPlaylist = Playlist(
+                                id = "local_device_audio",
+                                title = "Local Audio",
+                                description = "Audio files stored on this device",
+                                trackCount = localTracks.size,
+                                tracks = localTracks,
+                                artworkUrl = localTracks.firstOrNull { !it.artworkUrl.isNullOrBlank() }?.artworkUrl,
+                                source = "On Device",
+                                isPinned = true
+                            )
+                            onPlaylistSelected(localPlaylist)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))
+                    )
+                }
             }
         }
 
@@ -558,6 +671,105 @@ fun PlaylistsScreen(
                             }
                             OutlinedButton(
                                 onClick = onNavigateToYouTubeSync,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(0.75f)
+                            ) {
+                                Text("Manage", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Spotify Cloud Sync Section (Only shown when Spotify sign-in is completed) ---
+        if (isSpotifyConnected) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = cardBg,
+                    border = BorderStroke(1.dp, Color(0xFF1DB954).copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        Color(0xFF1DB954).copy(alpha = 0.12f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1DB954).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (!spUserProfile?.avatarUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = spUserProfile?.avatarUrl,
+                                        contentDescription = spUserProfile?.displayName,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF1DB954),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = spUserProfile?.displayName ?: "Spotify Library Synced",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.5.sp
+                                    ),
+                                    color = textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "Official Web API • ${playlists.count { it.source == "Spotify" }} playlists synced",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = onNavigateToSpotifySync,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1DB954)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.CloudDownload, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Import Playlists", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            OutlinedButton(
+                                onClick = onNavigateToSpotifySync,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(0.75f)
                             ) {

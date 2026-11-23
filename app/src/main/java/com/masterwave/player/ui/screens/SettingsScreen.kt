@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
@@ -99,6 +100,7 @@ fun SettingsScreen(
     onNavigateToAppUpdate: () -> Unit,
     onNavigateToBackupRestore: () -> Unit,
     onNavigateToYouTubeSync: () -> Unit = {},
+    onNavigateToSpotifySync: () -> Unit = {},
     onNavigateToListenTogether: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
     player: MasterWavePlayer? = null,
@@ -173,9 +175,17 @@ fun SettingsScreen(
             id = "account_sync",
             icon = Icons.Default.AccountCircle,
             title = "Cloud & Integrations",
-            subtitle = "Import playlists from YouTube Music",
+            subtitle = "Sync playlists from YouTube Music & Spotify",
             accentColor = WebAccentEmerald,
             onClick = onNavigateToYouTubeSync
+        ),
+        SettingsItemData(
+            id = "spotify_sync",
+            icon = Icons.Default.PlayCircle,
+            title = "Import from Spotify",
+            subtitle = "Official Web API • Import playlists & Liked Songs",
+            accentColor = Color(0xFF1DB954),
+            onClick = onNavigateToSpotifySync
         )
     )
 

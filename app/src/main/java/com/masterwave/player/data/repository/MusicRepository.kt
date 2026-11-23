@@ -8,6 +8,7 @@ import com.masterwave.player.data.model.LyricsResult
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.model.SearchResult
 import com.masterwave.player.data.model.Track
+import com.masterwave.player.data.model.TrackAvailability
 import com.masterwave.player.data.provider.LocalMusicProvider
 import com.masterwave.player.data.provider.PlaylistImporter
 import com.masterwave.player.data.provider.YouTubeMusicProvider
@@ -441,6 +442,105 @@ class MusicRepository(private val context: Context) {
     fun deletePlaylist(playlistId: String) {
         if (playlistId == "liked_songs" || playlistId == "local_songs" || playlistId == "yt_liked_songs") return
         _playlists.value = _playlists.value.filter { it.id != playlistId }
+        saveCachedPlaylists()
+    }
+
+    fun importSpotifyPlaylist(playlist: Playlist): Playlist {
+        val list = _playlists.value.toMutableList()
+        val existingIndex = list.indexOfFirst { it.id == playlist.id || (it.title.equals(playlist.title, ignoreCase = true) && it.source == "Spotify") }
+        if (existingIndex != -1) {
+            val existing = list[existingIndex]
+            val mergedTracks = (existing.tracks + playlist.tracks).distinctBy { it.id }
+            val updated = existing.copy(
+                tracks = mergedTracks,
+                trackCount = mergedTracks.size,
+                artworkUrl = existing.artworkUrl ?: playlist.artworkUrl
+            )
+            list[existingIndex] = updated
+            _playlists.value = list
+            saveCachedPlaylists()
+            return updated
+        } else {
+            list.add(playlist)
+            _playlists.value = list
+            saveCachedPlaylists()
+            return playlist
+        }
+    }
+
+    fun importSpotifyLikedSongs(tracks: List<Track>): Int {
+        val current = _favorites.value.toMutableList()
+        val newTracks = tracks.filter { incoming -> current.none { it.id == incoming.id } }
+        if (newTracks.isNotEmpty()) {
+            current.addAll(0, newTracks)
+            _favorites.value = current
+            saveCachedFavorites()
+
+            val pList = _playlists.value.toMutableList()
+            val lIdx = pList.indexOfFirst { it.id == "liked_songs" }
+            if (lIdx != -1) {
+                pList[lIdx] = pList[lIdx].copy(
+                    tracks = current,
+                    trackCount = current.size,
+                    artworkUrl = current.firstOrNull()?.artworkUrl
+                )
+            }
+
+            // Also maintain dedicated Spotify Liked playlist for quick access
+            val spLikedIdx = pList.indexOfFirst { it.id == "spotify_liked_songs" }
+            val spTracks = current.filter { it.providerId == "spotify" || it.id.startsWith("sp_") }
+            val spPlaylist = Playlist(
+                id = "spotify_liked_songs",
+                title = "Spotify Liked",
+                description = "Your favorite tracks from Spotify",
+                trackCount = spTracks.size,
+                tracks = spTracks,
+                artworkUrl = spTracks.firstOrNull()?.artworkUrl,
+                source = "Spotify",
+                isPinned = true
+            )
+            if (spLikedIdx != -1) {
+                pList[spLikedIdx] = spPlaylist
+            } else {
+                pList.add(spPlaylist)
+            }
+
+            _playlists.value = pList
+            saveCachedPlaylists()
+        }
+        return newTracks.size
+    }
+
+    fun matchSpotifyTrackWithLocal(spotifyTrackId: String, localTrack: Track) {
+        val currentFavs = _favorites.value.map { t ->
+            if (t.id == spotifyTrackId) {
+                t.copy(
+                    isLocal = true,
+                    localUri = localTrack.localUri,
+                    streamUrl = localTrack.streamUrl ?: localTrack.localUri,
+                    durationSeconds = if (localTrack.durationSeconds > 0) localTrack.durationSeconds else t.durationSeconds,
+                    availability = TrackAvailability.FULL_TRACK
+                )
+            } else t
+        }
+        _favorites.value = currentFavs
+        saveCachedFavorites()
+
+        val list = _playlists.value.map { pl ->
+            val updatedTracks = pl.tracks.map { t ->
+                if (t.id == spotifyTrackId) {
+                    t.copy(
+                        isLocal = true,
+                        localUri = localTrack.localUri,
+                        streamUrl = localTrack.streamUrl ?: localTrack.localUri,
+                        durationSeconds = if (localTrack.durationSeconds > 0) localTrack.durationSeconds else t.durationSeconds,
+                        availability = TrackAvailability.FULL_TRACK
+                    )
+                } else t
+            }
+            pl.copy(tracks = updatedTracks)
+        }
+        _playlists.value = list
         saveCachedPlaylists()
     }
 

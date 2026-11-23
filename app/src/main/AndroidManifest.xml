@@ -49,7 +49,16 @@
             android:launchMode="singleTask"
             android:theme="@style/Theme.MasterWave"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="masterwave"
+                    android:host="spotify-callback" />
+            </intent-filter>
+        </activity>
 
         <activity-alias
             android:name=".MainActivityDefault"

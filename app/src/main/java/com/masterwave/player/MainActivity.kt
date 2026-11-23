@@ -10,7 +10,9 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.core.content.ContextCompat
 import com.masterwave.player.data.update.AppUpdateManager
 import androidx.activity.compose.BackHandler
@@ -167,11 +169,37 @@ class MainActivity : ComponentActivity() {
         startService(serviceIntent)
         bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
+        handleSpotifyDeepLink(intent)
+
         setContent {
             MasterWaveTheme {
                 MasterWaveRoot(
                     playbackService = if (isServiceBoundState.value) playbackService else null
                 )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSpotifyDeepLink(intent)
+    }
+
+    private fun handleSpotifyDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme == "masterwave" && uri.host == "spotify-callback") {
+            lifecycleScope.launch {
+                val authManager = com.masterwave.player.data.spotify.SpotifyAuthManager.getInstance(this@MainActivity)
+                val success = authManager.handleAuthCallback(uri)
+                if (success) {
+                    Toast.makeText(this@MainActivity, "Connected to Spotify!", Toast.LENGTH_SHORT).show()
+                } else {
+                    val err = authManager.authError.value
+                    if (!err.isNullOrBlank()) {
+                        Toast.makeText(this@MainActivity, err, Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
     }
@@ -414,6 +442,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                         onNavigateToSearch = { isSearchOpen = true },
                         onNavigateToSettings = { isSettingsOpen = true },
                         onNavigateToYouTubeSync = { isYouTubeSyncOpen = true },
+                        onNavigateToSpotifySync = { isSpotifySyncOpen = true },
                         onScrollStateChanged = { isDockSplit = it },
                         scrollToTopTrigger = scrollToTopTrigger
                     )
@@ -458,6 +487,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 onNavigateToAppUpdate = { isAppUpdateOpen = true },
                 onNavigateToBackupRestore = { isBackupRestoreOpen = true },
                 onNavigateToYouTubeSync = { isYouTubeSyncOpen = true },
+                onNavigateToSpotifySync = { isSpotifySyncOpen = true },
                 onNavigateToListenTogether = { isListenTogetherOpen = true },
                 onNavigateToSupport = { isSupportOpen = true },
                 player = player
@@ -486,7 +516,11 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             YouTubeSyncScreen(
                 player = player,
                 repository = repository,
-                onBack = { isYouTubeSyncOpen = false }
+                onBack = { isYouTubeSyncOpen = false },
+                onNavigateToSpotify = {
+                    isYouTubeSyncOpen = false
+                    isSpotifySyncOpen = true
+                }
             )
         }
 

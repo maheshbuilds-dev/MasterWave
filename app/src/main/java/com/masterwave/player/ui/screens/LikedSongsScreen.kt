@@ -1,5 +1,7 @@
 package com.masterwave.player.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,13 +24,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.masterwave.player.data.model.Track
 import com.masterwave.player.data.repository.MusicRepository
+import com.masterwave.player.data.spotify.SpotifyAuthManager
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.theme.ThemeState
 
@@ -72,13 +81,28 @@ fun LikedSongsScreen(
 
     val favorites by repository.favorites.collectAsState()
     val currentTrack by player.currentTrack.collectAsState()
+    val localTracks by repository.localTracks.collectAsState()
+
+    val spotifyAuth = remember { SpotifyAuthManager.getInstance(context) }
+    val isSpotifyConnected by spotifyAuth.isConnected.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedSpotifyTrackForAction by remember { mutableStateOf<Track?>(null) }
+    var trackToMatchWithLocal by remember { mutableStateOf<Track?>(null) }
+    var localMatchSearchQuery by remember { mutableStateOf("") }
+
+    val visibleFavorites = remember(favorites, isSpotifyConnected) {
+        if (isSpotifyConnected) {
+            favorites
+        } else {
+            favorites.filter { it.providerId != "spotify" && !it.id.startsWith("sp_") }
+        }
+    }
 
     val filteredTracks = if (searchQuery.isBlank()) {
-        favorites
+        visibleFavorites
     } else {
-        favorites.filter {
+        visibleFavorites.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
                     it.artist.contains(searchQuery, ignoreCase = true)
         }
@@ -338,10 +362,18 @@ fun LikedSongsScreen(
                 ) {
                     itemsIndexed(filteredTracks) { index, track ->
                         val isCurrent = currentTrack?.id == track.id
+                        val isSpotifyTrack = track.providerId == "spotify" || track.id.startsWith("sp_")
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { player.playPlaylist(filteredTracks, index) }
+                                .clickable {
+                                    if (isSpotifyTrack && !track.isLocal) {
+                                        selectedSpotifyTrackForAction = track
+                                    } else {
+                                        player.playPlaylist(filteredTracks, index)
+                                    }
+                                }
                                 .padding(horizontal = 20.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -387,13 +419,49 @@ fun LikedSongsScreen(
 
                                 Spacer(modifier = Modifier.height(2.dp))
 
-                                Text(
-                                    text = track.artist,
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                    color = textSecondary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (isSpotifyTrack) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(
+                                                    if (track.isLocal) Color(0xFF10B981).copy(alpha = 0.15f)
+                                                    else Color(0xFF1DB954).copy(alpha = 0.15f)
+                                                )
+                                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                text = if (track.isLocal) "Matched local file" else "Spotify track",
+                                                color = if (track.isLocal) Color(0xFF10B981) else Color(0xFF1DB954),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.sp
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    Text(
+                                        text = track.artist,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                        color = textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            // Match Local Track Icon (for Spotify tracks)
+                            if (isSpotifyTrack) {
+                                IconButton(onClick = {
+                                    trackToMatchWithLocal = track
+                                    localMatchSearchQuery = ""
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Link,
+                                        contentDescription = "Match with local file",
+                                        tint = if (track.isLocal) Color(0xFF10B981) else textSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
 
                             // Favorite Icon
@@ -409,6 +477,179 @@ fun LikedSongsScreen(
                     }
                 }
             }
+        }
+
+        // --- Dialog 1: Spotify Track Action Dialog ---
+        if (selectedSpotifyTrackForAction != null) {
+            val track = selectedSpotifyTrackForAction!!
+            AlertDialog(
+                onDismissRequest = { selectedSpotifyTrackForAction = null },
+                title = {
+                    Text(
+                        text = "Spotify Track • Metadata Only",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        color = Color(0xFF1DB954)
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "\"${track.title}\" by ${track.artist}",
+                            fontWeight = FontWeight.SemiBold,
+                            color = textPrimary,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            text = "This song was imported from Spotify as read-only metadata. You can match it with a local audio file on your device to play it inside MasterWave, or open it in Spotify.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = textSecondary
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            trackToMatchWithLocal = track
+                            selectedSpotifyTrackForAction = null
+                            localMatchSearchQuery = ""
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                    ) {
+                        Icon(imageVector = Icons.Default.Link, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Match Local Audio", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = {
+                            val targetUrl = track.externalSourceUrl ?: "https://open.spotify.com/track/${track.id.removePrefix("sp_")}"
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Could not open Spotify", Toast.LENGTH_SHORT).show()
+                            }
+                            selectedSpotifyTrackForAction = null
+                        }) {
+                            Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null, tint = Color(0xFF1DB954), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Open in Spotify", color = Color(0xFF1DB954))
+                        }
+                        TextButton(onClick = { selectedSpotifyTrackForAction = null }) {
+                            Text("Close", color = textSecondary)
+                        }
+                    }
+                }
+            )
+        }
+
+        // --- Dialog 2: Local Track Matcher Dialog ---
+        if (trackToMatchWithLocal != null) {
+            val target = trackToMatchWithLocal!!
+            val matchingCandidates = remember(localTracks, localMatchSearchQuery) {
+                if (localMatchSearchQuery.isBlank()) {
+                    localTracks
+                } else {
+                    localTracks.filter {
+                        it.title.contains(localMatchSearchQuery, ignoreCase = true) ||
+                                it.artist.contains(localMatchSearchQuery, ignoreCase = true)
+                    }
+                }
+            }
+
+            AlertDialog(
+                onDismissRequest = { trackToMatchWithLocal = null },
+                title = {
+                    Text(
+                        text = "Match with Local Audio File",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(340.dp)
+                    ) {
+                        Text(
+                            text = "Matching for: \"${target.title}\" - ${target.artist}",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = localMatchSearchQuery,
+                            onValueChange = { localMatchSearchQuery = it },
+                            placeholder = { Text("Search your local files...", fontSize = 13.sp) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        if (matchingCandidates.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (localTracks.isEmpty()) "No local audio files found on device" else "No matching local audio files",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = textSecondary
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(matchingCandidates.size) { idx ->
+                                    val localFile = matchingCandidates[idx]
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = cardBg,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                repository.matchSpotifyTrackWithLocal(target.id, localFile)
+                                                Toast.makeText(context, "Matched \"${target.title}\" with \"${localFile.title}\"!", Toast.LENGTH_SHORT).show()
+                                                trackToMatchWithLocal = null
+                                            }
+                                            .padding(8.dp)
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = localFile.title,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.5.sp,
+                                                color = textPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = localFile.artist,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                                color = textSecondary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { trackToMatchWithLocal = null }) {
+                        Text("Cancel", color = textSecondary)
+                    }
+                }
+            )
         }
     }
 }
