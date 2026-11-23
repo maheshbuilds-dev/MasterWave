@@ -248,22 +248,6 @@ class MasterWavePlayer(
             saveSnapshot()
         }
 
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
-                val nextIdx = _currentIndex.value + 1
-                val q = _queue.value
-                if (nextIdx in q.indices) {
-                    val nextTrack = q[nextIdx]
-                    _currentIndex.value = nextIdx
-                    _currentTrack.value = nextTrack
-                    repository.recordRecentTrack(nextTrack)
-                    repository.recommendationManager.eventTracker.onTrackStarted(nextTrack)
-                    saveSnapshot()
-                    preWarmNextTrack(nextIdx + 1, q)
-                }
-            }
-        }
-
         override fun onPlaybackStateChanged(state: Int) {
             when (state) {
                 Player.STATE_BUFFERING -> {
@@ -349,17 +333,17 @@ class MasterWavePlayer(
                     _durationMs.value = curDuration
                     repository.recommendationManager.eventTracker.onProgressUpdate(curPos, curDuration)
 
-                    // Crossfade & Automix auto-transition near end of track
+                    // Crossfade & Automix auto-transition near genuine end of track
                     val fadeSec = if (_crossfadeSeconds.value > 0) _crossfadeSeconds.value else if (_automixEnabled.value) 4 else 0
                     val fadeMs = fadeSec * 1000L
-                    if (fadeMs > 0 && curDuration > fadeMs && (curDuration - curPos) <= fadeMs && !isFadingOut) {
+                    if (fadeMs > 0 && curDuration > (fadeMs + 10_000L) && curPos > 10_000L && (curDuration - curPos) <= fadeMs && !isFadingOut && !isAdvancing) {
                         isFadingOut = true
                         launch {
                             try {
                                 val steps = 8
                                 val stepTime = (fadeMs / steps).coerceAtLeast(20L)
                                 for (s in steps downTo 1) {
-                                    exoPlayer.volume = s.toFloat() / steps
+                                    exoPlayer.volume = (s.toFloat() / steps) * _volume.value
                                     delay(stepTime)
                                 }
                             } catch (_: Exception) {}
@@ -403,6 +387,8 @@ class MasterWavePlayer(
     ) {
         trackRetryCount = 0
         isAdvancing = false
+        isFadingOut = false
+        exoPlayer.volume = _volume.value
         scope.launch {
             _isLoading.value = true
             _currentTrack.value = track
@@ -476,25 +462,7 @@ class MasterWavePlayer(
             val upcoming = queue[index]
             scope.launch(Dispatchers.IO) {
                 try {
-                    val url = repository.resolveStreamUrl(upcoming)
-                    if (!url.isNullOrBlank()) {
-                        withContext(Dispatchers.Main) {
-                            val mediaMetadata = MediaMetadata.Builder()
-                                .setTitle(upcoming.title)
-                                .setArtist(upcoming.artist)
-                                .setAlbumTitle(upcoming.album)
-                                .setArtworkUri(upcoming.artworkUrl?.takeIf { it.isNotBlank() }?.let { resolveMediaUri(it) })
-                                .build()
-                            val upcomingItem = MediaItem.Builder()
-                                .setMediaId(upcoming.id)
-                                .setUri(resolveMediaUri(url))
-                                .setMediaMetadata(mediaMetadata)
-                                .build()
-                            if (exoPlayer.mediaItemCount <= 1) {
-                                exoPlayer.addMediaItem(upcomingItem)
-                            }
-                        }
-                    }
+                    repository.resolveStreamUrl(upcoming)
                 } catch (_: Exception) {}
             }
         }
