@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.components
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Bitmap
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -28,6 +29,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -50,6 +54,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -75,6 +82,9 @@ fun WebAuthDialog(
     if (!isOpen) return
 
     val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("masterwave_legal_prefs", Context.MODE_PRIVATE) }
+    var isAgeVerified by remember { mutableStateOf(prefs.getBoolean("age_gate_verified", false)) }
+    var isCookieMasked by remember { mutableStateOf(true) }
     var activeTab by remember { mutableStateOf(0) } // 0 = Web, 1 = Manual Cookie Import
     var progress by remember { mutableFloatStateOf(0f) }
     var isLoading by remember { mutableStateOf(true) }
@@ -92,7 +102,128 @@ fun WebAuthDialog(
                 .fillMaxSize()
                 .padding(horizontal = 12.dp, vertical = 24.dp)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            if (!isAgeVerified) {
+                // COPPA & GDPR Age Verification Gate
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(68.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF262638)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = Color(0xFF34C759),
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Age Verification Required",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "In compliance with COPPA (Children's Online Privacy Protection Act) and global digital consent regulations, you must confirm you are at least 13 years old to connect an account or synchronize cloud data.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp
+                        ),
+                        color = Color(0xFFB0B0C4),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF1C1C28),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "• Minimum Age Requirement: 13+ years old",
+                                fontSize = 12.sp,
+                                color = Color(0xFFE2E2EA),
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "• No Account Required for Music: Users under 13 can freely use MasterWave as an offline local audio player with zero account connection.",
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF9090A0),
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            prefs.edit().putBoolean("age_gate_verified", true).apply()
+                            isAgeVerified = true
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Text(
+                            text = "I am 13 or Older — Continue to Sign In",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.5.sp,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            Toast.makeText(
+                                context,
+                                "Account sync is restricted for users under 13. You can still use MasterWave as an offline player!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF262634)),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                    ) {
+                        Text(
+                            text = "I am Under 13 — Use Offline Player",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 13.sp,
+                            color = Color(0xFFB0B0C0)
+                        )
+                    }
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
                 // Top Action Bar
                 Row(
                     modifier = Modifier
@@ -373,6 +504,17 @@ fun WebAuthDialog(
                                     color = Color(0xFF707080)
                                 )
                             },
+                            visualTransformation = if (isCookieMasked) PasswordVisualTransformation() else VisualTransformation.None,
+                            trailingIcon = {
+                                IconButton(onClick = { isCookieMasked = !isCookieMasked }) {
+                                    Icon(
+                                        imageVector = if (isCookieMasked) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (isCookieMasked) "Show sensitive tokens" else "Mask sensitive tokens",
+                                        tint = Color(0xFF888898),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(130.dp),
@@ -424,4 +566,5 @@ fun WebAuthDialog(
             }
         }
     }
+}
 }

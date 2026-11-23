@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CurrencyRupee
@@ -378,6 +379,43 @@ fun SupportCommunityScreen(
                             fontSize = 15.sp,
                             color = Color.White
                         )
+                    }
+
+                    // FTC & California ARL Billing & Non-Renewal Terms Disclosure (Immediately adjacent to payment button)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = colors.canvas,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.hairline),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = WebAccentEmerald,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "One-Time Contribution • No Automatic Renewal",
+                                    fontFamily = DisplayFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = colors.ink
+                                )
+                            }
+                            Text(
+                                text = "This is a 100% voluntary, one-time contribution. You will NEVER be enrolled in a recurring subscription or automatically charged in the future. MasterWave has zero recurring billing, zero paywalled tiers, and no hidden cancellation fees.",
+                                fontFamily = DisplayFontFamily,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp,
+                                color = colors.muted
+                            )
+                        }
                     }
                 }
             }
