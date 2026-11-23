@@ -248,6 +248,22 @@ class MasterWavePlayer(
             saveSnapshot()
         }
 
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+                val nextIdx = _currentIndex.value + 1
+                val q = _queue.value
+                if (nextIdx in q.indices) {
+                    val nextTrack = q[nextIdx]
+                    _currentIndex.value = nextIdx
+                    _currentTrack.value = nextTrack
+                    repository.recordRecentTrack(nextTrack)
+                    repository.recommendationManager.eventTracker.onTrackStarted(nextTrack)
+                    saveSnapshot()
+                    preWarmNextTrack(nextIdx + 1, q)
+                }
+            }
+        }
+
         override fun onPlaybackStateChanged(state: Int) {
             when (state) {
                 Player.STATE_BUFFERING -> {
@@ -386,6 +402,7 @@ class MasterWavePlayer(
         autoPlay: Boolean = true
     ) {
         trackRetryCount = 0
+        isAdvancing = false
         scope.launch {
             _isLoading.value = true
             _currentTrack.value = track
@@ -418,20 +435,31 @@ class MasterWavePlayer(
                     .setMediaMetadata(mediaMetadata)
                     .build()
 
+                exoPlayer.clearMediaItems()
                 exoPlayer.setMediaItem(mediaItem, startPositionMs.coerceAtLeast(0L))
                 exoPlayer.prepare()
                 if (autoPlay) exoPlayer.play() else exoPlayer.pause()
                 saveSnapshot()
 
-                // Pre-warm the upcoming track stream URL so advance with locked screen is 0ms
-                val nextIndex = _currentIndex.value + 1
-                if (nextIndex < newQueue.size) {
-                    val upcoming = newQueue[nextIndex]
+                // If newQueue has only 1 track, populate smart recommendations into queue in background
+                if (newQueue.size <= 1) {
                     launch(Dispatchers.IO) {
                         try {
-                            repository.resolveStreamUrl(upcoming)
+                            val smartRecs = repository.recommendationManager.getQueueRecommendations(track, limit = 10)
+                            val fallbackPool = (repository.recentTracks.value + repository.favorites.value + repository.localTracks.value).filter { it.id != track.id }
+                            val additional = smartRecs.ifEmpty { fallbackPool.take(10) }
+                            if (additional.isNotEmpty()) {
+                                val fullQueue = listOf(track) + additional
+                                withContext(Dispatchers.Main) {
+                                    _queue.value = fullQueue
+                                    preWarmNextTrack(1, fullQueue)
+                                }
+                            }
                         } catch (_: Exception) {}
                     }
+                } else {
+                    // Pre-warm the upcoming track stream URL and queue it directly in ExoPlayer
+                    preWarmNextTrack(_currentIndex.value + 1, newQueue)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -439,6 +467,35 @@ class MasterWavePlayer(
                 // Auto-advance to next track on failure so playback never dies silently
                 delay(1200L)
                 playNext()
+            }
+        }
+    }
+
+    private fun preWarmNextTrack(index: Int, queue: List<Track>) {
+        if (index in queue.indices) {
+            val upcoming = queue[index]
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val url = repository.resolveStreamUrl(upcoming)
+                    if (!url.isNullOrBlank()) {
+                        withContext(Dispatchers.Main) {
+                            val mediaMetadata = MediaMetadata.Builder()
+                                .setTitle(upcoming.title)
+                                .setArtist(upcoming.artist)
+                                .setAlbumTitle(upcoming.album)
+                                .setArtworkUri(upcoming.artworkUrl?.takeIf { it.isNotBlank() }?.let { resolveMediaUri(it) })
+                                .build()
+                            val upcomingItem = MediaItem.Builder()
+                                .setMediaId(upcoming.id)
+                                .setUri(resolveMediaUri(url))
+                                .setMediaMetadata(mediaMetadata)
+                                .build()
+                            if (exoPlayer.mediaItemCount <= 1) {
+                                exoPlayer.addMediaItem(upcomingItem)
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
             }
         }
     }
@@ -541,6 +598,7 @@ class MasterWavePlayer(
 
     fun playNext() {
         if (isAdvancing) return
+        isAdvancing = true
         val q = _queue.value
         val cur = _currentTrack.value
         cur?.let { repository.recommendationManager.eventTracker.onTrackSkipped(it) }
@@ -549,18 +607,19 @@ class MasterWavePlayer(
         // so auto-advance still works instantly with the screen off.
         if (q.isNotEmpty() && _currentIndex.value >= 0 && _currentIndex.value + 1 < q.size) {
             val nextIdx = _currentIndex.value + 1
+            isAdvancing = false
             playTrack(q[nextIdx], q)
             return
         }
 
         // Loop back to beginning when repeat mode is ALL
         if (q.isNotEmpty() && _repeatMode.value == Player.REPEAT_MODE_ALL) {
+            isAdvancing = false
             playTrack(q[0], q)
             return
         }
 
         // Smart Dynamic Continuation powered by the Recommendation Engine.
-        isAdvancing = true
         scope.launch {
             try {
                 val smartRecs = if (cur != null) {
@@ -574,20 +633,22 @@ class MasterWavePlayer(
                 if (smartRecs.isNotEmpty()) {
                     val extendedQueue = q + smartRecs
                     _queue.value = extendedQueue
+                    isAdvancing = false
                     playTrack(smartRecs.first(), extendedQueue)
                     return@launch
                 }
 
                 // Fallback to the local pool.
-                val pool = repository.recentTracks.value + repository.favorites.value + repository.localTracks.value
+                val pool = (repository.recentTracks.value + repository.favorites.value + repository.localTracks.value).filter { it.id != cur?.id }
                 val aiTrack = aiRecommender.selectNextTrack(cur, pool, repository.recentTracks.value)
+                isAdvancing = false
                 when {
                     aiTrack != null -> playTrack(aiTrack)
                     q.isNotEmpty() -> playTrack(q.first(), q)
                     cur != null -> playTrack(cur, listOf(cur))
                 }
             } catch (_: Exception) {
-                // Never let a failed recommendation end the session silently.
+                isAdvancing = false
                 val fallback = q.ifEmpty { listOfNotNull(cur) }
                 if (fallback.isNotEmpty()) playTrack(fallback.first(), fallback)
             } finally {

@@ -129,23 +129,21 @@ fun Modifier.glassySurface(
         } else when (style) {
             GlassyStyle.DOCK -> {
                 // Liquid Glass Skill (deepika-builds/liquid-glass):
-                // Translucent gradient tint preserving full backdrop optical refraction:
-                // Dark mode: rgba(14, 14, 22, 0.18) -> rgba(14, 14, 22, 0.32)
-                // Light mode: rgba(255, 255, 255, 0.32) -> rgba(240, 244, 252, 0.18)
+                // Crystal-clear frosted optical transmission preserving full backdrop view
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x2E0E0E16), // rgba(14, 14, 22, 0.18)
-                            Color(0x3B0E0E16), // Mid tone
-                            Color(0x520E0E16)  // rgba(14, 14, 22, 0.32)
+                            Color(0x300E0E16), // Translucent obsidian top
+                            Color(0x200E0E16), // Crystal core
+                            Color(0x400E0E16)  // Base shadow
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0x52FFFFFF), // rgba(255, 255, 255, 0.32)
-                            Color(0x3DF0F4FC), // Translucent optical core
-                            Color(0x2EF0F4FC)  // rgba(240, 244, 252, 0.18)
+                            Color(0x35FFFFFF), // 21% translucent white top
+                            Color(0x15FFFFFF), // 8% crystal core
+                            Color(0x22F0F4FC)  // 13% subtle ambient reflection
                         )
                     )
                 }

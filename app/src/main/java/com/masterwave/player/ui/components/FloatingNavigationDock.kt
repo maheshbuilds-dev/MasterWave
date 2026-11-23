@@ -94,13 +94,13 @@ fun Modifier.liquidGlassTabSwitcher(
     val fillBrush = remember(isDark, activeAlpha) {
         Brush.verticalGradient(
             colors = if (isDark) listOf(
-                Color.White.copy(alpha = 0.24f * activeAlpha),
-                Color.White.copy(alpha = 0.08f * activeAlpha),
-                Color.White.copy(alpha = 0.16f * activeAlpha)
-            ) else listOf(
-                Color.White.copy(alpha = 0.42f * activeAlpha),
                 Color.White.copy(alpha = 0.16f * activeAlpha),
-                Color.White.copy(alpha = 0.28f * activeAlpha)
+                Color.White.copy(alpha = 0.05f * activeAlpha),
+                Color.White.copy(alpha = 0.11f * activeAlpha)
+            ) else listOf(
+                Color.White.copy(alpha = 0.20f * activeAlpha),
+                Color.White.copy(alpha = 0.06f * activeAlpha),
+                Color.White.copy(alpha = 0.14f * activeAlpha)
             )
         )
     }
@@ -108,40 +108,40 @@ fun Modifier.liquidGlassTabSwitcher(
     val borderBrush = remember(isDark, activeAlpha) {
         Brush.verticalGradient(
             colors = if (isDark) listOf(
-                Color.White.copy(alpha = 0.65f * activeAlpha),
-                Color.White.copy(alpha = 0.25f * activeAlpha),
+                Color.White.copy(alpha = 0.45f * activeAlpha),
+                Color.White.copy(alpha = 0.16f * activeAlpha),
                 Color.Transparent,
-                Color.White.copy(alpha = 0.22f * activeAlpha)
+                Color.White.copy(alpha = 0.18f * activeAlpha)
             ) else listOf(
-                Color.White.copy(alpha = 0.90f * activeAlpha),
-                Color.White.copy(alpha = 0.40f * activeAlpha),
-                Color.Black.copy(alpha = 0.06f * activeAlpha),
-                Color.White.copy(alpha = 0.35f * activeAlpha)
+                Color.White.copy(alpha = 0.65f * activeAlpha),
+                Color.White.copy(alpha = 0.22f * activeAlpha),
+                Color.Transparent,
+                Color.White.copy(alpha = 0.26f * activeAlpha)
             )
         )
     }
 
     return this
         .shadow(
-            elevation = (2.5.dp * activeAlpha),
+            elevation = (2.dp * activeAlpha),
             shape = shape,
-            spotColor = Color.Black.copy(alpha = (if (isDark) 0.35f else 0.08f) * activeAlpha),
-            ambientColor = accentColor.copy(alpha = 0.10f * activeAlpha)
+            spotColor = Color.Black.copy(alpha = (if (isDark) 0.25f else 0.04f) * activeAlpha),
+            ambientColor = accentColor.copy(alpha = 0.14f * activeAlpha)
         )
         .clip(shape)
         .background(fillBrush)
         .border(
-            width = 0.9.dp,
+            width = 0.8.dp,
             brush = borderBrush,
             shape = shape
         )
         .drawWithContent {
             drawContent()
-            val sheenHeight = size.height * 0.36f
+            val sheenHeight = size.height * 0.35f
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = (if (isDark) 0.25f else 0.42f) * activeAlpha),
+                        Color.White.copy(alpha = (if (isDark) 0.16f else 0.20f) * activeAlpha),
                         Color.Transparent
                     ),
                     startY = 0f,

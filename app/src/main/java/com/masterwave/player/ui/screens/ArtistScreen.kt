@@ -392,7 +392,7 @@ fun ArtistScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { player.playTrack(track) }
+                            .clickable { player.playTrack(track, popularTracks) }
                             .padding(horizontal = 20.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -491,7 +491,7 @@ fun ArtistScreen(
                             Column(
                                 modifier = Modifier
                                     .width(140.dp)
-                                    .clickable { player.playTrack(release) }
+                                    .clickable { player.playTrack(release, latestReleases) }
                             ) {
                                 Box(
                                     modifier = Modifier

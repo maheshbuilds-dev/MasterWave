@@ -444,7 +444,7 @@ fun StatsScreen(
                             border = BorderStroke(1.5.dp, colors.hairline),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .bouncyClickable { player.playTrack(item.track) }
+                                .bouncyClickable { player.playTrack(item.track, threeDayHistory.map { it.track }) }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -548,7 +548,7 @@ fun StatsScreen(
                             border = BorderStroke(1.5.dp, colors.hairline),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .bouncyClickable { player.playTrack(track) }
+                                .bouncyClickable { player.playTrack(track, topTracksRanked) }
                         ) {
                             Row(
                                 modifier = Modifier

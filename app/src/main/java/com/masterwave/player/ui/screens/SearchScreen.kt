@@ -656,7 +656,10 @@ fun SearchScreen(
                                 border = BorderStroke(1.dp, if (isAmoled) Color(0x1FFFFFFF) else Color(0x10000000)),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .bouncyClickable { player.playTrack(topSong) }
+                                    .bouncyClickable {
+                                        val q = if (songs.contains(topSong)) songs else listOf(topSong) + songs
+                                        player.playTrack(topSong, q)
+                                    }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(14.dp),

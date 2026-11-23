@@ -58,7 +58,7 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
     private fun acquireLocks() {
         try {
             if (!wakeLock.isHeld) {
-                wakeLock.acquire(45 * 60 * 1000L) // 45-minute safety ceiling
+                wakeLock.acquire(2 * 60 * 60 * 1000L) // 2-hour continuous ceiling
             }
             if (!wifiLock.isHeld) {
                 wifiLock.acquire()
@@ -155,9 +155,7 @@ class MasterWavePlaybackService : MediaBrowserServiceCompat() {
 
     private fun updateNotification(track: Track, isPlaying: Boolean) {
         notificationManager.updateNotification(track, isPlaying) { notification ->
-            if (isPlaying) {
-                acquireLocks()
-            }
+            acquireLocks()
 
             // CRITICAL: Maintain foreground status continuously while a session exists!
             // Dropping foreground (stopForeground) when paused or between tracks strips process priority,

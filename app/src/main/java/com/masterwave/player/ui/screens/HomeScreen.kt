@@ -933,7 +933,7 @@ fun HomeScreen(
                                 Column(
                                     modifier = Modifier
                                         .width(130.dp)
-                                        .clickable { player.playTrack(track) }
+                                        .clickable { player.playTrack(track, categoryFilterTracks) }
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -1228,7 +1228,7 @@ fun HomeScreen(
                         Column(
                             modifier = Modifier
                                 .width(135.dp)
-                                .clickable { player.playTrack(track) }
+                                .clickable { player.playTrack(track, trendingTracks) }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -1400,7 +1400,7 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(14.dp))
-                                        .clickable { player.playTrack(track) }
+                                        .clickable { player.playTrack(track, previewTracks) }
                                         .padding(vertical = 6.dp, horizontal = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -1527,7 +1527,7 @@ fun HomeScreen(
                         Column(
                             modifier = Modifier
                                 .width(135.dp)
-                                .clickable { player.playTrack(track) }
+                                .clickable { player.playTrack(track, trendingTracks.asReversed()) }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -1735,7 +1735,7 @@ fun HomeScreen(
                         Column(
                             modifier = Modifier
                                 .width(135.dp)
-                                .clickable { player.playTrack(track) }
+                                .clickable { player.playTrack(track, similarTracks) }
                         ) {
                             Box(
                                 modifier = Modifier
