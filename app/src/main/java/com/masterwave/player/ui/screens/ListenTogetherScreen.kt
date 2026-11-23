@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -76,6 +78,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.masterwave.player.data.webrtc.ListenTogetherManager
 import com.masterwave.player.playback.MasterWavePlayer
+import com.masterwave.player.ui.animation.applePressEffect
 import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.WebAccentEmerald
 import com.masterwave.player.ui.theme.WebAccentGreen
@@ -112,6 +115,9 @@ fun ListenTogetherScreen(
     val connectedRoomCode by listenManager?.connectedRoomCode?.collectAsState() ?: remember { mutableStateOf(null) }
     val hostTrack by listenManager?.hostTrack?.collectAsState() ?: remember { mutableStateOf(null) }
     val syncDriftMs by listenManager?.syncDriftMs?.collectAsState() ?: remember { mutableStateOf(0L) }
+    val connectedPeers by listenManager?.connectedPeers?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
+    val liveReactions by listenManager?.liveReactions?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
+    val nearbyRooms by listenManager?.discoveredNearbyRooms?.collectAsState() ?: remember { mutableStateOf(emptyList()) }
 
     var selectedMode by remember { mutableIntStateOf(if (isJoinedAsListener) 1 else 0) } // 0: Host, 1: Join
     var roomCodeInput by remember { mutableStateOf("") }
@@ -500,43 +506,125 @@ fun ListenTogetherScreen(
                             Icon(Icons.Default.Group, contentDescription = null, tint = colors.ink, modifier = Modifier.size(20.dp))
                         }
 
-                        // Listeners List
-                        val listeners = listOf(
-                            Triple("You (Host)", "Broadcasting master clock", WebAccentEmerald),
-                            Triple("Alex M.", "Synced • ±1ms drift", WebAccentSky),
-                            Triple("Priya K.", "Synced • ±2ms drift", WebAccentPink)
-                        )
-
-                        listeners.forEach { (name, status, color) ->
-                            Row(
+                        // Host row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(colors.canvas)
+                                .border(1.dp, colors.hairline, RoundedCornerShape(14.dp))
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(colors.canvas)
-                                    .border(1.dp, colors.hairline, RoundedCornerShape(14.dp))
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(WebAccentEmerald)
+                                    .border(1.5.dp, colors.border, CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(color)
-                                        .border(1.5.dp, colors.border, CircleShape),
-                                    contentAlignment = Alignment.Center
+                                Text(
+                                    text = "Y",
+                                    fontFamily = DisplayFontFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF101828)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(text = "You (Host)", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                                Text(text = "Broadcasting master clock • Room $partyCode", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
+                            }
+                        }
+
+                        // Real Dynamic Listeners List (No fake users)
+                        if (connectedPeers.isEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = colors.canvas,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.hairline),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
+                                    Icon(Icons.Default.Group, contentDescription = null, tint = colors.muted, modifier = Modifier.size(18.dp))
                                     Text(
-                                        text = name.take(1),
+                                        text = "No listeners connected yet. Share your code to start jamming together!",
                                         fontFamily = DisplayFontFamily,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 15.sp,
-                                        color = Color(0xFF101828)
+                                        fontSize = 12.sp,
+                                        color = colors.muted
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(text = name, fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
-                                    Text(text = status, fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
+                            }
+                        } else {
+                            connectedPeers.forEachIndexed { index, peer ->
+                                val peerColor = when (index % 4) {
+                                    0 -> WebAccentSky
+                                    1 -> WebAccentPink
+                                    2 -> WebAccentViolet
+                                    else -> WebAccentPeach
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(colors.canvas)
+                                        .border(1.dp, colors.hairline, RoundedCornerShape(14.dp))
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(peerColor)
+                                            .border(1.5.dp, colors.border, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = peer.name.take(1).uppercase(),
+                                            fontFamily = DisplayFontFamily,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 15.sp,
+                                            color = Color(0xFF101828)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(text = peer.name, fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                                        Text(text = "Synced • ±${peer.driftMs}ms drift", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Live Reactions Feed
+                        if (liveReactions.isNotEmpty()) {
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(liveReactions.takeLast(10).reversed(), key = { it.id }) { rx ->
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(colors.canvas)
+                                            .border(1.dp, colors.hairline, RoundedCornerShape(999.dp))
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(text = rx.emoji, fontSize = 15.sp)
+                                            Text(text = rx.senderName, fontSize = 11.sp, fontFamily = DisplayFontFamily, color = colors.muted)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -561,8 +649,8 @@ fun ListenTogetherScreen(
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(colors.canvas)
                                         .border(1.5.dp, colors.border, RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            recentReactions.add(emoji)
+                                        .applePressEffect {
+                                            listenManager?.sendReaction(emoji)
                                             Toast.makeText(context, "Sent $emoji to all listeners!", Toast.LENGTH_SHORT).show()
                                         },
                                     contentAlignment = Alignment.Center
@@ -646,6 +734,62 @@ fun ListenTogetherScreen(
                                         }
                                     }
 
+                                    // Live Reactions Feed for listener
+                                    if (liveReactions.isNotEmpty()) {
+                                        LazyRow(
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            items(liveReactions.takeLast(10).reversed(), key = { it.id }) { rx ->
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(999.dp))
+                                                        .background(colors.surfaceSoft)
+                                                        .border(1.dp, colors.hairline, RoundedCornerShape(999.dp))
+                                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                    ) {
+                                                        Text(text = rx.emoji, fontSize = 15.sp)
+                                                        Text(text = rx.senderName, fontSize = 11.sp, fontFamily = DisplayFontFamily, color = colors.muted)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Listener Reaction Bar
+                                    Text(
+                                        text = "Send Reaction to Party:",
+                                        fontFamily = DisplayFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = colors.muted
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        reactionEmojis.forEach { emoji ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(colors.surfaceSoft)
+                                                    .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+                                                    .applePressEffect {
+                                                        listenManager?.sendReaction(emoji)
+                                                        Toast.makeText(context, "Sent $emoji to party!", Toast.LENGTH_SHORT).show()
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(text = emoji, fontSize = 18.sp)
+                                            }
+                                        }
+                                    }
+
                                     Button(
                                         onClick = {
                                             listenManager?.leaveRoom()
@@ -656,7 +800,10 @@ fun ListenTogetherScreen(
                                             containerColor = colors.surfaceSoft,
                                             contentColor = colors.ink
                                         ),
-                                        modifier = Modifier.fillMaxWidth().border(1.5.dp, colors.border, RoundedCornerShape(999.dp))
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.5.dp, colors.border, RoundedCornerShape(999.dp))
+                                            .applePressEffect()
                                     ) {
                                         Text("Disconnect from Session", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, color = colors.ink)
                                     }
@@ -712,6 +859,7 @@ fun ListenTogetherScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
+                                    .applePressEffect()
                             ) {
                                 Icon(Icons.Default.Sync, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -758,7 +906,7 @@ fun ListenTogetherScreen(
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "SCANNING",
+                                    text = if (nearbyRooms.isNotEmpty()) "${nearbyRooms.size} FOUND" else "SCANNING",
                                     fontFamily = DisplayFontFamily,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.ExtraBold,
@@ -767,43 +915,75 @@ fun ListenTogetherScreen(
                             }
                         }
 
-                        // Nearby Found Room
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(colors.canvas)
-                                .border(1.5.dp, colors.border, RoundedCornerShape(16.dp))
-                                .clickable {
-                                    listenManager?.joinRoom(partyCode) {
-                                        Toast.makeText(context, "Connected to local room!", Toast.LENGTH_SHORT).show()
+                        // Nearby Found Rooms (dynamic, zero self-join loop)
+                        if (nearbyRooms.isEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(colors.canvas)
+                                    .border(1.5.dp, colors.border, RoundedCornerShape(16.dp))
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(WebAccentPeach)
+                                        .border(1.5.dp, colors.border, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF101828), modifier = Modifier.size(20.dp))
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = "Scanning Mesh Radar", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                                    Text(text = "Listening for nearby MasterWave hosts on local Wi-Fi / Hotspot...", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
+                                }
+                            }
+                        } else {
+                            nearbyRooms.forEach { discoveredCode ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(colors.canvas)
+                                        .border(1.5.dp, colors.border, RoundedCornerShape(16.dp))
+                                        .applePressEffect {
+                                            listenManager?.joinRoom(discoveredCode) { success ->
+                                                if (success) {
+                                                    Toast.makeText(context, "Connected to room $discoveredCode!", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(WebAccentPeach)
+                                            .border(1.5.dp, colors.border, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF101828), modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = "Room $discoveredCode", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                                        Text(text = "MasterWave Mesh Stream • Local Wi-Fi", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(if (colors.isDark) Color(0xFF165B33) else Color(0xFF101828))
+                                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(text = "Connect", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     }
                                 }
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(WebAccentPeach)
-                                    .border(1.5.dp, colors.border, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF101828), modifier = Modifier.size(20.dp))
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = "MasterWave Mesh Stream", fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
-                                Text(text = "Nearby Wi-Fi / Hotspot • 48 kHz", fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(if (colors.isDark) Color(0xFF165B33) else Color(0xFF101828))
-                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-                                Text(text = "Connect", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }

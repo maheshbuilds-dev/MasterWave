@@ -134,8 +134,12 @@ class CloudAccountManager(
                     .putString("photo_url", avatar)
                     .putString("provider", profile.provider)
                     .apply()
+
+                // Immediately and silently sync Real Liked Songs & Playlists in seconds without popups
+                ytFetcher.fetchRealLikedSongs(cookies)
+                ytFetcher.fetchRealUserPlaylists(cookies)
             } catch (e: Exception) {
-                android.util.Log.e("CloudAccountManager", "Error during YouTube Music profile fetch", e)
+                android.util.Log.e("CloudAccountManager", "Error during YouTube Music profile fetch and silent sync", e)
             }
         }
     }

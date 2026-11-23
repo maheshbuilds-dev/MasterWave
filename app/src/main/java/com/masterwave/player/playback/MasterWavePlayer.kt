@@ -77,13 +77,13 @@ class MasterWavePlayer(
 
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs = */ 25_000,
-                /* maxBufferMs = */ 70_000,
-                /* bufferForPlaybackMs = */ 1_200,
-                /* bufferForPlaybackAfterRebufferMs = */ 2_400
+                /* minBufferMs = */ 15_000,
+                /* maxBufferMs = */ 50_000,
+                /* bufferForPlaybackMs = */ 350,
+                /* bufferForPlaybackAfterRebufferMs = */ 800
             )
             .setPrioritizeTimeOverSizeThresholds(true)
-            .setBackBuffer(15_000, true)
+            .setBackBuffer(10_000, true)
             .build()
 
         val audioAttributes = AudioAttributes.Builder()
@@ -171,8 +171,11 @@ class MasterWavePlayer(
     private val _spatialAudioEnabled = MutableStateFlow(audioPrefs.getBoolean("spatial_audio_enabled", false))
     val spatialAudioEnabled: StateFlow<Boolean> = _spatialAudioEnabled.asStateFlow()
 
-    private val _skipSilenceEnabled = MutableStateFlow(audioPrefs.getBoolean("skip_silence_enabled", false))
+    private val _skipSilenceEnabled = MutableStateFlow(audioPrefs.getBoolean("skip_silence_enabled", true))
     val skipSilenceEnabled: StateFlow<Boolean> = _skipSilenceEnabled.asStateFlow()
+
+    private val _gaplessPlaybackEnabled = MutableStateFlow(audioPrefs.getBoolean("gapless_playback_enabled", true))
+    val gaplessPlaybackEnabled: StateFlow<Boolean> = _gaplessPlaybackEnabled.asStateFlow()
 
     private val _crossfadeSeconds = MutableStateFlow(audioPrefs.getInt("crossfade_seconds", 0))
     val crossfadeSeconds: StateFlow<Int> = _crossfadeSeconds.asStateFlow()
@@ -183,31 +186,35 @@ class MasterWavePlayer(
     private val _stopWhenCleared = MutableStateFlow(audioPrefs.getBoolean("stop_when_app_cleared", false))
     val stopWhenCleared: StateFlow<Boolean> = _stopWhenCleared.asStateFlow()
 
+    private val _bassBoostStrength = MutableStateFlow(audioPrefs.getInt("bass_boost_strength", 480))
+    val bassBoostStrength: StateFlow<Int> = _bassBoostStrength.asStateFlow()
+
     // 5-Band Studio Equalizer (60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz)
     private var equalizer: Equalizer? = null
     private val _equalizerEnabled = MutableStateFlow(audioPrefs.getBoolean("equalizer_enabled", true))
     val equalizerEnabled: StateFlow<Boolean> = _equalizerEnabled.asStateFlow()
 
-    private val _equalizerPreset = MutableStateFlow(audioPrefs.getString("equalizer_preset", "Apple Music Master") ?: "Apple Music Master")
+    private val _equalizerPreset = MutableStateFlow(audioPrefs.getString("equalizer_preset", "Musician Pro Master") ?: "Musician Pro Master")
     val equalizerPreset: StateFlow<String> = _equalizerPreset.asStateFlow()
 
-    private val _equalizerBands = MutableStateFlow(listOf(5, 2, 1, 2, 3))
+    private val _equalizerBands = MutableStateFlow(listOf(6, 4, 1, 3, 4))
     val equalizerBands: StateFlow<List<Int>> = _equalizerBands.asStateFlow()
 
     val equalizerPresetMap = mapOf(
-        "Apple Music Master" to listOf(5, 2, 1, 2, 3),
+        "Musician Pro Master" to listOf(6, 4, 1, 3, 4),
+        "Apple Music Master" to listOf(6, 3, 1, 3, 4),
         "Harman Target" to listOf(6, 3, 0, 3, 2),
-        "AirPods Spatial" to listOf(4, 2, 2, 2, 4),
+        "AirPods Spatial" to listOf(5, 2, 2, 3, 4),
         "Studio Pure" to listOf(0, 0, 0, 0, 0),
         "Flat" to listOf(0, 0, 0, 0, 0),
-        "Bass Boost" to listOf(7, 5, 2, 0, 0),
+        "Bass Boost" to listOf(8, 5, 2, 1, 1),
         "Vocal Booster" to listOf(-1, 1, 5, 4, 1),
-        "Electronic" to listOf(5, 3, -1, 2, 4),
-        "Rock" to listOf(5, 2, -2, 3, 5),
-        "Pop" to listOf(2, 4, 5, 3, -1),
-        "Classical" to listOf(4, 3, -1, 3, 4),
-        "Hip Hop" to listOf(6, 5, 0, 2, 3),
-        "Acoustic" to listOf(3, 2, 2, 4, 3)
+        "Electronic" to listOf(6, 4, -1, 3, 5),
+        "Rock" to listOf(6, 3, -1, 4, 5),
+        "Pop" to listOf(3, 4, 4, 3, 0),
+        "Classical" to listOf(4, 3, 0, 3, 4),
+        "Hip Hop" to listOf(7, 5, 0, 2, 3),
+        "Acoustic" to listOf(4, 3, 2, 4, 4)
     )
 
     // MasterWave Apple Music Tier DSP Tuning Pipeline (32-bit float, anti-clipping headroom & spatial audio)
@@ -295,6 +302,7 @@ class MasterWavePlayer(
             val curTrack = _currentTrack.value
             if (curTrack != null && trackRetryCount < 1) {
                 trackRetryCount++
+                repository.evictStreamCache(curTrack)
                 scope.launch {
                     delay(1000L)
                     try {
@@ -831,26 +839,31 @@ class MasterWavePlayer(
         try {
             releaseAcousticTuning()
             // 1. Studio Loudness Enhancer (EBU R128 transparent headroom without clipping)
-            val targetGain = if (_appleMusicMasterMode.value) 350 else 380
+            val targetGain = if (_appleMusicMasterMode.value) 280 else 320
             loudnessEnhancer = LoudnessEnhancer(sessionId).apply {
                 setTargetGain(targetGain)
                 enabled = _acousticTuningEnabled.value
             }
             // 2. Punchy Warm Bass Acoustic Tuning (tight, non-muddy sub-bass for all phone DACs)
-            val bassStrength = if (_appleMusicMasterMode.value) 350 else 380
+            val bassStrength = _bassBoostStrength.value
             bassBoost = BassBoost(0, sessionId).apply {
                 if (strengthSupported) {
                     setStrength(bassStrength.toShort())
                 }
-                enabled = _acousticTuningEnabled.value
+                enabled = _acousticTuningEnabled.value && bassStrength > 0
             }
             // 3. Studio Acoustic Soundstage Widening & Spatial Audio (AirPods/Harman binaural stage)
+            // Preserves center mono channel (vocals & kick punch) while expanding stereo air
             virtualizer = Virtualizer(0, sessionId).apply {
-                val strength = if (_spatialAudioEnabled.value || _appleMusicMasterMode.value) 850.toShort() else 180.toShort()
+                val strength = when {
+                    _spatialAudioEnabled.value -> 600.toShort()
+                    _appleMusicMasterMode.value -> 200.toShort()
+                    else -> 100.toShort()
+                }
                 if (strengthSupported) {
                     setStrength(strength)
                 }
-                enabled = _acousticTuningEnabled.value || _spatialAudioEnabled.value || _appleMusicMasterMode.value
+                enabled = _acousticTuningEnabled.value || _spatialAudioEnabled.value
             }
             // 4. Studio Graphic Equalizer
             equalizer = Equalizer(0, sessionId).apply {
@@ -862,6 +875,20 @@ class MasterWavePlayer(
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun setBassBoostStrength(strength: Int) {
+        val clamped = strength.coerceIn(0, 1000)
+        _bassBoostStrength.value = clamped
+        audioPrefs.edit().putInt("bass_boost_strength", clamped).apply()
+        try {
+            bassBoost?.apply {
+                if (strengthSupported) {
+                    setStrength(clamped.toShort())
+                }
+                enabled = _acousticTuningEnabled.value && clamped > 0
+            }
+        } catch (_: Exception) {}
     }
 
     private fun applyBandsToHardware() {
@@ -910,10 +937,10 @@ class MasterWavePlayer(
         audioPrefs.edit().putBoolean("spatial_audio_enabled", enabled).apply()
         try {
             if (enabled) {
-                virtualizer?.setStrength(1000.toShort())
+                virtualizer?.setStrength(600.toShort())
                 virtualizer?.enabled = true
             } else {
-                virtualizer?.setStrength(180.toShort())
+                virtualizer?.setStrength(if (_appleMusicMasterMode.value) 200.toShort() else 100.toShort())
                 virtualizer?.enabled = _acousticTuningEnabled.value
             }
         } catch (_: Exception) {}
@@ -925,6 +952,11 @@ class MasterWavePlayer(
         try {
             exoPlayer.skipSilenceEnabled = enabled
         } catch (_: Exception) {}
+    }
+
+    fun toggleGaplessPlayback(enabled: Boolean) {
+        _gaplessPlaybackEnabled.value = enabled
+        audioPrefs.edit().putBoolean("gapless_playback_enabled", enabled).apply()
     }
 
     fun toggleDataSaver(enabled: Boolean) {
@@ -951,7 +983,7 @@ class MasterWavePlayer(
         _acousticTuningEnabled.value = enabled
         try {
             loudnessEnhancer?.enabled = enabled
-            bassBoost?.enabled = enabled
+            bassBoost?.enabled = enabled && _bassBoostStrength.value > 0
             virtualizer?.enabled = enabled
         } catch (_: Exception) {}
     }
@@ -960,8 +992,9 @@ class MasterWavePlayer(
         _appleMusicMasterMode.value = enabled
         audioPrefs.edit().putBoolean("apple_music_master_mode", enabled).apply()
         if (enabled) {
-            setEqualizerPreset("Apple Music Master")
-            toggleSpatialAudio(true)
+            setEqualizerPreset("Musician Pro Master")
+            _bassBoostStrength.value = 480
+            audioPrefs.edit().putInt("bass_boost_strength", 480).apply()
             _acousticTuningEnabled.value = true
         }
         setupAcousticTuning(getAudioSessionId())

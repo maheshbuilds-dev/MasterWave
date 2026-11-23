@@ -552,7 +552,8 @@ class YouTubeLibraryFetcher(
             }
 
             val discoveryJob = async(Dispatchers.IO) {
-                val browseIds = listOf("FEmusic_liked_playlists", "FEmusic_library_landing")
+                // Priority order: direct library playlists endpoint first, followed by landing and liked playlists
+                val browseIds = listOf("FEmusic_library_playlists", "FEmusic_library_landing", "FEmusic_liked_playlists")
                 for (browseId in browseIds) {
                     try {
                         val payload = JSONObject().apply {
@@ -593,8 +594,6 @@ class YouTubeLibraryFetcher(
                     } catch (e: Exception) {
                         Log.e(TAG, "Error browsing $browseId", e)
                     }
-
-                    if (discoveredPlaylists.isNotEmpty()) break
                 }
                 discoveredPlaylists.distinctBy { it.id }
             }

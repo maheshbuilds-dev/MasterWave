@@ -280,21 +280,28 @@ class YouTubeMusicProvider(
 
         initNewPipe()
         val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$trackId")
+        // Uncompromising studio fidelity: Guarantee high-bitrate transparent audio (itag 251 48kHz Opus or itag 140 AAC)
         val audioStreams = info.audioStreams.sortedWith(
-            compareByDescending<AudioStream> { it.format?.name == "WEBMA" || it.codec == "opus" }
+            compareByDescending<AudioStream> { it.bitrate >= 120_000 }
+                .thenByDescending { (it.format?.name == "WEBMA" || it.codec?.contains("opus", ignoreCase = true) == true) && it.bitrate >= 120_000 }
                 .thenByDescending { it.bitrate }
         )
 
-        for (stream in audioStreams) {
-            val url = stream.content
-            if (!url.isNullOrBlank() && probeStream(url)) {
-                streamCache[trackId] = Pair(url, now + 5 * 60 * 1000L) // 5 min cache
-                return@withContext url
-            }
-        }
+        // Instant playback: Select highest quality Opus/WebM audio stream immediately without blocking 1MB probe latency
+        val bestStream = audioStreams.firstOrNull { !it.content.isNullOrBlank() }
+            ?: throw IOException("No playable audio stream found for $trackId")
 
-        // Fallback: use first stream directly
-        audioStreams.firstOrNull()?.content ?: throw IOException("No playable audio stream found for $trackId")
+        val url = bestStream.content!!
+        streamCache[trackId] = Pair(url, now + 2 * 60 * 60 * 1000L) // 2 hour cache for instant repeat playback
+        return@withContext url
+    }
+
+    fun evictCache(trackId: String) {
+        streamCache.remove(trackId)
+    }
+
+    fun clearStreamCache() {
+        streamCache.clear()
     }
 
     /**

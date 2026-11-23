@@ -491,6 +491,12 @@ class AppUpdateManager(
                     setPackageSource(PackageInstaller.PACKAGE_SOURCE_DOWNLOADED_FILE)
                 }
 
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    try {
+                        setRequestUpdateOwnership(true)
+                    } catch (_: Exception) {}
+                }
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     // USER_ACTION_NOT_REQUIRED allows silent updates via PackageInstaller,
                     // avoiding the Play Protect "scan app" confirmation screen on updates.

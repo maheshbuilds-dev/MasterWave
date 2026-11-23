@@ -22,6 +22,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import io.github.fletchmckee.liquid.LiquidState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -121,7 +122,7 @@ import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.AudioPlaybackModal
 import com.masterwave.player.ui.components.GlassyStyle
-import com.masterwave.player.ui.components.bouncyClickable
+import com.masterwave.player.ui.animation.applePressEffect
 import com.masterwave.player.ui.components.glassySurface
 import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeState
@@ -146,7 +147,9 @@ fun NowPlayingScreen(
     onCollapse: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    liquidState: LiquidState? = null,
+    isGlassEnabled: Boolean = true
 ) {
     val track by player.currentTrack.collectAsState()
     val isPlaying by player.isPlaying.collectAsState()
@@ -164,6 +167,46 @@ fun NowPlayingScreen(
     val reduceMotion = rememberReduceMotion()
     val accentColor by ThemeState.accentColor.collectAsState()
     val currentArtworkPalette by ThemeState.currentArtworkPalette.collectAsState()
+
+    // Apple Music Kinetic Dynamic Aura & Living Artwork Breathing Loop
+    val infiniteTransition = rememberInfiniteTransition(label = "apple_music_motion")
+    val ambientPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(14000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ambient_phase"
+    )
+    val ambientPulse by infiniteTransition.animateFloat(
+        initialValue = 0.86f,
+        targetValue = 1.14f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ambient_pulse"
+    )
+    val artworkBreathScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.020f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "artworkBreath"
+    )
+    val targetArtworkScale = if (isPlaying) 1.0f else 0.93f
+    val animatedBaseArtworkScale by animateFloatAsState(
+        targetValue = targetArtworkScale,
+        animationSpec = spring(
+            dampingRatio = 0.74f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "baseArtworkScale"
+    )
+    val effectiveArtworkScale = if (isPlaying && !reduceMotion) animatedBaseArtworkScale * artworkBreathScale else animatedBaseArtworkScale
 
     // Dynamic Artwork Bleed & Ambient Pool Colors:
     // Uses the actual bottom slice color of the current track's thumbnail for a seamless downward bleed,
@@ -188,18 +231,6 @@ fun NowPlayingScreen(
     )
 
     val animatedAlbumArtEnabled by ThemeState.animatedAlbumArtEnabled.collectAsState()
-    val isArtworkAnimating = animatedAlbumArtEnabled && isPlaying && !reduceMotion
-
-    val artTransition = rememberInfiniteTransition(label = "art_motion")
-    val animatedGlowAlpha by artTransition.animateFloat(
-        initialValue = 0.20f,
-        targetValue = if (isArtworkAnimating) 0.50f else 0.20f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "art_glow_alpha"
-    )
 
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
@@ -224,7 +255,7 @@ fun NowPlayingScreen(
     ) {
         val screenHeight = maxHeight
 
-        // --- 1. Background Ambient Radiant Canvas ---
+        // --- 1. Background Ambient Radiant Canvas (Apple Music Animated Kinetic Aura) ---
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
@@ -238,28 +269,51 @@ fun NowPlayingScreen(
                 )
             )
 
-            // Radiant ambient light pool near the lower controls
-            val glowCenter = Offset(w * 0.5f, h * 0.78f)
+            // Dynamic Apple Music Animated Ambient Orbs
+            val orb1X = w * (0.50f + 0.14f * kotlin.math.sin(ambientPhase.toDouble()).toFloat())
+            val orb1Y = h * (0.38f + 0.08f * kotlin.math.cos(ambientPhase.toDouble()).toFloat())
+            val orb1Radius = w * 0.82f * (if (isPlaying) ambientPulse else 0.95f)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        animatedAmbientGlow.copy(alpha = 0.32f),
-                        animatedBottomBleed.copy(alpha = 0.16f),
+                        animatedAmbientGlow.copy(alpha = if (isPlaying) 0.38f else 0.22f),
+                        animatedBottomBleed.copy(alpha = 0.14f),
                         Color.Transparent
                     ),
-                    center = glowCenter,
-                    radius = w * 0.88f
+                    center = Offset(orb1X, orb1Y),
+                    radius = orb1Radius
                 ),
-                radius = w * 0.88f,
-                center = glowCenter
+                radius = orb1Radius,
+                center = Offset(orb1X, orb1Y)
+            )
+
+            val orb2X = w * (0.50f - 0.16f * kotlin.math.cos((ambientPhase * 0.7f).toDouble()).toFloat())
+            val orb2Y = h * (0.76f + 0.07f * kotlin.math.sin((ambientPhase * 0.7f).toDouble()).toFloat())
+            val orb2Radius = w * 0.92f * (if (isPlaying) (2f - ambientPulse) else 0.95f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        animatedAmbientGlow.copy(alpha = if (isPlaying) 0.30f else 0.18f),
+                        animatedBottomBleed.copy(alpha = 0.12f),
+                        Color.Transparent
+                    ),
+                    center = Offset(orb2X, orb2Y),
+                    radius = orb2Radius
+                ),
+                radius = orb2Radius,
+                center = Offset(orb2X, orb2Y)
             )
         }
 
-        // --- 2. Full-Bleed Artwork Hero with Downward Bleed Effect (Edge-to-Edge) ---
+        // --- 2. Full-Bleed Artwork Hero with Downward Bleed Effect (Edge-to-Edge with Apple Breathing Scale) ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(screenHeight * 0.56f)
+                .graphicsLayer {
+                    scaleX = effectiveArtworkScale
+                    scaleY = effectiveArtworkScale
+                }
         ) {
             Crossfade(
                 targetState = artworkContent,
@@ -345,7 +399,7 @@ fun NowPlayingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(44.dp)
-                    .bouncyClickable(scaleDown = 0.95f, onClick = onCollapse),
+                    .applePressEffect(onClick = onCollapse),
                 contentAlignment = Alignment.Center
             ) {
                 // Keep touch target and collapse gesture active without drawing a line over the artwork
@@ -451,7 +505,7 @@ fun NowPlayingScreen(
                                 ),
                                 shape = RoundedCornerShape(16.dp)
                             )
-                            .bouncyClickable(scaleDown = 0.94f, onClick = { repository.toggleFavorite(currentTrack) }),
+                            .applePressEffect(onClick = { repository.toggleFavorite(currentTrack) }),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -496,7 +550,7 @@ fun NowPlayingScreen(
                                 ),
                                 shape = RoundedCornerShape(16.dp)
                             )
-                            .bouncyClickable(scaleDown = 0.94f, onClick = { showMenu = true }),
+                            .applePressEffect(onClick = { showMenu = true }),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -509,12 +563,23 @@ fun NowPlayingScreen(
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
+                            shape = RoundedCornerShape(24.dp),
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp,
+                            border = null,
                             modifier = Modifier
                                 .glassySurface(
-                                    shape = RoundedCornerShape(18.dp),
-                                    style = GlassyStyle.SURFACE,
-                                    elevation = 16.dp
+                                    shape = RoundedCornerShape(24.dp),
+                                    style = GlassyStyle.DOCK,
+                                    isDark = true,
+                                    borderWidth = 1.3.dp,
+                                    elevation = 20.dp,
+                                    hasSheen = true,
+                                    liquidState = liquidState,
+                                    isGlassEnabled = isGlassEnabled
                                 )
+                                .padding(vertical = 4.dp)
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Queue (${queue.size})", color = Color.White, fontWeight = FontWeight.SemiBold) },
@@ -783,7 +848,7 @@ fun NowPlayingScreen(
                             color = animatedShuffleBorder,
                             shape = RoundedCornerShape(14.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.94f) { player.toggleShuffle() },
+                        .applePressEffect { player.toggleShuffle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -811,7 +876,7 @@ fun NowPlayingScreen(
                             ),
                             shape = RoundedCornerShape(16.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.93f) { player.skipToPrevious() },
+                        .applePressEffect { player.skipToPrevious() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -857,7 +922,7 @@ fun NowPlayingScreen(
                             ),
                             shape = RoundedCornerShape(26.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.92f) { player.togglePlayPause() },
+                        .applePressEffect { player.togglePlayPause() },
                     contentAlignment = Alignment.Center
                 ) {
                     AnimatedContent(
@@ -902,7 +967,7 @@ fun NowPlayingScreen(
                             ),
                             shape = RoundedCornerShape(16.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.93f) { player.skipToNext() },
+                        .applePressEffect { player.skipToNext() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -940,7 +1005,7 @@ fun NowPlayingScreen(
                             color = animatedRepeatBorder,
                             shape = RoundedCornerShape(14.dp)
                         )
-                        .bouncyClickable(scaleDown = 0.94f) { player.toggleRepeat() },
+                        .applePressEffect { player.toggleRepeat() },
                     contentAlignment = Alignment.Center
                 ) {
                     AnimatedContent(
@@ -963,22 +1028,20 @@ fun NowPlayingScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // --- Bottom Utilities: Lyrics, Audio/EQ, Queue (Floating Frosted Capsule Dock) ---
+            // --- Bottom Utilities: Lyrics, Audio/EQ, Queue (Floating Liquid Glass Dock) ---
             Box(
                 modifier = Modifier
                     .padding(horizontal = 28.dp)
                     .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .border(
-                        width = 1.2.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.40f),
-                                Color.White.copy(alpha = 0.08f)
-                            )
-                        ),
-                        shape = RoundedCornerShape(24.dp)
+                    .glassySurface(
+                        shape = RoundedCornerShape(24.dp),
+                        style = GlassyStyle.DOCK,
+                        isDark = true,
+                        borderWidth = 1.2.dp,
+                        elevation = 12.dp,
+                        hasSheen = true,
+                        liquidState = liquidState,
+                        isGlassEnabled = isGlassEnabled
                     )
                     .padding(horizontal = 18.dp, vertical = 4.dp)
             ) {
@@ -992,7 +1055,7 @@ fun NowPlayingScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .bouncyClickable(scaleDown = 0.92f) { onOpenLyrics() },
+                            .applePressEffect { onOpenLyrics() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1008,7 +1071,7 @@ fun NowPlayingScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .bouncyClickable(scaleDown = 0.92f) { showAudioPlaybackModal = true },
+                            .applePressEffect { showAudioPlaybackModal = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1024,7 +1087,7 @@ fun NowPlayingScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .bouncyClickable(scaleDown = 0.92f) { onOpenQueue() },
+                            .applePressEffect { onOpenQueue() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1081,7 +1144,7 @@ fun NowPlayingScreen(
                                         color = Color.White.copy(alpha = 0.06f),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .bouncyClickable {
+                                            .applePressEffect {
                                                 repository.addTrackToPlaylist(pl.id, currentTrack)
                                                 showAddToPlaylistDialog = false
                                                 Toast.makeText(context, "Added to ${pl.title}", Toast.LENGTH_SHORT).show()

@@ -6,6 +6,20 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import com.masterwave.player.ui.components.bouncyClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -184,6 +198,17 @@ fun SupportCommunityScreen(
                     )
                 }
             }
+        }
+
+        // --- Cute Mascot (Wavey) & Inspiring Support Quote ---
+        item {
+            CuteMascotQuoteCard(
+                colors = colors,
+                onQuickTip = { amount ->
+                    selectedTierAmount = amount
+                    openUpiIntent(amount)
+                }
+            )
         }
 
         // --- Hero Psychological Creed Card ---
@@ -571,6 +596,320 @@ fun SupportCommunityScreen(
                         )
                         Icon(Icons.Default.OpenInNew, contentDescription = null, tint = colors.ink, modifier = Modifier.size(16.dp))
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CuteMascotQuoteCard(
+    colors: com.masterwave.player.ui.theme.AppThemeColors,
+    onQuickTip: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "mascot_anim")
+    val bobOffset by infiniteTransition.animateFloat(
+        initialValue = -5f,
+        targetValue = 5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "mascot_bob"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = colors.surfaceCard,
+        border = androidx.compose.foundation.BorderStroke(2.dp, colors.border),
+        shadowElevation = if (colors.isDark) 0.dp else 4.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // --- 1. Speech Bubble (On top of character) ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                WebAccentPink.copy(alpha = if (colors.isDark) 0.16f else 0.10f),
+                                WebAccentViolet.copy(alpha = if (colors.isDark) 0.12f else 0.08f)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.linearGradient(
+                            listOf(WebAccentPink.copy(alpha = 0.70f), WebAccentViolet.copy(alpha = 0.40f))
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(18.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(WebAccentPink)
+                                .border(1.dp, colors.border, RoundedCornerShape(999.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "🐾 WAVEY'S SPECIAL NOTE",
+                                fontFamily = DisplayFontFamily,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.sp,
+                                color = Color(0xFF101828)
+                            )
+                        }
+                        Text(
+                            text = "✨ Pure music forever",
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            color = WebAccentPink
+                        )
+                    }
+
+                    Text(
+                        text = "“Psst! I work day & night with ZERO ads, ZERO trackers, and ZERO paywalls so your favorite music stays completely free and magical.”",
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
+                        color = colors.ink
+                    )
+
+                    Text(
+                        text = "If MasterWave made your day even a little brighter, helped you focus while studying, or gave you peaceful sleep, would you consider buying me a warm cup of chai? Every little tip directly keeps our indie servers running forever! 💖",
+                        fontFamily = DisplayFontFamily,
+                        fontSize = 12.5.sp,
+                        lineHeight = 17.5.sp,
+                        color = colors.body
+                    )
+                }
+            }
+
+            // Speech Bubble Pointer Tail (points down to the mascot)
+            Canvas(
+                modifier = Modifier
+                    .size(width = 24.dp, height = 12.dp)
+                    .padding(top = 1.dp)
+            ) {
+                val trianglePath = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(size.width, 0f)
+                    lineTo(size.width / 2f, size.height)
+                    close()
+                }
+                drawPath(trianglePath, color = WebAccentPink.copy(alpha = 0.5f))
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // --- 2. The Cute Musical Mascot (Wavey) ---
+            Box(
+                modifier = Modifier
+                    .size(130.dp)
+                    .graphicsLayer {
+                        translationY = bobOffset
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val w = size.width
+                    val h = size.height
+                    val cx = w / 2f
+                    val cy = h / 2f + 4f
+
+                    // Soft ambient ground shadow
+                    drawOval(
+                        color = Color.Black.copy(alpha = 0.12f),
+                        topLeft = Offset(w * 0.22f, h * 0.88f),
+                        size = Size(w * 0.56f, 12f)
+                    )
+
+                    // Left Outer Ear
+                    val leftEarPath = Path().apply {
+                        moveTo(cx - 36f, cy - 30f)
+                        quadraticTo(cx - 52f, cy - 82f, cx - 28f, cy - 78f)
+                        quadraticTo(cx - 16f, cy - 74f, cx - 18f, cy - 36f)
+                        close()
+                    }
+                    drawPath(leftEarPath, color = Color(0xFFFFD1DC))
+                    drawPath(leftEarPath, color = Color(0xFF101828), style = Stroke(width = 3.5f))
+
+                    // Left Inner Ear
+                    val leftInnerEarPath = Path().apply {
+                        moveTo(cx - 33f, cy - 34f)
+                        quadraticTo(cx - 46f, cy - 74f, cx - 29f, cy - 70f)
+                        quadraticTo(cx - 20f, cy - 66f, cx - 21f, cy - 38f)
+                        close()
+                    }
+                    drawPath(leftInnerEarPath, color = Color(0xFFFF85A1))
+
+                    // Right Outer Ear
+                    val rightEarPath = Path().apply {
+                        moveTo(cx + 18f, cy - 36f)
+                        quadraticTo(cx + 16f, cy - 74f, cx + 28f, cy - 78f)
+                        quadraticTo(cx + 52f, cy - 82f, cx + 36f, cy - 30f)
+                        close()
+                    }
+                    drawPath(rightEarPath, color = Color(0xFFFFD1DC))
+                    drawPath(rightEarPath, color = Color(0xFF101828), style = Stroke(width = 3.5f))
+
+                    // Right Inner Ear
+                    val rightInnerEarPath = Path().apply {
+                        moveTo(cx + 21f, cy - 38f)
+                        quadraticTo(cx + 20f, cy - 66f, cx + 29f, cy - 70f)
+                        quadraticTo(cx + 46f, cy - 74f, cx + 33f, cy - 34f)
+                        close()
+                    }
+                    drawPath(rightInnerEarPath, color = Color(0xFFFF85A1))
+
+                    // Main Head (Fluffy kawaii round face)
+                    drawCircle(
+                        brush = Brush.verticalGradient(
+                            listOf(Color(0xFFFFFFFF), Color(0xFFFFF0F5))
+                        ),
+                        radius = 44f,
+                        center = Offset(cx, cy)
+                    )
+                    drawCircle(
+                        color = Color(0xFF101828),
+                        radius = 44f,
+                        center = Offset(cx, cy),
+                        style = Stroke(width = 3.8f)
+                    )
+
+                    // Big Kawaii Anime Eyes
+                    drawOval(
+                        color = Color(0xFF101828),
+                        topLeft = Offset(cx - 24f, cy - 10f),
+                        size = Size(12f, 16f)
+                    )
+                    drawCircle(color = Color.White, radius = 3.2f, center = Offset(cx - 20f, cy - 6f))
+                    drawCircle(color = Color.White, radius = 1.4f, center = Offset(cx - 16f, cy - 1f))
+
+                    drawOval(
+                        color = Color(0xFF101828),
+                        topLeft = Offset(cx + 12f, cy - 10f),
+                        size = Size(12f, 16f)
+                    )
+                    drawCircle(color = Color.White, radius = 3.2f, center = Offset(cx + 16f, cy - 6f))
+                    drawCircle(color = Color.White, radius = 1.4f, center = Offset(cx + 20f, cy - 1f))
+
+                    // Rosy Blushing Cheeks
+                    drawCircle(
+                        color = Color(0xFFFF6584).copy(alpha = 0.45f),
+                        radius = 8f,
+                        center = Offset(cx - 28f, cy + 8f)
+                    )
+                    drawCircle(
+                        color = Color(0xFFFF6584).copy(alpha = 0.45f),
+                        radius = 8f,
+                        center = Offset(cx + 28f, cy + 8f)
+                    )
+
+                    // Tiny Cute Nose & Cat Mouth (ω)
+                    drawCircle(
+                        color = Color(0xFFFF6584),
+                        radius = 2.5f,
+                        center = Offset(cx, cy + 4f)
+                    )
+                    val mouthLeft = Path().apply {
+                        moveTo(cx, cy + 6f)
+                        quadraticTo(cx - 5f, cy + 12f, cx - 10f, cy + 8f)
+                    }
+                    drawPath(mouthLeft, color = Color(0xFF101828), style = Stroke(width = 2.6f))
+                    val mouthRight = Path().apply {
+                        moveTo(cx, cy + 6f)
+                        quadraticTo(cx + 5f, cy + 12f, cx + 10f, cy + 8f)
+                    }
+                    drawPath(mouthRight, color = Color(0xFF101828), style = Stroke(width = 2.6f))
+
+                    // Cute Over-Ear Headphones
+                    val headband = Path().apply {
+                        moveTo(cx - 44f, cy - 6f)
+                        cubicTo(cx - 46f, cy - 54f, cx + 46f, cy - 54f, cx + 44f, cy - 6f)
+                    }
+                    drawPath(headband, color = Color(0xFFFA2D48), style = Stroke(width = 7.5f))
+                    drawPath(headband, color = Color(0xFF101828), style = Stroke(width = 1.8f))
+
+                    // Left Headphone Cup
+                    drawRoundRect(
+                        color = Color(0xFFFA2D48),
+                        topLeft = Offset(cx - 52f, cy - 16f),
+                        size = Size(14f, 26f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
+                    )
+                    drawRoundRect(
+                        color = Color(0xFF101828),
+                        topLeft = Offset(cx - 52f, cy - 16f),
+                        size = Size(14f, 26f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
+                        style = Stroke(width = 2.6f)
+                    )
+
+                    // Right Headphone Cup
+                    drawRoundRect(
+                        color = Color(0xFFFA2D48),
+                        topLeft = Offset(cx + 38f, cy - 16f),
+                        size = Size(14f, 26f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
+                    )
+                    drawRoundRect(
+                        color = Color(0xFF101828),
+                        topLeft = Offset(cx + 38f, cy - 16f),
+                        size = Size(14f, 26f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
+                        style = Stroke(width = 2.6f)
+                    )
+
+                    // Floating Music Notes (♫ ♪)
+                    drawCircle(color = Color(0xFFFF2D55), radius = 3f, center = Offset(cx - 48f, cy - 42f))
+                    drawCircle(color = Color(0xFF8B5CF6), radius = 3.5f, center = Offset(cx + 50f, cy - 38f))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Fast Support CTA Button
+            Button(
+                onClick = { onQuickTip("50") },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = WebAccentPink,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bouncyClickable { onQuickTip("50") }
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Coffee, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Buy Wavey a Chai (₹50)",
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
             }
         }

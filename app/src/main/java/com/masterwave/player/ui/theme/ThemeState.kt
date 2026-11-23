@@ -25,7 +25,7 @@ internal fun themeModeFromPreference(saved: String?): ThemeMode = when (saved) {
     "DARK" -> ThemeMode.DARK
     "LIGHT" -> ThemeMode.LIGHT
     "SYSTEM" -> ThemeMode.SYSTEM
-    else -> ThemeMode.LIGHT
+    else -> ThemeMode.SYSTEM
 }
 
 internal fun isDarkThemeMode(mode: ThemeMode, systemInDark: Boolean): Boolean = when (mode) {
@@ -102,13 +102,7 @@ object ThemeState {
         Color(0xFFFF6B4A) to "Sunset Coral"
     )
 
-    private val _themeMode = MutableStateFlow(
-        try {
-            themeModeFromPreference(prefs.getString(KEY_THEME_MODE, null))
-        } catch (_: Exception) {
-            ThemeMode.LIGHT
-        }
-    )
+    private val _themeMode = MutableStateFlow(ThemeMode.SYSTEM)
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     private val _accentPreset = MutableStateFlow(

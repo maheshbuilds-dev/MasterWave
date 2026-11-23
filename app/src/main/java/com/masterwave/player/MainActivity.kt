@@ -22,6 +22,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -35,6 +37,11 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -296,6 +303,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     var selectedArtistForDetail by remember { mutableStateOf<String?>(null) }
     var selectedAlbumForDetail by remember { mutableStateOf<Album?>(null) }
     var selectedPlaylistForDetail by remember { mutableStateOf<Playlist?>(null) }
+    val homeListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     val liquidGlassEnabled by ThemeState.liquidGlassEnabled.collectAsState()
     val liquidState = rememberLiquidState()
     val useLiquidShader = liquidGlassEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -370,6 +378,56 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             isListenTogetherOpen || isDownloadsOpen || isLikedSongsOpen ||
             selectedArtistForDetail != null || selectedAlbumForDetail != null
 
+    val liquidHorizontalEnter = remember {
+        slideInHorizontally(
+            animationSpec = spring(
+                dampingRatio = 0.84f,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            initialOffsetX = { it / 3 }
+        ) + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) + scaleIn(
+            initialScale = 0.97f,
+            animationSpec = spring(
+                dampingRatio = 0.84f,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        )
+    }
+    val liquidHorizontalExit = remember {
+        slideOutHorizontally(
+            animationSpec = spring(
+                dampingRatio = 0.88f,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            targetOffsetX = { it / 3 }
+        ) + fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) + scaleOut(
+            targetScale = 0.97f,
+            animationSpec = spring(
+                dampingRatio = 0.88f,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        )
+    }
+
+    val liquidVerticalEnter = remember {
+        slideInVertically(
+            animationSpec = spring(
+                dampingRatio = 0.84f,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            initialOffsetY = { it }
+        ) + fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+    }
+    val liquidVerticalExit = remember {
+        slideOutVertically(
+            animationSpec = spring(
+                dampingRatio = 0.88f,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            targetOffsetY = { it }
+        ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // The sampled content and the shader controls must remain sibling layers.
         Box(
@@ -381,30 +439,91 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                .pointerInput(currentTab, isSecondaryScreenOpen, isOverlayOpen) {
+                    if (isSecondaryScreenOpen || isOverlayOpen) return@pointerInput
+                    val swipeThreshold = 65.dp.toPx()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var totalX = 0f
+                        var totalY = 0f
+                        var isHorizontal: Boolean? = null
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+
+                            val dx = change.position.x - change.previousPosition.x
+                            val dy = change.position.y - change.previousPosition.y
+                            totalX += dx
+                            totalY += dy
+
+                            if (isHorizontal == null) {
+                                if (kotlin.math.abs(totalX) > 24f || kotlin.math.abs(totalY) > 24f) {
+                                    isHorizontal = kotlin.math.abs(totalX) > kotlin.math.abs(totalY) * 1.35f
+                                }
+                            }
+
+                            if (isHorizontal == true) {
+                                change.consume()
+                            }
+                        }
+
+                        if (isHorizontal == true && kotlin.math.abs(totalX) > swipeThreshold) {
+                            val tabs = listOf(MainTab.HOME, MainTab.STATS, MainTab.LIBRARY, MainTab.SEARCH)
+                            val currentIndex = tabs.indexOf(currentTab)
+                            if (totalX < 0) {
+                                // Swiped left: Advance to next tab (0 -> 1 -> 2 -> 3)
+                                if (currentIndex in 0 until tabs.lastIndex) {
+                                    currentTab = tabs[currentIndex + 1]
+                                }
+                            } else {
+                                // Swiped right: Return to previous tab (3 -> 2 -> 1 -> 0)
+                                if (currentIndex in 1..tabs.lastIndex) {
+                                    currentTab = tabs[currentIndex - 1]
+                                }
+                            }
+                        }
+                    }
+                }
         ) {
-            // Animated Tab Switching with Spring Physics & Scale Dynamics
+            // Animated Tab Switching: Full viewport size with liquid smooth spring physics & scale
             AnimatedContent(
                 targetState = currentTab,
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopStart,
                 transitionSpec = {
-                    val springSpec = spring<Float>(
-                        dampingRatio = 0.85f,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                    if (targetState.ordinal > initialState.ordinal) {
-                        (slideInHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)) { width -> (width * 0.25f).toInt() } +
-                                fadeIn(animationSpec = tween(220)) +
-                                scaleIn(initialScale = 0.96f, animationSpec = springSpec)) togetherWith
-                                (slideOutHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)) { width -> -(width * 0.25f).toInt() } +
-                                        fadeOut(animationSpec = tween(180)) +
-                                        scaleOut(targetScale = 0.96f, animationSpec = springSpec))
+                    val isForward = targetState.ordinal > initialState.ordinal
+                    val slideDistance = 48
+                    if (isForward) {
+                        (slideInHorizontally(
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                        ) { slideDistance } + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) + scaleIn(
+                            initialScale = 0.98f,
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                        )).togetherWith(
+                            slideOutHorizontally(
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                            ) { -slideDistance } + fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) + scaleOut(
+                                targetScale = 0.98f,
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                            )
+                        )
                     } else {
-                        (slideInHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)) { width -> -(width * 0.25f).toInt() } +
-                                fadeIn(animationSpec = tween(220)) +
-                                scaleIn(initialScale = 0.96f, animationSpec = springSpec)) togetherWith
-                                (slideOutHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)) { width -> (width * 0.25f).toInt() } +
-                                        fadeOut(animationSpec = tween(180)) +
-                                        scaleOut(targetScale = 0.96f, animationSpec = springSpec))
-                    }
+                        (slideInHorizontally(
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                        ) { -slideDistance } + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) + scaleIn(
+                            initialScale = 0.98f,
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                        )).togetherWith(
+                            slideOutHorizontally(
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                            ) { slideDistance } + fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) + scaleOut(
+                                targetScale = 0.98f,
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                            )
+                        )
+                    }.using(SizeTransform(clip = false))
                 },
                 label = "tab_transition"
             ) { tab ->
@@ -421,7 +540,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                         liquidState = liquidState,
                         isGlassEnabled = liquidGlassEnabled,
                         onScrollStateChanged = { isDockSplit = it },
-                        scrollToTopTrigger = scrollToTopTrigger
+                        scrollToTopTrigger = scrollToTopTrigger,
+                        homeListState = homeListState
                     )
                     MainTab.STATS -> StatsScreen(
                         player = player,
@@ -461,8 +581,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // --- Fullscreen Search Overlay ---
         AnimatedVisibility(
             visible = isSearchOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             SearchScreen(
                 player = player,
@@ -477,8 +597,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // --- Fullscreen Settings Overlay ---
         AnimatedVisibility(
             visible = isSettingsOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             SettingsScreen(
                 onBack = { isSettingsOpen = false },
@@ -497,8 +617,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Backup & Restore (Launcher-grade Snapshot Import & Export)
         AnimatedVisibility(
             visible = isBackupRestoreOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             BackupRestoreScreen(
                 player = player,
@@ -510,8 +630,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: YouTube & Sync
         AnimatedVisibility(
             visible = isYouTubeSyncOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             YouTubeSyncScreen(
                 player = player,
@@ -527,8 +647,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Spotify & Sync
         AnimatedVisibility(
             visible = isSpotifySyncOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             SpotifySyncScreen(
                 player = player,
@@ -540,8 +660,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Appearance & Visuals
         AnimatedVisibility(
             visible = isAppearanceOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             AppearanceScreen(onBack = { isAppearanceOpen = false })
         }
@@ -549,8 +669,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Audio & Playback
         AnimatedVisibility(
             visible = isAudioPlaybackOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             AudioPlaybackScreen(
                 onBack = { isAudioPlaybackOpen = false },
@@ -561,8 +681,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: App Update
         AnimatedVisibility(
             visible = isAppUpdateOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             AppUpdateScreen(
                 onBack = { isAppUpdateOpen = false },
@@ -573,8 +693,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Support & Community
         AnimatedVisibility(
             visible = isSupportOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             SupportCommunityScreen(onBack = { isSupportOpen = false })
         }
@@ -582,8 +702,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Playlist Detail
         AnimatedVisibility(
             visible = selectedPlaylistForDetail != null,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             selectedPlaylistForDetail?.let { pl ->
                 PlaylistDetailScreen(
@@ -598,8 +718,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Connection Diagnostics
         AnimatedVisibility(
             visible = isDiagnosticsOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             ConnectionDiagnosticsScreen(
                 player = player,
@@ -611,23 +731,25 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Fullscreen Now Playing Overlay
         AnimatedVisibility(
             visible = isNowPlayingExpanded,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it })
+            enter = liquidVerticalEnter,
+            exit = liquidVerticalExit
         ) {
             NowPlayingScreen(
                 player = player,
                 repository = repository,
                 onCollapse = { isNowPlayingExpanded = false },
                 onOpenLyrics = { isLyricsOpen = true },
-                onOpenQueue = { isQueueOpen = true }
+                onOpenQueue = { isQueueOpen = true },
+                liquidState = liquidState,
+                isGlassEnabled = liquidGlassEnabled
             )
         }
 
         // Fullscreen Lyrics Overlay
         AnimatedVisibility(
             visible = isLyricsOpen,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it })
+            enter = liquidVerticalEnter,
+            exit = liquidVerticalExit
         ) {
             LyricsScreen(
                 player = player,
@@ -639,8 +761,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Fullscreen Queue Overlay
         AnimatedVisibility(
             visible = isQueueOpen,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it })
+            enter = liquidVerticalEnter,
+            exit = liquidVerticalExit
         ) {
             QueueScreen(
                 player = player,
@@ -652,8 +774,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Listen Together (Real-time Mesh & Room Sync)
         AnimatedVisibility(
             visible = isListenTogetherOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             ListenTogetherScreen(
                 onBack = { isListenTogetherOpen = false },
@@ -664,8 +786,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Downloads Screen
         AnimatedVisibility(
             visible = isDownloadsOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             DownloadsScreen(
                 player = player,
@@ -677,8 +799,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Liked Songs Screen
         AnimatedVisibility(
             visible = isLikedSongsOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             LikedSongsScreen(
                 player = player,
@@ -690,8 +812,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Artist Screen
         AnimatedVisibility(
             visible = selectedArtistForDetail != null,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             selectedArtistForDetail?.let { artist ->
                 ArtistScreen(
@@ -707,8 +829,8 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
         // Sub-screen: Album / Movie Soundtrack Detail Screen
         AnimatedVisibility(
             visible = selectedAlbumForDetail != null,
-            enter = slideInHorizontally(initialOffsetX = { it }),
-            exit = slideOutHorizontally(targetOffsetX = { it })
+            enter = liquidHorizontalEnter,
+            exit = liquidHorizontalExit
         ) {
             selectedAlbumForDetail?.let { album ->
                 AlbumDetailScreen(

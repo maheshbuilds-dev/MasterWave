@@ -935,9 +935,8 @@ fun PlaylistsScreen(
             successDomain = "music.youtube.com",
             onDismiss = { showGoogleAuth = false },
             onAuthCaptured = { cookies ->
-                cloudManager.saveYouTubeAuth(cookies)
                 showGoogleAuth = false
-                Toast.makeText(context, "Google Account Authorized!", Toast.LENGTH_SHORT).show()
+                cloudManager.saveYouTubeAuth(cookies)
             }
         )
     }

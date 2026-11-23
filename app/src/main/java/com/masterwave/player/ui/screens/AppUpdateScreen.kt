@@ -21,13 +21,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -423,13 +426,20 @@ fun AppUpdateScreen(
                             }
                         }
 
-                        Text(
-                            text = availableUpdate!!.releaseNotes,
-                            fontFamily = DisplayFontFamily,
-                            fontSize = 13.sp,
-                            color = colors.body,
-                            lineHeight = 18.sp
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 180.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                text = availableUpdate!!.releaseNotes,
+                                fontFamily = DisplayFontFamily,
+                                fontSize = 13.sp,
+                                color = colors.body,
+                                lineHeight = 18.sp
+                            )
+                        }
 
                         Text(
                             text = "Download size: ${availableUpdate!!.apkSize}",
@@ -620,30 +630,39 @@ fun AppUpdateScreen(
                         Triple("Real-Time Synced Lyrics", "Integrated LRCLIB synchronized lyrics with verse seek.", WebAccentOchre)
                     )
 
-                    changelog.forEach { (title, desc, accent) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(colors.canvas)
-                                .border(1.dp, colors.hairline, RoundedCornerShape(16.dp))
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(accent)
-                                    .border(1.5.dp, colors.border, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = "✓", fontFamily = DisplayFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFF101828))
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(text = title, fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
-                                Text(text = desc, fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted, lineHeight = 16.sp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 240.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            changelog.forEach { (title, desc, accent) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(colors.canvas)
+                                        .border(1.dp, colors.hairline, RoundedCornerShape(16.dp))
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(accent)
+                                            .border(1.5.dp, colors.border, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = "✓", fontFamily = DisplayFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFF101828))
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(text = title, fontFamily = DisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.ink)
+                                        Text(text = desc, fontFamily = DisplayFontFamily, fontSize = 12.sp, color = colors.muted, lineHeight = 16.sp)
+                                    }
+                                }
                             }
                         }
                     }

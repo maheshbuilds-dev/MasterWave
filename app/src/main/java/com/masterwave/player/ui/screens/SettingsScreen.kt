@@ -182,8 +182,8 @@ fun SettingsScreen(
         SettingsItemData(
             id = "spotify_sync",
             icon = Icons.Default.PlayCircle,
-            title = "Import from Spotify",
-            subtitle = "Official Web API • Import playlists & Liked Songs",
+            title = "Grab from Spotify",
+            subtitle = "Direct playlist links • Fast import without login",
             accentColor = Color(0xFF1DB954),
             onClick = onNavigateToSpotifySync
         )

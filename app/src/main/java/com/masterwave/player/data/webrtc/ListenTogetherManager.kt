@@ -24,6 +24,7 @@ import org.json.JSONObject
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.security.SecureRandom
 import kotlin.math.abs
 
@@ -33,6 +34,20 @@ data class SyncPacket(
     val track: Track?,
     val positionMs: Long,
     val isPlaying: Boolean,
+    val timestamp: Long
+)
+
+data class PeerListener(
+    val id: String,
+    val name: String,
+    val driftMs: Long,
+    val lastSeenMs: Long
+)
+
+data class LiveReaction(
+    val id: String,
+    val emoji: String,
+    val senderName: String,
     val timestamp: Long
 )
 
@@ -72,6 +87,26 @@ class ListenTogetherManager private constructor(
     private val _syncDriftMs = MutableStateFlow(0L)
     val syncDriftMs: StateFlow<Long> = _syncDriftMs.asStateFlow()
 
+    private val _connectedPeers = MutableStateFlow<List<PeerListener>>(emptyList())
+    val connectedPeers: StateFlow<List<PeerListener>> = _connectedPeers.asStateFlow()
+
+    private val _liveReactions = MutableStateFlow<List<LiveReaction>>(emptyList())
+    val liveReactions: StateFlow<List<LiveReaction>> = _liveReactions.asStateFlow()
+
+    private val _discoveredNearbyRooms = MutableStateFlow<List<String>>(emptyList())
+    val discoveredNearbyRooms: StateFlow<List<String>> = _discoveredNearbyRooms.asStateFlow()
+
+    val deviceId: String by lazy {
+        val existing = prefs.getString("unique_device_sync_id", null)?.trim()
+        if (!existing.isNullOrBlank()) {
+            existing
+        } else {
+            val newId = SecureRandom().nextInt(900000 + 100000).toString()
+            prefs.edit().putString("unique_device_sync_id", newId).apply()
+            newId
+        }
+    }
+
     private var broadcastJob: Job? = null
     private var listenerJob: Job? = null
     private var webSocket: WebSocket? = null
@@ -83,7 +118,8 @@ class ListenTogetherManager private constructor(
     private var lastBroadcastIsPlaying: Boolean? = null
     private var lastBroadcastPosMs = 0L
 
-    private val port = 8899
+    private val broadcastPort = 8899 // Host -> Listeners sync clock
+    private val feedbackPort = 8898  // Listeners -> Host feedback/presence
 
     companion object {
         private const val TAG = "ListenTogetherManager"
@@ -159,6 +195,91 @@ class ListenTogetherManager private constructor(
         return permanentCode
     }
 
+    fun registerOrUpdatePeer(id: String, name: String, driftMs: Long) {
+        if (id == deviceId) return // Never add self as peer
+        val now = System.currentTimeMillis()
+        val list = _connectedPeers.value.toMutableList()
+        val idx = list.indexOfFirst { it.id == id }
+        if (idx >= 0) {
+            list[idx] = list[idx].copy(name = name, driftMs = driftMs, lastSeenMs = now)
+        } else {
+            list.add(PeerListener(id = id, name = name, driftMs = driftMs, lastSeenMs = now))
+        }
+        _connectedPeers.value = list
+    }
+
+    fun removePeer(id: String) {
+        _connectedPeers.value = _connectedPeers.value.filter { it.id != id }
+    }
+
+    fun pruneStalePeers() {
+        val now = System.currentTimeMillis()
+        _connectedPeers.value = _connectedPeers.value.filter { now - it.lastSeenMs < 10000L }
+    }
+
+    fun addLiveReaction(emoji: String, senderName: String) {
+        val rx = LiveReaction(
+            id = java.util.UUID.randomUUID().toString(),
+            emoji = emoji,
+            senderName = senderName,
+            timestamp = System.currentTimeMillis()
+        )
+        val list = _liveReactions.value.takeLast(19).toMutableList()
+        list.add(rx)
+        _liveReactions.value = list
+    }
+
+    fun sendReaction(emoji: String) {
+        if (emoji.isBlank()) return
+        val senderName = if (_isBroadcasting.value) "You (Host)" else "You"
+        addLiveReaction(emoji, senderName)
+
+        val activeRoom = if (_isBroadcasting.value) _currentRoomCode.value else _connectedRoomCode.value ?: return
+
+        // 1. Send via WebSocket
+        val ws = webSocket
+        if (ws != null) {
+            try {
+                val payload = JSONObject().apply {
+                    put("room_code", activeRoom)
+                    put("emoji", emoji)
+                    put("sender_name", senderName)
+                    put("sender_id", deviceId)
+                }
+                val env = JSONObject().apply {
+                    put("type", "reaction")
+                    put("payload", payload)
+                }
+                ws.send(env.toString())
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to send WS reaction: ${e.message}")
+            }
+        }
+
+        // 2. Broadcast via UDP mesh
+        scope.launch(Dispatchers.IO) {
+            try {
+                DatagramSocket().use { socket ->
+                    socket.broadcast = true
+                    val packetJson = JSONObject().apply {
+                        put("type", "reaction")
+                        put("roomCode", activeRoom)
+                        put("emoji", emoji)
+                        put("senderName", senderName)
+                        put("senderId", deviceId)
+                        put("timestamp", System.currentTimeMillis())
+                    }
+                    val bytes = packetJson.toString().toByteArray(Charsets.UTF_8)
+                    val targetAddr = InetAddress.getByName("255.255.255.255")
+                    socket.send(DatagramPacket(bytes, bytes.size, targetAddr, broadcastPort))
+                    socket.send(DatagramPacket(bytes, bytes.size, targetAddr, feedbackPort))
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to send UDP reaction: ${e.message}")
+            }
+        }
+    }
+
     /**
      * Start broadcasting local playback to peers over WebSocket and UDP mesh.
      */
@@ -171,12 +292,56 @@ class ListenTogetherManager private constructor(
 
         broadcastJob = scope.launch {
             var udpSocket: DatagramSocket? = null
+            var receiverSocket: DatagramSocket? = null
             try {
                 udpSocket = DatagramSocket()
                 udpSocket.broadcast = true
                 val broadcastAddress = InetAddress.getByName("255.255.255.255")
 
+                // Host UDP receiver for listener pings and reactions
+                launch(Dispatchers.IO) {
+                    try {
+                        receiverSocket = DatagramSocket(null).apply {
+                            reuseAddress = true
+                            bind(InetSocketAddress(feedbackPort))
+                            soTimeout = 1200
+                        }
+                        val buffer = ByteArray(4096)
+                        while (isActive && _isBroadcasting.value) {
+                            try {
+                                val packet = DatagramPacket(buffer, buffer.size)
+                                receiverSocket?.receive(packet)
+                                val jsonStr = String(packet.data, 0, packet.length, Charsets.UTF_8)
+                                val obj = JSONObject(jsonStr)
+                                val pType = obj.optString("type")
+                                val pRoom = obj.optString("roomCode")
+                                val senderId = obj.optString("senderId")
+
+                                if (pRoom.equals(_currentRoomCode.value, ignoreCase = true) && senderId != deviceId) {
+                                    if (pType == "listener_ping") {
+                                        val pName = obj.optString("senderName", "Listener ${senderId.take(3)}")
+                                        val drift = obj.optLong("driftMs", 0L)
+                                        registerOrUpdatePeer(senderId, pName, drift)
+                                    } else if (pType == "reaction") {
+                                        val emoji = obj.optString("emoji")
+                                        val senderName = obj.optString("senderName", "Listener")
+                                        if (emoji.isNotBlank()) {
+                                            addLiveReaction(emoji, senderName)
+                                        }
+                                    }
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Host receiver socket run error: ${e.message}")
+                    } finally {
+                        try { receiverSocket?.close() } catch (_: Exception) {}
+                    }
+                }
+
                 while (isActive && _isBroadcasting.value) {
+                    pruneStalePeers()
+
                     val currentTrack = player.currentTrack.value
                     val isPlaying = player.isPlaying.value
                     val pos = player.positionMs.value
@@ -198,7 +363,9 @@ class ListenTogetherManager private constructor(
 
                     // 2. UDP mesh packet dispatch (local network fallback)
                     val packetJson = JSONObject().apply {
+                        put("type", "sync_packet")
                         put("roomCode", _currentRoomCode.value)
+                        put("senderId", deviceId)
                         put("hostName", "MasterWave Host")
                         put("isPlaying", isPlaying)
                         put("positionMs", pos)
@@ -222,7 +389,7 @@ class ListenTogetherManager private constructor(
                         .apply()
 
                     val bytes = packetJson.toString().toByteArray(Charsets.UTF_8)
-                    val datagram = DatagramPacket(bytes, bytes.size, broadcastAddress, port)
+                    val datagram = DatagramPacket(bytes, bytes.size, broadcastAddress, broadcastPort)
                     try {
                         udpSocket.send(datagram)
                     } catch (e: Exception) {
@@ -235,6 +402,7 @@ class ListenTogetherManager private constructor(
                 Log.e(TAG, "Broadcast loop error", e)
             } finally {
                 udpSocket?.close()
+                receiverSocket?.close()
             }
         }
     }
@@ -267,12 +435,35 @@ class ListenTogetherManager private constructor(
                         val type = envelope.optString("type")
                         val payload = envelope.optJSONObject("payload") ?: return
 
-                        if (type == "room_created") {
-                            // Retain user's persistent code invariant - never overwrite with server random codes
-                            val persistentCode = loadOrGenerateRoomCode()
-                            _currentRoomCode.value = persistentCode
-                            prefs.edit().putString("persistent_user_room_code", persistentCode).putString("room_code", persistentCode).apply()
-                            Log.d(TAG, "Host active on permanent user party code: $persistentCode")
+                        when (type) {
+                            "room_created" -> {
+                                val persistentCode = loadOrGenerateRoomCode()
+                                _currentRoomCode.value = persistentCode
+                                prefs.edit().putString("persistent_user_room_code", persistentCode).putString("room_code", persistentCode).apply()
+                                Log.d(TAG, "Host active on permanent user party code: $persistentCode")
+                            }
+                            "reaction" -> {
+                                val emoji = payload.optString("emoji")
+                                val sender = payload.optString("sender_name", "Listener")
+                                val senderId = payload.optString("sender_id")
+                                if (emoji.isNotBlank() && senderId != deviceId) {
+                                    addLiveReaction(emoji, sender)
+                                }
+                            }
+                            "peer_joined", "peer_ping" -> {
+                                val peerId = payload.optString("user_id").ifBlank { payload.optString("sender_id") }
+                                val peerName = payload.optString("name").ifBlank { payload.optString("sender_name", "Listener") }
+                                val drift = payload.optLong("drift_ms", 0L)
+                                if (peerId.isNotBlank() && peerId != deviceId) {
+                                    registerOrUpdatePeer(peerId, peerName, drift)
+                                }
+                            }
+                            "peer_left" -> {
+                                val peerId = payload.optString("user_id").ifBlank { payload.optString("sender_id") }
+                                if (peerId.isNotBlank()) {
+                                    removePeer(peerId)
+                                }
+                            }
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Host error parsing WS message: ${e.message}")
@@ -336,6 +527,7 @@ class ListenTogetherManager private constructor(
             webSocket?.close(1000, "Broadcast stopped")
         } catch (_: Exception) {}
         webSocket = null
+        _connectedPeers.value = emptyList()
         releaseMulticastLock()
     }
 
@@ -356,16 +548,41 @@ class ListenTogetherManager private constructor(
 
         connectListenerWebSocket(cleanCode)
 
-        // Local network listener fallback
+        // Local network listener fallback & mesh radar discovery
         listenerJob = scope.launch {
             var socket: DatagramSocket? = null
+            var sendSocket: DatagramSocket? = null
             try {
-                socket = DatagramSocket(port)
-                socket.soTimeout = 2000
+                socket = DatagramSocket(null).apply {
+                    reuseAddress = true
+                    bind(InetSocketAddress(broadcastPort))
+                    soTimeout = 1500
+                }
+                sendSocket = DatagramSocket().apply { broadcast = true }
+                val broadcastAddress = InetAddress.getByName("255.255.255.255")
                 val buffer = ByteArray(4096)
+                var lastPingSentTime = 0L
 
                 while (isActive && _isJoinedAsListener.value) {
                     var receivedPacket: SyncPacket? = null
+                    val now = System.currentTimeMillis()
+
+                    // Send periodic listener ping to notify host
+                    if (now - lastPingSentTime > 2500L) {
+                        lastPingSentTime = now
+                        try {
+                            val pingJson = JSONObject().apply {
+                                put("type", "listener_ping")
+                                put("roomCode", cleanCode)
+                                put("senderId", deviceId)
+                                put("senderName", "Listener ${deviceId.take(3)}")
+                                put("driftMs", _syncDriftMs.value)
+                            }
+                            val pingBytes = pingJson.toString().toByteArray(Charsets.UTF_8)
+                            val pingPacket = DatagramPacket(pingBytes, pingBytes.size, broadcastAddress, feedbackPort)
+                            sendSocket?.send(pingPacket)
+                        } catch (_: Exception) {}
+                    }
 
                     // 1. Check UDP network packet
                     try {
@@ -373,8 +590,27 @@ class ListenTogetherManager private constructor(
                         socket.receive(packet)
                         val jsonStr = String(packet.data, 0, packet.length, Charsets.UTF_8)
                         val obj = JSONObject(jsonStr)
-                        if (obj.optString("roomCode").equals(cleanCode, ignoreCase = true)) {
-                            receivedPacket = parsePacket(obj)
+                        val pType = obj.optString("type")
+                        val pRoom = obj.optString("roomCode").trim().uppercase()
+                        val pSender = obj.optString("senderId")
+
+                        // Discover nearby rooms (excluding self permanent room and currently connected room)
+                        if (pRoom.isNotBlank() && pRoom != _currentRoomCode.value && pRoom != cleanCode && pSender != deviceId) {
+                            if (!_discoveredNearbyRooms.value.contains(pRoom)) {
+                                _discoveredNearbyRooms.value = _discoveredNearbyRooms.value + pRoom
+                            }
+                        }
+
+                        if (pRoom.equals(cleanCode, ignoreCase = true)) {
+                            if (pType == "reaction" && pSender != deviceId) {
+                                val emoji = obj.optString("emoji")
+                                val senderName = obj.optString("senderName", "Host")
+                                if (emoji.isNotBlank()) {
+                                    addLiveReaction(emoji, senderName)
+                                }
+                            } else if (pType == "sync_packet" || !obj.has("type")) {
+                                receivedPacket = parsePacket(obj)
+                            }
                         }
                     } catch (_: Exception) {}
 
@@ -394,12 +630,13 @@ class ListenTogetherManager private constructor(
                         applyHostSync(receivedPacket)
                     }
 
-                    delay(500)
+                    delay(400)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Listener UDP loop error", e)
             } finally {
                 socket?.close()
+                sendSocket?.close()
             }
         }
 
@@ -433,6 +670,14 @@ class ListenTogetherManager private constructor(
                         val payload = envelope.optJSONObject("payload") ?: return
 
                         when (type) {
+                            "reaction" -> {
+                                val emoji = payload.optString("emoji")
+                                val sender = payload.optString("sender_name", "Host")
+                                val senderId = payload.optString("sender_id")
+                                if (emoji.isNotBlank() && senderId != deviceId) {
+                                    addLiveReaction(emoji, sender)
+                                }
+                            }
                             "sync_state" -> {
                                 val playback = payload.optJSONObject("playback")
                                 if (playback != null) {

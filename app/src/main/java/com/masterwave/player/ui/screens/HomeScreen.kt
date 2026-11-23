@@ -32,7 +32,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
@@ -140,6 +142,22 @@ import com.masterwave.player.data.recommendation.CommunityPlaylist
 import com.masterwave.player.data.recommendation.CommunityPlaylistsProvider
 import kotlinx.coroutines.CancellationException
 
+internal object HomeFeedCache {
+    var activeLanguage: String = "Trending"
+    var trendingTracks: List<Track> = emptyList()
+    var madeForYouTracks: List<Track> = emptyList()
+    var dailyMixTracks: List<Track> = emptyList()
+    var becauseYouListenedHeader: String = "Because You Listened"
+    var becauseYouListenedTracks: List<Track> = emptyList()
+    var rediscoverTracks: List<Track> = emptyList()
+    var flowTracks: List<Track> = emptyList()
+    var heroSelection: HomeHeroSelection? = null
+    var previousCarouselTracks: List<Track> = emptyList()
+    var selectedCategory: String = "All"
+    var categoryFilterTracks: List<Track> = emptyList()
+    var headerHeightPx: Int = 0
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
@@ -156,6 +174,7 @@ fun HomeScreen(
     isGlassEnabled: Boolean = true,
     onScrollStateChanged: (Boolean) -> Unit = {},
     scrollToTopTrigger: Long = 0L,
+    homeListState: LazyListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -165,6 +184,9 @@ fun HomeScreen(
     val favorites by repository.favorites.collectAsState()
     val localTracks by repository.localTracks.collectAsState()
     val recentTracks by repository.recentTracks.collectAsState()
+    val immediateSeedTracks = remember(favorites, recentTracks, localTracks) {
+        (recentTracks + favorites + localTracks).distinctBy { it.id }
+    }
     val homeMixOptions = remember(favorites, recentTracks) {
         HomeMixPersonalizer.build(favorites, recentTracks)
     }
@@ -173,15 +195,16 @@ fun HomeScreen(
     val userProfile by cloudManager.userProfile.collectAsState()
 
     val currentTrack by player.currentTrack.collectAsState()
-    var activeLanguage by remember { mutableStateOf("Trending") }
+    var activeLanguage by remember { mutableStateOf(HomeFeedCache.activeLanguage) }
 
     val scope = rememberCoroutineScope()
-    var trendingTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var trendingTracks by remember { mutableStateOf(HomeFeedCache.trendingTracks) }
     var loadingHomeMix by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(currentTrack?.id) {
         activeLanguage = com.masterwave.player.data.recommendation.LanguageMusicRecommender
             .detectLanguage(currentTrack)
+        HomeFeedCache.activeLanguage = activeLanguage
         try {
             val (lang, res) = com.masterwave.player.data.recommendation.LanguageMusicRecommender.getLanguageViralTracks(
                 repository,
@@ -189,57 +212,74 @@ fun HomeScreen(
             )
             activeLanguage = lang
             trendingTracks = res
+            HomeFeedCache.activeLanguage = lang
+            HomeFeedCache.trendingTracks = res
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.e("HomeScreen", "Could not load language recommendations", e)
-            trendingTracks = emptyList()
         }
     }
 
-    var madeForYouTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var dailyMixTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var becauseYouListenedHeader by remember { mutableStateOf("Because You Listened") }
-    var becauseYouListenedTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var rediscoverTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var madeForYouTracks by remember {
+        mutableStateOf(HomeFeedCache.madeForYouTracks.ifEmpty { immediateSeedTracks.take(48) })
+    }
+    var dailyMixTracks by remember {
+        mutableStateOf(HomeFeedCache.dailyMixTracks.ifEmpty { immediateSeedTracks.shuffled().take(24) })
+    }
+    var becauseYouListenedHeader by remember { mutableStateOf(HomeFeedCache.becauseYouListenedHeader) }
+    var becauseYouListenedTracks by remember { mutableStateOf(HomeFeedCache.becauseYouListenedTracks) }
+    var rediscoverTracks by remember { mutableStateOf(HomeFeedCache.rediscoverTracks) }
 
     LaunchedEffect(currentTrack?.id, favorites, recentTracks.firstOrNull()?.id) {
-        scope.launch {
-            try {
-                madeForYouTracks = repository.recommendationManager.getMadeForYou(limit = 48)
-                dailyMixTracks = repository.recommendationManager.getDailyMix(limit = 24)
-                val seed = currentTrack ?: favorites.firstOrNull() ?: repository.recentTracks.value.firstOrNull()
-                if (seed != null) {
-                    val (header, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 16)
-                    becauseYouListenedHeader = header
-                    becauseYouListenedTracks = recs
-                }
-                rediscoverTracks = repository.recommendationManager.getRediscoverTracks(limit = 20)
-            } catch (_: Exception) {}
-        }
+        try {
+            val made = repository.recommendationManager.getMadeForYou(limit = 48)
+            madeForYouTracks = made
+            HomeFeedCache.madeForYouTracks = made
+            val daily = repository.recommendationManager.getDailyMix(limit = 24)
+            dailyMixTracks = daily
+            HomeFeedCache.dailyMixTracks = daily
+            val seed = currentTrack ?: favorites.firstOrNull() ?: repository.recentTracks.value.firstOrNull()
+            if (seed != null) {
+                val (header, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 16)
+                becauseYouListenedHeader = header
+                becauseYouListenedTracks = recs
+                HomeFeedCache.becauseYouListenedHeader = header
+                HomeFeedCache.becauseYouListenedTracks = recs
+            }
+            val redis = repository.recommendationManager.getRediscoverTracks(limit = 20)
+            rediscoverTracks = redis
+            HomeFeedCache.rediscoverTracks = redis
+        } catch (_: Exception) {}
     }
 
     // Smart Sonic Flow (Dynamic User Taste Radio - Updates on song change)
-    var flowTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var flowTracks by remember {
+        mutableStateOf(HomeFeedCache.flowTracks.ifEmpty { immediateSeedTracks.take(24) })
+    }
 
     LaunchedEffect(currentTrack?.id, favorites.size, recentTracks.firstOrNull()?.id) {
-        scope.launch {
-            try {
-                val seed = currentTrack ?: favorites.firstOrNull() ?: recentTracks.firstOrNull()
-                if (seed != null) {
-                    val (_, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 24)
-                    if (recs.isNotEmpty()) {
-                        flowTracks = recs
-                    } else {
-                        val made = repository.recommendationManager.getMadeForYou(limit = 24)
-                        flowTracks = made
-                    }
+        try {
+            val seed = currentTrack ?: favorites.firstOrNull() ?: recentTracks.firstOrNull()
+            if (seed != null) {
+                val (_, recs) = repository.recommendationManager.getBecauseYouListenedTo(seed, limit = 24)
+                if (recs.isNotEmpty()) {
+                    flowTracks = recs
+                    HomeFeedCache.flowTracks = recs
                 } else {
                     val made = repository.recommendationManager.getMadeForYou(limit = 24)
                     flowTracks = made
+                    HomeFeedCache.flowTracks = made
                 }
-            } catch (_: Exception) {
+            } else {
+                val made = repository.recommendationManager.getMadeForYou(limit = 24)
+                flowTracks = made
+                HomeFeedCache.flowTracks = made
+            }
+        } catch (_: Exception) {
+            if (flowTracks.isEmpty()) {
                 flowTracks = madeForYouTracks
+                HomeFeedCache.flowTracks = madeForYouTracks
             }
         }
     }
@@ -318,9 +358,24 @@ fun HomeScreen(
     ) {
         madeForYouTracks + dailyMixTracks + becauseYouListenedTracks + rediscoverTracks + favorites
     }
-    var previousCarouselTracks by remember { mutableStateOf(emptyList<Track>()) }
+    var previousCarouselTracks by remember { mutableStateOf(HomeFeedCache.previousCarouselTracks) }
     var heroSelection by remember {
-        mutableStateOf(HomeHeroSelection(emptyList(), isPersonalized = false))
+        mutableStateOf(
+            HomeFeedCache.heroSelection?.takeIf { it.tracks.isNotEmpty() } ?: run {
+                val initialPersonalized = madeForYouTracks + dailyMixTracks + becauseYouListenedTracks + rediscoverTracks + favorites
+                val initialSel = HomeHeroRecommendations.build(
+                    personalizedTracks = initialPersonalized,
+                    trendingTracks = trendingTracks,
+                    recentlyPlayedTracks = recentTracks + listOfNotNull(currentTrack),
+                    previousCarouselTracks = previousCarouselTracks,
+                    limit = 24
+                )
+                if (initialSel.tracks.isNotEmpty()) {
+                    HomeFeedCache.heroSelection = initialSel
+                }
+                initialSel
+            }
+        )
     }
     LaunchedEffect(personalizedHeroTracks, trendingTracks, recentTracks, currentTrack?.id) {
         val selection = HomeHeroRecommendations.build(
@@ -331,7 +386,11 @@ fun HomeScreen(
             limit = 24
         )
         heroSelection = selection
-        if (selection.tracks.isNotEmpty()) previousCarouselTracks = selection.tracks
+        HomeFeedCache.heroSelection = selection
+        if (selection.tracks.isNotEmpty()) {
+            previousCarouselTracks = selection.tracks
+            HomeFeedCache.previousCarouselTracks = selection.tracks
+        }
     }
     val heroTracks = heroSelection.tracks
     val quickPickTracks = remember(
@@ -350,7 +409,7 @@ fun HomeScreen(
         )
     }
 
-    var selectedCategory by remember { mutableStateOf("All") }
+    var selectedCategory by remember { mutableStateOf(HomeFeedCache.selectedCategory) }
     // Mood-first browse row. Language matching still happens silently behind the scenes.
     val categories = listOf(
         "All", "Trending", "New Releases", "Podcasts", "Playlists", "Top Charts"
@@ -363,10 +422,11 @@ fun HomeScreen(
         )
     }
 
-    var categoryFilterTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var categoryFilterTracks by remember { mutableStateOf(HomeFeedCache.categoryFilterTracks) }
     var isLoadingCategoryFilter by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedCategory) {
+        HomeFeedCache.selectedCategory = selectedCategory
         if (selectedCategory != "All") {
             isLoadingCategoryFilter = true
             try {
@@ -384,8 +444,10 @@ fun HomeScreen(
                     repository.search(query).songs
                 }
                 categoryFilterTracks = results
+                HomeFeedCache.categoryFilterTracks = results
             } catch (_: Exception) {
                 categoryFilterTracks = emptyList()
+                HomeFeedCache.categoryFilterTracks = emptyList()
             } finally {
                 isLoadingCategoryFilter = false
             }
@@ -403,8 +465,7 @@ fun HomeScreen(
         }
     }
 
-    val homeListState = rememberLazyListState()
-    var headerHeightPx by remember { mutableIntStateOf(0) }
+    var headerHeightPx by remember { mutableIntStateOf(HomeFeedCache.headerHeightPx) }
     val density = LocalDensity.current
     val headerHeight = if (headerHeightPx == 0) {
         168.dp
@@ -1935,7 +1996,10 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .zIndex(1f)
-                .onSizeChanged { headerHeightPx = it.height },
+                .onSizeChanged {
+                    headerHeightPx = it.height
+                    HomeFeedCache.headerHeightPx = it.height
+                },
             isScrolled = isScrolled,
             liquidState = liquidState,
             isGlassEnabled = isGlassEnabled,
@@ -1993,14 +2057,14 @@ private fun HomeScreenHeader(
             .fillMaxWidth()
             .glassySurface(
                 shape = headerShape,
-                style = GlassyStyle.DOCK,
+                style = GlassyStyle.HEADER,
                 isDark = isAmoled,
                 isGlassEnabled = isGlassEnabled,
-                borderWidth = 1.dp,
-                elevation = 10.dp,
-                accentGlow = accentColor.copy(alpha = if (isScrolled) 0.12f else 0.08f),
+                borderWidth = if (isScrolled) 1.dp else 0.dp,
+                elevation = if (isScrolled) 8.dp else 0.dp,
+                accentGlow = accentColor.copy(alpha = if (isScrolled) 0.12f else 0.0f),
                 tintColor = accentColor,
-                hasSheen = true,
+                hasSheen = isScrolled,
                 liquidState = liquidState
             )
     ) {

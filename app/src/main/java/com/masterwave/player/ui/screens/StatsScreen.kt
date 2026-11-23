@@ -87,7 +87,7 @@ import java.util.Locale
 /**
  * Statistics Screen:
  * Comprehensive listening metrics, interactive metric cards (Plays, Tracks, Artists, Albums),
- * ranked charts, and 3-day full playback history.
+ * ranked charts, and 7-day full playback history (1 week).
  */
 @Composable
 fun StatsScreen(
@@ -111,14 +111,14 @@ fun StatsScreen(
     val isAmoled = ThemeState.isAmoledTheme()
     val context = LocalContext.current
 
-    // Active Metric Tab: 0 = Plays (3-Day History), 1 = Tracks, 2 = Artists, 3 = Albums
+    // Active Metric Tab: 0 = Plays (7-Day History), 1 = Tracks, 2 = Artists, 3 = Albums
     var activeMetricTab by remember { mutableIntStateOf(0) }
     var showFilterMenu by remember { mutableStateOf(false) }
 
-    // Filter play history to strictly last 3 days
-    val threeDaysAgo = remember { System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000L) }
-    val threeDayHistory = remember(playHistory) {
-        val cutoff = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000L)
+    // Filter play history to strictly last 7 days (1 week)
+    val sevenDaysAgo = remember { System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L) }
+    val sevenDayHistory = remember(playHistory) {
+        val cutoff = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
         playHistory.filter { it.playedAt >= cutoff }
     }
 
@@ -199,7 +199,7 @@ fun StatsScreen(
                         color = colors.ink
                     )
                     Text(
-                        text = "Listening analytics & 3-day history",
+                        text = "Listening analytics & 7-day history",
                         fontFamily = DisplayFontFamily,
                         fontSize = 12.5.sp,
                         color = colors.muted
@@ -254,11 +254,11 @@ fun StatsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Plays Card (3-Day Playback History)
+                    // Plays Card (7-Day Playback History)
                     InteractiveMetricCard(
                         title = "Plays",
-                        subtitle = "3-Day History",
-                        value = if (threeDayHistory.isNotEmpty()) "${threeDayHistory.size}" else "$totalPlays",
+                        subtitle = "7-Day History",
+                        value = if (sevenDayHistory.isNotEmpty()) "${sevenDayHistory.size}" else "$totalPlays",
                         icon = Icons.Default.BarChart,
                         accentColor = Color(0xFF165B33),
                         isSelected = activeMetricTab == 0,
@@ -318,7 +318,7 @@ fun StatsScreen(
         // --- 3. Dynamic Section Header Matching Active Metric Tab ---
         item {
             val sectionTitle = when (activeMetricTab) {
-                0 -> "Plays History (Last 3 Days)"
+                0 -> "Plays History (Last 7 Days)"
                 1 -> "Top Tracks"
                 2 -> "Top Artists"
                 3 -> "Top Albums"
@@ -349,7 +349,7 @@ fun StatsScreen(
                     ) {
                         Text(
                             text = when (activeMetricTab) {
-                                0 -> "${threeDayHistory.size} PLAYS"
+                                0 -> "${sevenDayHistory.size} PLAYS"
                                 1 -> "${topTracksRanked.size} SONGS"
                                 2 -> "${topArtistsRanked.size} ARTISTS"
                                 3 -> "${topAlbumsRanked.size} ALBUMS"
@@ -403,7 +403,7 @@ fun StatsScreen(
                         onDismissRequest = { showFilterMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Plays (3-Day History)", fontFamily = DisplayFontFamily) },
+                            text = { Text("Plays (7-Day History)", fontFamily = DisplayFontFamily) },
                             onClick = { activeMetricTab = 0; showFilterMenu = false }
                         )
                         DropdownMenuItem(
@@ -426,17 +426,17 @@ fun StatsScreen(
         // --- 4. Content List for Selected Metric Tab ---
         when (activeMetricTab) {
             0 -> {
-                // TAB 0: 3-Day Playback History (Every played song within the last 3 days)
-                if (threeDayHistory.isEmpty()) {
+                // TAB 0: 7-Day Playback History (Every played song within the last 7 days)
+                if (sevenDayHistory.isEmpty()) {
                     item {
                         EmptyStatsCard(
-                            message = "No playback history in the last 3 days",
+                            message = "No playback history in the last 7 days",
                             subMessage = "Play any track in MasterWave to begin tracking your listening history.",
                             colors = colors
                         )
                     }
                 } else {
-                    itemsIndexed(threeDayHistory) { index, item ->
+                    itemsIndexed(sevenDayHistory) { index, item ->
                         val isThisPlaying = currentTrack?.id == item.track.id && isPlaying
                         Surface(
                             shape = RoundedCornerShape(16.dp),
@@ -444,7 +444,7 @@ fun StatsScreen(
                             border = BorderStroke(1.5.dp, colors.hairline),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .bouncyClickable { player.playTrack(item.track, threeDayHistory.map { it.track }) }
+                                .bouncyClickable { player.playTrack(item.track, sevenDayHistory.map { it.track }) }
                         ) {
                             Row(
                                 modifier = Modifier

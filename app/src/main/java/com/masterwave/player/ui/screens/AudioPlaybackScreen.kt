@@ -131,17 +131,20 @@ fun AudioPlaybackScreen(
     val eqEnabled by (player?.equalizerEnabled?.collectAsState()
         ?: remember { mutableStateOf(true) })
     val eqPreset by (player?.equalizerPreset?.collectAsState()
-        ?: remember { mutableStateOf("Apple Music Master") })
+        ?: remember { mutableStateOf("Musician Pro Master") })
     val eqBands by (player?.equalizerBands?.collectAsState()
-        ?: remember { mutableStateOf(listOf(4, 1, 1, 2, 3)) })
+        ?: remember { mutableStateOf(listOf(6, 4, 1, 3, 4)) })
+    val bassBoostStrength by (player?.bassBoostStrength?.collectAsState()
+        ?: remember { mutableIntStateOf(480) })
 
-    var gaplessEnabled by remember { mutableStateOf(true) }
+    val gaplessEnabled by (player?.gaplessPlaybackEnabled?.collectAsState()
+        ?: remember { mutableStateOf(true) })
 
     val bandFrequencies = listOf("60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz")
     val bandDescriptions = listOf("Sub-Bass", "Bass", "Midrange", "Presence", "Treble Air")
 
     val presets = listOf(
-        "Apple Music Master", "Harman Target", "AirPods Spatial", "Studio Pure",
+        "Musician Pro Master", "Apple Music Master", "Harman Target", "AirPods Spatial", "Studio Pure",
         "Flat", "Bass Boost", "Vocal Booster", "Electronic",
         "Rock", "Pop", "Classical", "Hip Hop", "Acoustic"
     )
@@ -267,7 +270,7 @@ fun AudioPlaybackScreen(
                     }
 
                     Text(
-                        text = "Calibrated DSP pipeline tuned for Apple Music level acoustic fidelity. Delivers deep visceral sub-bass without mud, crystalline vocal presence, anti-clipping true-peak ceiling, and wide 3D binaural soundstage across all smartphone speakers, wired earphones, and wireless earbuds.",
+                        text = "Calibrated DSP pipeline tuned by musician mastering principles. Delivers deep visceral sub-bass without mud, crystalline vocal intimacy, anti-clipping true-peak headroom, and phase-coherent studio soundstage across all smartphone speakers, wired IEMs, and wireless earbuds.",
                         fontFamily = DisplayFontFamily,
                         fontSize = 12.5.sp,
                         lineHeight = 17.sp,
@@ -278,7 +281,7 @@ fun AudioPlaybackScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("32-BIT FLOAT", "ANTI-CLIPPING", "SPATIAL 3D", "HARMAN TARGET").forEach { tag ->
+                        listOf("32-BIT FLOAT", "MUSICIAN TUNED", "SUB-BASS BOOST", "ANTI-CLIPPING").forEach { tag ->
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
@@ -441,6 +444,57 @@ fun AudioPlaybackScreen(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
+
+                    // Acoustic Bass Sub-Harmonics & Punch Slider (Musician-Calibrated)
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.GraphicEq,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Acoustic Bass Enhancement",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = textPrimary
+                                )
+                            }
+                            Text(
+                                text = "${(bassBoostStrength / 10)}%",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = if (bassBoostStrength > 0) accentColor else textSecondary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Tactile sub-bass authority and warm analog low-end punch without muddiness or distortion.",
+                            fontSize = 11.5.sp,
+                            color = textSecondary
+                        )
+                        Slider(
+                            value = bassBoostStrength.toFloat(),
+                            onValueChange = { newVal ->
+                                player?.setBassBoostStrength(newVal.toInt())
+                            },
+                            valueRange = 0f..1000f,
+                            steps = 19,
+                            colors = SliderDefaults.colors(
+                                thumbColor = accentColor,
+                                activeTrackColor = accentColor,
+                                inactiveTrackColor = if (isAmoled) Color(0xFF222432) else Color(0xFFE2E4EA)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     // System Hardware Equalizer Launch Affordance
@@ -617,7 +671,10 @@ fun AudioPlaybackScreen(
                     checked = gaplessEnabled,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onCheckedChange = { gaplessEnabled = it }
+                    onCheckedChange = {
+                        player?.toggleGaplessPlayback(it)
+                        Toast.makeText(context, if (it) "Gapless playback enabled" else "Gapless playback disabled", Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
         }

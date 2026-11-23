@@ -63,7 +63,7 @@ class MusicRepository(private val context: Context) {
     private val _recentTracks = MutableStateFlow<List<Track>>(emptyList())
     val recentTracks: StateFlow<List<Track>> = _recentTracks.asStateFlow()
 
-    // 3-Day Playback History
+    // 1-Week (7-Day) Playback History
     private val _playHistory = MutableStateFlow<List<PlayHistoryItem>>(emptyList())
     val playHistory: StateFlow<List<PlayHistoryItem>> = _playHistory.asStateFlow()
 
@@ -256,17 +256,17 @@ class MusicRepository(private val context: Context) {
 
     fun recordRecentTrack(track: Track) {
         val now = System.currentTimeMillis()
-        val threeDaysAgo = now - (3 * 24 * 60 * 60 * 1000L)
+        val oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000L)
 
         val list = _recentTracks.value.toMutableList()
         list.removeAll { it.id == track.id }
         list.add(0, track)
         _recentTracks.value = list.take(100)
 
-        // 3-Day History List
+        // 1-Week (7-Day) History List
         val history = _playHistory.value.toMutableList()
         history.add(0, PlayHistoryItem(track, now))
-        _playHistory.value = history.filter { it.playedAt >= threeDaysAgo }
+        _playHistory.value = history.filter { it.playedAt >= oneWeekAgo }
 
         // Increment stats
         _totalPlays.value += 1
@@ -279,8 +279,8 @@ class MusicRepository(private val context: Context) {
 
     private fun savePlayHistory() {
         try {
-            val threeDaysAgo = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000L)
-            val valid = _playHistory.value.filter { it.playedAt >= threeDaysAgo }
+            val oneWeekAgo = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
+            val valid = _playHistory.value.filter { it.playedAt >= oneWeekAgo }
             val arr = JSONArray()
             valid.forEach { item ->
                 arr.put(
@@ -309,14 +309,14 @@ class MusicRepository(private val context: Context) {
             _totalPlays.value = cachePrefs.getInt("cached_total_plays", 0)
             val json = cachePrefs.getString("cached_play_history", null) ?: return
             val arr = JSONArray(json)
-            val threeDaysAgo = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000L)
+            val oneWeekAgo = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
             val list = mutableListOf<PlayHistoryItem>()
             val counts = mutableMapOf<String, Int>()
 
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
                 val playedAt = o.optLong("playedAt", 0L)
-                if (playedAt >= threeDaysAgo) {
+                if (playedAt >= oneWeekAgo) {
                     val track = Track(
                         id = o.optString("id"),
                         title = o.optString("title"),
@@ -809,6 +809,12 @@ class MusicRepository(private val context: Context) {
         }
 
         throw IllegalStateException("Unable to resolve a playable stream for ${track.title}.")
+    }
+
+    fun evictStreamCache(track: Track) {
+        val ytId = track.id.removePrefix("yt_")
+        ytProvider.evictCache(ytId)
+        ytProvider.evictCache(track.id)
     }
 
     /**

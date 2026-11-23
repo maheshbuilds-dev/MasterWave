@@ -607,16 +607,6 @@ fun PlaylistDetailScreen(
                 val cloudManager = com.masterwave.player.data.cloud.CloudAccountManager.getInstance(context, repository)
                 cloudManager.saveYouTubeAuth(cookies)
                 showGoogleAuth = false
-                scope.launch {
-                    isLoadingTracks = true
-                    val synced = cloudManager.syncRealYouTubeMusicLibrary()
-                    val ytLiked = synced.find { it.id == "yt_liked_songs" } ?: repository.playlists.value.find { it.id == "yt_liked_songs" }
-                    if (ytLiked != null && ytLiked.tracks.isNotEmpty()) {
-                        tracksList = ytLiked.tracks
-                    }
-                    isLoadingTracks = false
-                }
-                android.widget.Toast.makeText(context, "Google Account Authorized!", android.widget.Toast.LENGTH_SHORT).show()
             }
         )
     }

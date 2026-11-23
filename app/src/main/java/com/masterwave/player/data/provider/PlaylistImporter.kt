@@ -1,5 +1,6 @@
 package com.masterwave.player.data.provider
 
+import android.util.Log
 import com.masterwave.player.data.model.Playlist
 import com.masterwave.player.data.model.Track
 import kotlinx.coroutines.Dispatchers
@@ -68,7 +69,8 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
      */
     suspend fun importSpotifyPlaylist(urlOrId: String): Result<Playlist> = withContext(Dispatchers.IO) {
         runCatching {
-            val playlistId = extractSpotifyPlaylistId(urlOrId)
+            val resolvedInput = resolveSpotifyShortUrl(urlOrId.trim())
+            val playlistId = extractSpotifyPlaylistId(resolvedInput)
                 ?: throw IllegalArgumentException("Invalid Spotify playlist URL or ID")
 
             val embedUrl = "https://open.spotify.com/embed/playlist/$playlistId"
@@ -85,8 +87,12 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
             val html = response.body?.string() ?: throw IllegalStateException("Empty Spotify response")
             val doc = Jsoup.parse(html)
 
-            var playlistTitle = doc.title().replace(" | Spotify", "").trim()
+            var playlistTitle = doc.title().replace(" | Spotify", "").replace(" - playlist by.*".toRegex(), "").trim()
             if (playlistTitle.isBlank()) playlistTitle = "Spotify Playlist"
+
+            // Extract high-res playlist cover from OpenGraph metadata or DOM
+            val playlistCoverArt = doc.selectFirst("meta[property='og:image']")?.attr("content")
+                ?: doc.selectFirst("meta[name='twitter:image']")?.attr("content")
 
             val tracks = mutableListOf<Track>()
             val scriptElem = doc.selectFirst("script#__NEXT_DATA__")
@@ -104,6 +110,12 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
                     val name = entity.optString("name", playlistTitle)
                     if (name.isNotBlank()) playlistTitle = name
 
+                    val entityCoverArt = entity.optJSONObject("coverArt")
+                        ?.optJSONArray("sources")
+                        ?.optJSONObject(0)
+                        ?.optString("url")
+                        ?: playlistCoverArt
+
                     val trackList = entity.optJSONArray("trackList")
                     if (trackList != null) {
                         for (i in 0 until trackList.length()) {
@@ -111,6 +123,10 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
                             val title = trackObj.optString("title", "Unknown")
                             val subtitle = trackObj.optString("subtitle", "Unknown Artist")
                             val durationMs = trackObj.optLong("duration", 0L)
+                            val trackArt = trackObj.optString("artworkUrl").ifBlank {
+                                trackObj.optJSONObject("album")?.optJSONArray("images")?.optJSONObject(0)?.optString("url")
+                                    ?: entityCoverArt
+                            }
 
                             tracks.add(
                                 Track(
@@ -119,7 +135,7 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
                                     artist = subtitle,
                                     album = playlistTitle,
                                     durationSeconds = durationMs / 1000L,
-                                    artworkUrl = null,
+                                    artworkUrl = trackArt,
                                     streamUrl = null,
                                     codec = "Opus",
                                     bitrateKbps = 160
@@ -144,7 +160,7 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
                                 artist = artist.ifBlank { "Unknown Artist" },
                                 album = playlistTitle,
                                 durationSeconds = 180L,
-                                artworkUrl = null,
+                                artworkUrl = playlistCoverArt,
                                 streamUrl = null,
                                 codec = "Opus",
                                 bitrateKbps = 160
@@ -159,14 +175,30 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
             Playlist(
                 id = "spotify_$playlistId",
                 title = playlistTitle,
-                description = "Imported from Spotify",
+                description = if (tracks.size >= 100) "Imported from Spotify (top 100 tracks)" else "Imported from Spotify link",
                 trackCount = tracks.size,
                 tracks = tracks,
-                artworkUrl = null,
+                artworkUrl = playlistCoverArt ?: tracks.firstOrNull()?.artworkUrl,
                 source = "Spotify",
                 isPinned = false,
                 createdAt = today
             )
+        }
+    }
+
+    private fun resolveSpotifyShortUrl(url: String): String {
+        if (!url.contains("spotify.link")) return url
+        return try {
+            val req = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                .build()
+            okHttpClient.newCall(req).execute().use { resp ->
+                resp.request.url.toString()
+            }
+        } catch (e: Exception) {
+            Log.w("PlaylistImporter", "Failed to resolve spotify.link redirect: ${e.message}")
+            url
         }
     }
 
@@ -176,6 +208,11 @@ class PlaylistImporter(private val okHttpClient: OkHttpClient) {
             return trimmed
         }
         val match = Regex("playlist[/:]+([a-zA-Z0-9]{22})").find(trimmed)
-        return match?.groupValues?.get(1)
+        if (match != null) return match.groupValues[1]
+
+        if (trimmed.startsWith("spotify:playlist:")) {
+            return trimmed.removePrefix("spotify:playlist:").take(22)
+        }
+        return null
     }
 }

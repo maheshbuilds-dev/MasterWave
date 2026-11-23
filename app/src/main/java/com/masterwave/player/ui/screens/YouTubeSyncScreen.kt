@@ -489,17 +489,8 @@ fun YouTubeSyncScreen(
         successDomain = "music.youtube.com",
         onDismiss = { showAuthDialog = false },
         onAuthCaptured = { cookies ->
-            cloudManager.saveYouTubeAuth(cookies)
             showAuthDialog = false
-            Toast.makeText(context, "YouTube Music Connected! Fetching your playlists...", Toast.LENGTH_SHORT).show()
-            scope.launch {
-                isSyncing = true
-                val synced = cloudManager.syncRealYouTubeMusicLibrary()
-                isSyncing = false
-                if (synced.isNotEmpty()) {
-                    Toast.makeText(context, "Successfully synced ${synced.size} YouTube playlists!", Toast.LENGTH_LONG).show()
-                }
-            }
+            cloudManager.saveYouTubeAuth(cookies)
         }
     )
 }

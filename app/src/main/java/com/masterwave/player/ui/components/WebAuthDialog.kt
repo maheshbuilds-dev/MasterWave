@@ -412,8 +412,9 @@ fun WebAuthDialog(
                                 cookieManager.setAcceptCookie(true)
                                 cookieManager.setAcceptThirdPartyCookies(this, true)
 
+                                var hasCapturedAuth = false
                                 fun checkAndCapture(url: String?) {
-                                    if (url == null) return
+                                    if (url == null || hasCapturedAuth) return
                                     try { cookieManager.flush() } catch (_: Exception) {}
                                     val isAtTarget = url.contains("music.youtube.com") || url.contains("open.spotify.com")
                                     val domains = listOf(
@@ -445,6 +446,7 @@ fun WebAuthDialog(
                                     val hasSpotify = map.containsKey("sp_dc")
 
                                     if (isAtTarget && ((hasSapisid && hasSid) || hasSpotify)) {
+                                        hasCapturedAuth = true
                                         onAuthCaptured(mergedCookies)
                                     }
                                 }

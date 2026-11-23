@@ -238,9 +238,9 @@ fun Modifier.glassySurface(
             GlassyStyle.HEADER -> {
                 Brush.verticalGradient(
                     colors = listOf(
-                        if (isDark) Color(0x40FFFFFF) else Color(0x90FFFFFF), // Crisp top specular light
-                        if (isDark) Color(0x15FFFFFF) else Color(0x10000000),
-                        if (isDark) Color(0x28FFFFFF) else Color(0x15000000)  // Defined bottom rim
+                        Color.Transparent, // Completely transparent at status bar / top edge to prevent any white line
+                        if (isDark) Color(0x05FFFFFF) else Color(0x04000000),
+                        if (isDark) Color(0x28FFFFFF) else Color(0x15000000)  // Defined bottom rim where header meets content
                     )
                 )
             }
@@ -352,8 +352,7 @@ fun Modifier.glassySurface(
             if (isGlassEnabled && hasSheen &&
                 (style == GlassyStyle.DOCK ||
                     style == GlassyStyle.PROMINENT ||
-                    style == GlassyStyle.SLAB ||
-                    style == GlassyStyle.HEADER)
+                    style == GlassyStyle.SLAB)
             ) {
                 Modifier.drawWithContent {
                     drawContent()
@@ -602,8 +601,8 @@ fun Modifier.bouncyClickable(
             )
         } else {
             spring(
-                dampingRatio = 0.72f,
-                stiffness = 850f
+                dampingRatio = 0.58f,
+                stiffness = 700f
             )
         },
         label = "bouncy_scale"
