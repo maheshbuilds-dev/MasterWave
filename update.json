@@ -1,10 +1,10 @@
 {
-  "versionCode": 29,
-  "versionName": "2.2.8",
-  "releaseNotes": "• Liquid Glass Skill Architecture (deepika-builds/liquid-glass): Adopted proven optical displacement recipe with perimeter refraction bulge, neutral interior inset, and 1.5x saturation boost\n• Chromatic Prism Fringe: Staggered three-channel chromatic aberration (chroma: 6 / dispersion: 0.032) delivering Apple-grade refraction rim\n• Optical Material Dressing: Translucent gradient tint (rgba(14, 14, 22, 0.18-0.32) in dark, rgba(255, 255, 255, 0.32-0.18) in light) with specular hairline top highlight and deep elevation drop shadow\n• 100% Preserved Button Style: Feed active capsule, Stats, Playlists, and circular Search satellite intact\n• Permanent Background & Lock-Screen Playback: Continuous foreground lifecycle, dedicated WakeLock, WifiLock, and pre-warmed streams",
+  "versionCode": 30,
+  "versionName": "2.2.9",
+  "releaseNotes": "• Real Apple Liquid Glass: Full-lens optical refraction that visibly bends and magnifies text and album covers behind the dock\n• Optical Micro-Frost (2dp): Eliminated heavy 24dp blur soup so underlying typography remains crisp, sharp, and legibly distorted through the convex glass lens\n• Deep Refraction & Displacement Curve: Calibrated refraction to 0.65f and displacement curve to 0.55f across the full capsule with 0.045f chromatic prism fringe\n• Pure Glass Transmission: Stripped all opaque white overlay veils for 100% optical clarity\n• Preserved Button Architecture: Feed active pill, Stats, Playlists, and circular Search satellite intact\n• Permanent Background & Lock-Screen Playback: Continuous foreground lifecycle, dedicated WakeLock, WifiLock, and pre-warmed streams",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
   "apkSize": "18.3 MB",
-  "publishedAt": "2026-11-22T17:35:00Z",
+  "publishedAt": "2026-11-22T17:45:00Z",
   "minSupportedVersion": 1,
   "forceUpdate": false
 }

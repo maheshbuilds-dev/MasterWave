@@ -299,36 +299,36 @@ fun Modifier.glassySurface(
         Modifier.liquid(state) {
             this.shape = shape
             frost = when (style) {
-                GlassyStyle.DOCK -> 24.dp
+                // Liquid glass optical clarity: 2dp micro-blur preserves sharp letterforms
+                // so text passing behind the lens visibly bends, warps, and magnifies
+                GlassyStyle.DOCK -> 2.dp
                 GlassyStyle.PROMINENT -> 14.dp
                 else -> 10.dp
             }
             refraction = when (style) {
-                GlassyStyle.DOCK -> if (isPressed) 0.24f else 0.18f
+                // Wide optical lens curvature spanning the full dock capsule radius
+                GlassyStyle.DOCK -> if (isPressed) 0.75f else 0.65f
                 GlassyStyle.PROMINENT -> if (isPressed) 0.22f else 0.16f
                 else -> if (isPressed) 0.16f else 0.10f
             }
-            curve = if (style == GlassyStyle.DOCK) 0.22f else 0.16f
-            edge = if (style == GlassyStyle.DOCK) 0.14f else 0.11f
-            saturation = if (style == GlassyStyle.DOCK) 1.50f else 1.15f
+            // Strong displacement curvature: visibly warps and bends underlying text
+            curve = if (style == GlassyStyle.DOCK) 0.55f else 0.16f
+            edge = if (style == GlassyStyle.DOCK) 0.18f else 0.11f
+            saturation = if (style == GlassyStyle.DOCK) 1.40f else 1.15f
             contrast = 1.05f
-            dispersion = if (style == GlassyStyle.DOCK) 0.032f else 0.015f
+            // Apple chromatic prism dispersion: color fringing along bent letterforms
+            dispersion = if (style == GlassyStyle.DOCK) 0.045f else 0.015f
             tint = when {
-                // Artwork-derived accent lens: a whisper of the current cover colour.
                 tintColor != null && style == GlassyStyle.DOCK ->
-                    tintColor.copy(alpha = if (isDark) 0.12f else 0.08f)
-                // Neutral dock glass: translucent optical tint matching liquid-glass skill recipe
+                    tintColor.copy(alpha = if (isDark) 0.08f else 0.05f)
+                // Whisper-sheer optical tint: 100% clarity for underlying text & imagery
                 style == GlassyStyle.DOCK ->
-                    if (isDark) Color(0xFF0E0E16).copy(alpha = 0.20f)
-                    else Color(0xFFFFFFFF).copy(alpha = 0.18f)
+                    if (isDark) Color(0xFF0E0E16).copy(alpha = 0.10f)
+                    else Color(0xFFFFFFFF).copy(alpha = 0.08f)
                 tintColor != null -> tintColor.copy(alpha = 0.12f)
                 else -> Color.White.copy(alpha = 0.10f)
             }
-        }.then(
-            // Translucent optical veil layered with the liquid shader:
-            // High transparency preserves backdrop blur & refraction transmission without milky occlusion
-            if (style == GlassyStyle.DOCK) Modifier.background(glassFillBrush) else Modifier
-        )
+        }
     } ?: Modifier.background(glassFillBrush)
 
     return this
@@ -362,97 +362,75 @@ fun Modifier.glassySurface(
 
                     val isDock = style == GlassyStyle.DOCK
 
-                    // 1. Polished overhead light pool (centered, radiant flare)
-                    val poolRadius = size.width * 0.60f
-                    val poolCenter = Offset(size.width * 0.50f, -size.height * 0.12f)
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.22f else 0.30f),
-                                Color.White.copy(alpha = if (isDark) 0.07f else 0.10f),
-                                Color.Transparent
-                            ),
-                            center = poolCenter,
-                            radius = poolRadius
-                        ),
-                        radius = poolRadius,
-                        center = poolCenter
-                    )
-
-                    // 2. High-polish specular rim reflex along the top 22%
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = if (isDark) 0.24f else 0.44f),
-                                Color.White.copy(alpha = if (isDark) 0.07f else 0.12f),
-                                Color.Transparent
-                            ),
-                            startY = 0f,
-                            endY = size.height * 0.22f
-                        ),
-                        size = Size(size.width, size.height * 0.22f)
-                    )
-
-                    // 3. Diagonal polished light sweep (restrained gloss beam)
-                    drawRect(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.White.copy(alpha = if (isDark) 0.03f else 0.06f),
-                                Color.White.copy(alpha = if (isDark) 0.07f else 0.10f),
-                                Color.White.copy(alpha = if (isDark) 0.02f else 0.04f),
-                                Color.Transparent
-                            ),
-                            start = Offset(size.width * 0.12f, 0f),
-                            end = Offset(size.width * 0.60f, size.height)
-                        ),
-                        size = size
-                    )
-
-                    // 4. Ground bounce: a faint counter-light at the bottom lip gives the slab thickness
-                    val baseTop = size.height * 0.70f
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                (if (isDark) Color.White else Color(0xFF1A2333))
-                                    .copy(alpha = if (isDark) 0.08f else 0.06f)
-                            ),
-                            startY = baseTop,
-                            endY = size.height
-                        ),
-                        topLeft = Offset(0f, baseTop),
-                        size = Size(size.width, size.height - baseTop)
-                    )
-
                     if (isDock) {
-                        // 5. Inner optical bevel: fine hairline reflection just under the rim
-                        val bevel = 1.2.dp.toPx()
-                        val innerWidth = (size.width - bevel * 2f).coerceAtLeast(0f)
+                        // Apple Liquid Glass: keep the body 100% crystal-clear so refracted text bends visibly.
+                        // Only add an ultra-fine 1px specular highlight at the top crest and subtle ground reflection.
                         drawRect(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = if (isDark) 0.16f else 0.35f),
+                                    Color.White.copy(alpha = if (isDark) 0.22f else 0.38f),
                                     Color.Transparent
                                 ),
-                                startY = bevel,
-                                endY = bevel * 3f
+                                startY = 0f,
+                                endY = size.height * 0.14f
                             ),
-                            topLeft = Offset(bevel, bevel),
-                            size = Size(innerWidth, bevel * 2.5f)
+                            size = Size(size.width, size.height * 0.14f)
                         )
-                        // 6. Bottom inner reflection line
+                        val baseTop = size.height * 0.86f
                         drawRect(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.18f)
+                                    Color.White.copy(alpha = if (isDark) 0.08f else 0.14f)
                                 ),
-                                startY = size.height - bevel * 2f,
-                                endY = size.height - bevel
+                                startY = baseTop,
+                                endY = size.height
                             ),
-                            topLeft = Offset(bevel, size.height - bevel * 2f),
-                            size = Size(innerWidth, bevel)
+                            topLeft = Offset(0f, baseTop),
+                            size = Size(size.width, size.height - baseTop)
+                        )
+                    } else {
+                        // Standard sheen for cards, headers, and slabs
+                        val poolRadius = size.width * 0.60f
+                        val poolCenter = Offset(size.width * 0.50f, -size.height * 0.12f)
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.22f else 0.30f),
+                                    Color.White.copy(alpha = if (isDark) 0.07f else 0.10f),
+                                    Color.Transparent
+                                ),
+                                center = poolCenter,
+                                radius = poolRadius
+                            ),
+                            radius = poolRadius,
+                            center = poolCenter
+                        )
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.24f else 0.44f),
+                                    Color.White.copy(alpha = if (isDark) 0.07f else 0.12f),
+                                    Color.Transparent
+                                ),
+                                startY = 0f,
+                                endY = size.height * 0.22f
+                            ),
+                            size = Size(size.width, size.height * 0.22f)
+                        )
+                        drawRect(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.06f),
+                                    Color.White.copy(alpha = if (isDark) 0.07f else 0.10f),
+                                    Color.White.copy(alpha = if (isDark) 0.02f else 0.04f),
+                                    Color.Transparent
+                                ),
+                                start = Offset(size.width * 0.12f, 0f),
+                                end = Offset(size.width * 0.60f, size.height)
+                            ),
+                            size = size
                         )
                     }
                 }
