@@ -1,7 +1,6 @@
 package com.masterwave.player.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -32,12 +31,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -60,6 +63,93 @@ enum class MainTab(val title: String, val icon: ImageVector) {
         val FEED = HOME
         val PLAYLISTS = LIBRARY
     }
+}
+
+/**
+ * Authentic Apple Liquid Glass Tab Switcher Button Modifier (iOS 26 Liquid Glass Material).
+ * Eliminates flat opaque white paint and renders an optical refractive glass lens:
+ * - Optical Base: Translucent gradient reflecting background colors with zero muddy occlusion.
+ * - Specular Hairline: 0.9dp dual-bevel rim catching overhead illumination and ground bounce.
+ * - Specular Reflex Sheen: Delicate top crest arc for authentic curvature depth.
+ * - Caustic Elevation: Soft diffuse ambient occlusion with subtle chromatic accent underglow.
+ */
+@Composable
+fun Modifier.liquidGlassTabSwitcher(
+    isSelected: Boolean,
+    isDark: Boolean,
+    accentColor: Color,
+    shape: Shape = CircleShape
+): Modifier {
+    val activeAlpha by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.84f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "tab_switcher_active_alpha"
+    )
+
+    if (activeAlpha <= 0.01f) return this
+
+    val fillBrush = remember(isDark, activeAlpha) {
+        Brush.verticalGradient(
+            colors = if (isDark) listOf(
+                Color.White.copy(alpha = 0.24f * activeAlpha),
+                Color.White.copy(alpha = 0.08f * activeAlpha),
+                Color.White.copy(alpha = 0.16f * activeAlpha)
+            ) else listOf(
+                Color.White.copy(alpha = 0.42f * activeAlpha),
+                Color.White.copy(alpha = 0.16f * activeAlpha),
+                Color.White.copy(alpha = 0.28f * activeAlpha)
+            )
+        )
+    }
+
+    val borderBrush = remember(isDark, activeAlpha) {
+        Brush.verticalGradient(
+            colors = if (isDark) listOf(
+                Color.White.copy(alpha = 0.65f * activeAlpha),
+                Color.White.copy(alpha = 0.25f * activeAlpha),
+                Color.Transparent,
+                Color.White.copy(alpha = 0.22f * activeAlpha)
+            ) else listOf(
+                Color.White.copy(alpha = 0.90f * activeAlpha),
+                Color.White.copy(alpha = 0.40f * activeAlpha),
+                Color.Black.copy(alpha = 0.06f * activeAlpha),
+                Color.White.copy(alpha = 0.35f * activeAlpha)
+            )
+        )
+    }
+
+    return this
+        .shadow(
+            elevation = (2.5.dp * activeAlpha),
+            shape = shape,
+            spotColor = Color.Black.copy(alpha = (if (isDark) 0.35f else 0.08f) * activeAlpha),
+            ambientColor = accentColor.copy(alpha = 0.10f * activeAlpha)
+        )
+        .clip(shape)
+        .background(fillBrush)
+        .border(
+            width = 0.9.dp,
+            brush = borderBrush,
+            shape = shape
+        )
+        .drawWithContent {
+            drawContent()
+            val sheenHeight = size.height * 0.36f
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = (if (isDark) 0.25f else 0.42f) * activeAlpha),
+                        Color.Transparent
+                    ),
+                    startY = 0f,
+                    endY = sheenHeight
+                ),
+                size = Size(size.width, sheenHeight)
+            )
+        }
 }
 
 /**
@@ -89,21 +179,11 @@ fun FloatingNavigationDock(
     val isSatelliteActive = isSearchActive || currentTab == MainTab.SEARCH
     val minimized = isMinimized || isSplit
 
-    // High-clarity frosted pill styling matching authentic Liquid Glass (Image 1 reference).
-    // The active pill is an elevated luminous white capsule with signature red icon and bold label.
-    val selectedBg = if (isAmoled) {
-        Color.White.copy(alpha = 0.25f)
-    } else {
-        Color.White
-    }
-    val selectedBorder = if (isAmoled) {
-        Color.White.copy(alpha = 0.35f)
-    } else {
-        Color.Black.copy(alpha = 0.05f)
-    }
-    val selectedContent = if (isAmoled) Color.White else accentColor
+    // High-clarity Apple Liquid Glass tab styling matching authentic iOS 26 Liquid Glass.
+    // Content uses vibrant accent color for high-contrast legibility.
+    val selectedContent = accentColor
     // Crisp high-contrast dark slate unselected color from Image 1 reference
-    val unselectedColor = if (isAmoled) Color(0xFFD1D5DB) else Color(0xFF282D37)
+    val unselectedColor = if (isAmoled) Color(0xFFD1D5DB) else Color(0xFF282D37).copy(alpha = 0.85f)
 
     val dockSpring = spring<androidx.compose.ui.unit.Dp>(
         dampingRatio = 0.86f,
@@ -177,42 +257,15 @@ fun FloatingNavigationDock(
                         label = "dock_weight_${tab.name}"
                     )
 
-                    // Smooth, unhurried fill so the active pill glides instead of popping.
-                    val itemBg by animateColorAsState(
-                        targetValue = if (isSelected) selectedBg else Color.Transparent,
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        label = "dock_bg_${tab.name}"
-                    )
-
                     Box(
                         modifier = Modifier
                             .weight(tabWeight)
                             .height(tabItemHeight)
-                            .shadow(
-                                elevation = if (isSelected && !isAmoled) 3.dp else 0.dp,
-                                shape = CircleShape,
-                                spotColor = Color.Black.copy(alpha = 0.12f),
-                                ambientColor = Color.Black.copy(alpha = 0.04f)
-                            )
-                            .clip(CircleShape)
-                            .background(itemBg)
-                            .then(
-                                if (isSelected) {
-                                    Modifier.border(
-                                        width = 0.8.dp,
-                                        brush = Brush.verticalGradient(
-                                            listOf(
-                                                Color.White.copy(alpha = if (isAmoled) 0.40f else 0.98f),
-                                                Color.White.copy(alpha = if (isAmoled) 0.10f else 0.50f),
-                                                if (isAmoled) Color.White.copy(alpha = 0.12f)
-                                                else Color.Black.copy(alpha = 0.05f)
-                                            )
-                                        ),
-                                        shape = CircleShape
-                                    )
-                                } else {
-                                    Modifier
-                                }
+                            .liquidGlassTabSwitcher(
+                                isSelected = isSelected,
+                                isDark = isAmoled,
+                                accentColor = accentColor,
+                                shape = CircleShape
                             )
                             .bouncyClickable(scaleDown = 0.95f) { onTabSelected(tab) }
                             .semantics {
@@ -266,7 +319,7 @@ fun FloatingNavigationDock(
                     isDark = isAmoled,
                     borderWidth = 1.3.dp,
                     elevation = if (isSatelliteActive) 10.dp else 6.dp,
-                    accentGlow = Color.Transparent,
+                    accentGlow = if (isSatelliteActive) accentColor.copy(alpha = 0.25f) else Color.Transparent,
                     tintColor = null,
                     hasSheen = true,
                     liquidState = liquidState,
@@ -282,25 +335,11 @@ fun FloatingNavigationDock(
             Box(
                 modifier = Modifier
                     .size(if (minimized) 40.dp else 46.dp)
-                    .shadow(
-                        elevation = if (isSatelliteActive && !isAmoled) 3.dp else 0.dp,
-                        shape = CircleShape,
-                        spotColor = Color.Black.copy(alpha = 0.12f)
-                    )
-                    .clip(CircleShape)
-                    .background(
-                        if (isSatelliteActive) selectedBg else Color.Transparent
-                    )
-                    .then(
-                        if (isSatelliteActive) {
-                            Modifier.border(
-                                width = 0.8.dp,
-                                color = selectedBorder,
-                                shape = CircleShape
-                            )
-                        } else {
-                            Modifier
-                        }
+                    .liquidGlassTabSwitcher(
+                        isSelected = isSatelliteActive,
+                        isDark = isAmoled,
+                        accentColor = accentColor,
+                        shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {

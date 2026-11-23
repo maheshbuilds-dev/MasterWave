@@ -13,8 +13,8 @@ android {
         applicationId = "com.masterwave.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 30
-        versionName = "2.2.9"
+        versionCode = 31
+        versionName = "2.2.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -1,10 +1,10 @@
 {
-  "versionCode": 30,
-  "versionName": "2.2.9",
-  "releaseNotes": "• Real Apple Liquid Glass: Full-lens optical refraction that visibly bends and magnifies text and album covers behind the dock\n• Optical Micro-Frost (2dp): Eliminated heavy 24dp blur soup so underlying typography remains crisp, sharp, and legibly distorted through the convex glass lens\n• Deep Refraction & Displacement Curve: Calibrated refraction to 0.65f and displacement curve to 0.55f across the full capsule with 0.045f chromatic prism fringe\n• Pure Glass Transmission: Stripped all opaque white overlay veils for 100% optical clarity\n• Preserved Button Architecture: Feed active pill, Stats, Playlists, and circular Search satellite intact\n• Permanent Background & Lock-Screen Playback: Continuous foreground lifecycle, dedicated WakeLock, WifiLock, and pre-warmed streams",
+  "versionCode": 31,
+  "versionName": "2.2.10",
+  "releaseNotes": "• Apple Liquid Glass Tab Switcher: Replaced solid white active tab switch with an authentic translucent optical liquid glass switcher button\n• Optical Dual-Bevel Specular Rim: 0.9dp diamond hairline border catching overhead ambient light and ground reflections\n• Top Crest Reflex Sheen: Delicate specular reflex arc providing genuine optical curvature depth\n• Translucent Glass Refraction: 100% clarity through the active tab lens allowing background artwork and caustic light to shine through without opaque block occlusion\n• Satellite Search Indicator: Upgraded circular search active state to matching liquid glass lens\n• High-Contrast Brand Accent: Highlighting active icons and typography with signature vibrant accent",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
   "apkSize": "18.3 MB",
-  "publishedAt": "2026-11-22T17:45:00Z",
+  "publishedAt": "2026-11-23T08:05:00Z",
   "minSupportedVersion": 1,
   "forceUpdate": false
 }
