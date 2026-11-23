@@ -255,17 +255,16 @@ fun AppearanceScreen(
                     ) {
                         val presets = listOf(
                             ThemeAccentPreset.APPLE_MUSIC to Color(0xFFFA2D48),
-                            ThemeAccentPreset.OCEAN to Color(0xFF00D4B2),
+                            ThemeAccentPreset.OCEAN to Color(0xFF0091FF),
                             ThemeAccentPreset.BERRY to Color(0xFF8B5CF6),
                             ThemeAccentPreset.FOREST to Color(0xFF10B981),
-                            ThemeAccentPreset.SUNSET to Color(0xFFF59E0B),
-                            ThemeAccentPreset.MONOCHROME to Color(0xFFE2E8F0)
+                            ThemeAccentPreset.SUNSET to Color(0xFFFF6B4A)
                         )
                         presets.forEach { (preset, color) ->
                             val isSelected = activeAccentPreset == preset && !dynamicColorEnabled
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(42.dp)
                                     .clip(CircleShape)
                                     .background(color)
                                     .border(
@@ -284,8 +283,8 @@ fun AppearanceScreen(
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
-                                        tint = if (color == Color(0xFFE2E8F0)) Color.Black else Color.White,
-                                        modifier = Modifier.size(18.dp)
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }

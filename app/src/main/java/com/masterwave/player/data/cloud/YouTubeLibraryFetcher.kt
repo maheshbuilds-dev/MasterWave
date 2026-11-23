@@ -369,6 +369,25 @@ class YouTubeLibraryFetcher(
             }
         }
 
+        // Fast progressive emit: if initial strategies yielded songs, add them immediately so user sees tracks right away
+        if (tracks.isNotEmpty()) {
+            val earlyResult = tracks.distinctBy { it.id }.map { it.copy(isFavorite = true) }
+            val today = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
+            val ytLikedPlaylist = Playlist(
+                id = "yt_liked_songs",
+                title = "YouTube Liked",
+                description = "Your favorite tracks from YouTube Music",
+                trackCount = earlyResult.size,
+                tracks = earlyResult,
+                artworkUrl = earlyResult.firstOrNull()?.artworkUrl,
+                source = "YouTube Music",
+                isPinned = true,
+                createdAt = today
+            )
+            repository.addCustomPlaylist(ytLikedPlaylist)
+            repository.addAllToFavorites(earlyResult)
+        }
+
         // Paginate continuations up to 3 pages for fast responsive sync (~100-150 most recent liked tracks in ~1s)
         var page = 0
         var currentToken = continuationToken
@@ -518,86 +537,96 @@ class YouTubeLibraryFetcher(
      */
     suspend fun fetchRealUserPlaylists(cookies: String): List<Playlist> = withContext(Dispatchers.IO) {
         val discoveredPlaylists = mutableListOf<PlaylistSummary>()
-        val browseIds = listOf("FEmusic_liked_playlists", "FEmusic_library_landing")
-
-        for (browseId in browseIds) {
-            try {
-                val payload = JSONObject().apply {
-                    put("context", buildClientContext())
-                    put("browseId", browseId)
-                }
-
-                val request = buildInnerTubeRequest(
-                    url = "https://music.youtube.com/youtubei/v1/browse?key=${getEffectiveApiKey()}&prettyPrint=false",
-                    payloadJson = payload,
-                    cookies = cookies
-                )
-
-                val response = okHttpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: ""
-                    parsePlaylistsFromInnerTube(body, discoveredPlaylists)
-
-                    // Check continuation for library playlists
-                    var token = extractContinuationToken(body)
-                    var page = 0
-                    while (!token.isNullOrBlank() && page < 5) {
-                        try {
-                            val contUrl = "https://music.youtube.com/youtubei/v1/browse?continuation=$token&key=${getEffectiveApiKey()}&prettyPrint=false"
-                            val contReq = buildInnerTubeRequest(contUrl, JSONObject().apply { put("context", buildClientContext()) }, cookies)
-                            val contResp = okHttpClient.newCall(contReq).execute()
-                            if (contResp.isSuccessful) {
-                                val contBody = contResp.body?.string() ?: ""
-                                parsePlaylistsFromInnerTube(contBody, discoveredPlaylists)
-                                val next = extractContinuationToken(contBody)
-                                if (next == token) break
-                                token = next
-                            } else break
-                        } catch (_: Exception) { break }
-                        page++
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error browsing $browseId", e)
-            }
-
-            if (discoveredPlaylists.isNotEmpty()) break
-        }
-
-        // 1. Fetch real Liked Songs
-        val likedTracks = fetchRealLikedSongs(cookies)
-        val today = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
         val importedPlaylists = mutableListOf<Playlist>()
-
-        if (likedTracks.isNotEmpty()) {
-            val ytLikedPlaylist = Playlist(
-                id = "yt_liked_songs",
-                title = "YouTube Liked",
-                description = "Your favorite tracks from YouTube Music",
-                trackCount = likedTracks.size,
-                tracks = likedTracks,
-                artworkUrl = likedTracks.firstOrNull()?.artworkUrl,
-                source = "YouTube Music",
-                isPinned = true,
-                createdAt = today
-            )
-            importedPlaylists.add(ytLikedPlaylist)
-            repository.addCustomPlaylist(ytLikedPlaylist)
-            repository.addAllToFavorites(likedTracks)
-        }
-
-        // 2. Concurrently import tracks for discovered playlists with Semaphore(2) and pacing jitter
-        val uniqueSummaries = discoveredPlaylists.distinctBy { it.id }
-        val concurrencyLimit = Semaphore(2)
+        val today = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
 
         coroutineScope {
+            // Concurrent execution: fetch Liked Songs and discover library playlists simultaneously!
+            val likedJob = async(Dispatchers.IO) {
+                try {
+                    fetchRealLikedSongs(cookies)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching liked songs in auto-sync", e)
+                    emptyList()
+                }
+            }
+
+            val discoveryJob = async(Dispatchers.IO) {
+                val browseIds = listOf("FEmusic_liked_playlists", "FEmusic_library_landing")
+                for (browseId in browseIds) {
+                    try {
+                        val payload = JSONObject().apply {
+                            put("context", buildClientContext())
+                            put("browseId", browseId)
+                        }
+
+                        val request = buildInnerTubeRequest(
+                            url = "https://music.youtube.com/youtubei/v1/browse?key=${getEffectiveApiKey()}&prettyPrint=false",
+                            payloadJson = payload,
+                            cookies = cookies
+                        )
+
+                        val response = okHttpClient.newCall(request).execute()
+                        if (response.isSuccessful) {
+                            val body = response.body?.string() ?: ""
+                            parsePlaylistsFromInnerTube(body, discoveredPlaylists)
+
+                            // Check continuation for library playlists
+                            var token = extractContinuationToken(body)
+                            var page = 0
+                            while (!token.isNullOrBlank() && page < 5) {
+                                try {
+                                    val contUrl = "https://music.youtube.com/youtubei/v1/browse?continuation=$token&key=${getEffectiveApiKey()}&prettyPrint=false"
+                                    val contReq = buildInnerTubeRequest(contUrl, JSONObject().apply { put("context", buildClientContext()) }, cookies)
+                                    val contResp = okHttpClient.newCall(contReq).execute()
+                                    if (contResp.isSuccessful) {
+                                        val contBody = contResp.body?.string() ?: ""
+                                        parsePlaylistsFromInnerTube(contBody, discoveredPlaylists)
+                                        val next = extractContinuationToken(contBody)
+                                        if (next == token) break
+                                        token = next
+                                    } else break
+                                } catch (_: Exception) { break }
+                                page++
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error browsing $browseId", e)
+                    }
+
+                    if (discoveredPlaylists.isNotEmpty()) break
+                }
+                discoveredPlaylists.distinctBy { it.id }
+            }
+
+            val likedTracks = likedJob.await()
+            if (likedTracks.isNotEmpty()) {
+                val ytLikedPlaylist = Playlist(
+                    id = "yt_liked_songs",
+                    title = "YouTube Liked",
+                    description = "Your favorite tracks from YouTube Music",
+                    trackCount = likedTracks.size,
+                    tracks = likedTracks,
+                    artworkUrl = likedTracks.firstOrNull()?.artworkUrl,
+                    source = "YouTube Music",
+                    isPinned = true,
+                    createdAt = today
+                )
+                importedPlaylists.add(ytLikedPlaylist)
+                repository.addCustomPlaylist(ytLikedPlaylist)
+                repository.addAllToFavorites(likedTracks)
+            }
+
+            val uniqueSummaries = discoveryJob.await()
+            // High-throughput parallel import: 5 concurrent workers, zero artificial delay
+            val concurrencyLimit = Semaphore(5)
+
             val deferreds = uniqueSummaries.map { summary ->
                 async(Dispatchers.IO) {
                     concurrencyLimit.withPermit {
                         try {
-                            delay(kotlin.random.Random.nextLong(100L, 250L))
                             val tracks = fetchPlaylistTracks(summary.id, cookies)
-                            Playlist(
+                            val pl = Playlist(
                                 id = "yt_${summary.id}",
                                 title = summary.title,
                                 description = "Synced from YouTube Music",
@@ -608,6 +637,9 @@ class YouTubeLibraryFetcher(
                                 isPinned = false,
                                 createdAt = today
                             )
+                            // Progressive emit: immediately visible in UI!
+                            repository.addCustomPlaylist(pl)
+                            pl
                         } catch (e: Exception) {
                             Log.e(TAG, "Error importing playlist ${summary.id}", e)
                             null
@@ -617,7 +649,6 @@ class YouTubeLibraryFetcher(
             }
             val loaded = deferreds.awaitAll().filterNotNull()
             importedPlaylists.addAll(loaded)
-            repository.addCustomPlaylists(loaded)
         }
 
         importedPlaylists

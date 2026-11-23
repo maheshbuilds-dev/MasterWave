@@ -78,12 +78,21 @@ class CloudAccountManager(
 
     init {
         // Auto-sync library in background if already signed in
-        val savedCookies = _ytCookies.value
-        if (!savedCookies.isNullOrBlank()) {
+        triggerAutoSync()
+    }
+
+    /**
+     * Fast, resilient background auto-sync triggered on app launch or cloud link.
+     */
+    fun triggerAutoSync() {
+        val savedYtCookies = _ytCookies.value
+        if (!savedYtCookies.isNullOrBlank()) {
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    ytFetcher.fetchRealUserPlaylists(savedCookies)
-                } catch (_: Exception) {}
+                    ytFetcher.fetchRealUserPlaylists(savedYtCookies)
+                } catch (e: Exception) {
+                    android.util.Log.e("CloudAccountManager", "Error during YouTube auto-sync", e)
+                }
             }
         }
 
@@ -92,7 +101,9 @@ class CloudAccountManager(
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                 try {
                     spotifyFetcher.fetchRealUserLibrary(savedSpotifyCookies)
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    android.util.Log.e("CloudAccountManager", "Error during Spotify auto-sync", e)
+                }
             }
         }
     }

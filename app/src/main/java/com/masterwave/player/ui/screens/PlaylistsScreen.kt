@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PushPin
@@ -404,13 +405,25 @@ fun PlaylistsScreen(
 
                 SmartCollectionCard(
                     title = "Local Audio",
-                    subtitle = "${downloadedTracks.size + localTracks.size} offline",
-                    icon = Icons.Default.Download,
+                    subtitle = "${localTracks.size} ${if (localTracks.size == 1) "song" else "songs"}",
+                    icon = Icons.Default.Folder,
                     tint = brandCyan,
                     background = cardBg,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
-                    onClick = onNavigateToDownloads,
+                    onClick = {
+                        val localPlaylist = Playlist(
+                            id = "local_device_audio",
+                            title = "Local Audio",
+                            description = "Audio files stored on this device",
+                            trackCount = localTracks.size,
+                            tracks = localTracks,
+                            artworkUrl = localTracks.firstOrNull { !it.artworkUrl.isNullOrBlank() }?.artworkUrl,
+                            source = "On Device",
+                            isPinned = true
+                        )
+                        onPlaylistSelected(localPlaylist)
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(16.dp))

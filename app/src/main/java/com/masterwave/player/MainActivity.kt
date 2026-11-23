@@ -66,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
+import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.model.Album
 import com.masterwave.player.data.model.Playlist
@@ -217,6 +218,7 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     LaunchedEffect(Unit) {
         repository.loadLocalTracks()
         MusicDownloadManager.getInstance(context, repository.okHttpClient, repository).scanDownloadedFiles()
+        CloudAccountManager.getInstance(context, repository).triggerAutoSync()
     }
 
     if (playbackService == null) {

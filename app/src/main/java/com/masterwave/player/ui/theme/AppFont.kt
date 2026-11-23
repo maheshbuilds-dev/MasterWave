@@ -23,21 +23,33 @@ enum class AppFont(
     val id: String,
     val displayName: String,
     val previewSubtitle: String,
-    val sampleText: String = "Fear is the enemy of innovation."
+    val sampleText: String = "Music sounds better with you."
 ) {
     FUCEK(
         id = "FUCEK",
-        displayName = "Fucek",
+        displayName = "Fucek (Default)",
         previewSubtitle = "Default Typography • Geometric Android Display",
-        sampleText = "Fear is the enemy of innovation."
+        sampleText = "Music sounds better with you."
+    ),
+    SYSTEM_DEFAULT(
+        id = "SYSTEM_DEFAULT",
+        displayName = "System Default",
+        previewSubtitle = "Native Device Font • Matches Phone Settings",
+        sampleText = "Music sounds better with you."
     );
 
     companion object {
         val DEFAULT = FUCEK
         val FUECK = FUCEK
 
-        fun fromId(id: String?): AppFont = FUCEK
+        fun fromId(id: String?): AppFont = when (id) {
+            "SYSTEM_DEFAULT", "SYSTEM", "DEFAULT" -> SYSTEM_DEFAULT
+            else -> FUCEK
+        }
     }
 }
 
-fun AppFont.toFontFamily(): FontFamily = FontFucekFamily
+fun AppFont.toFontFamily(): FontFamily = when (this) {
+    AppFont.FUCEK -> FontFucekFamily
+    AppFont.SYSTEM_DEFAULT -> FontFamily.Default
+}

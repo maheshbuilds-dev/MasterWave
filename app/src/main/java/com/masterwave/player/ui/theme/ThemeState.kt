@@ -25,7 +25,7 @@ internal fun themeModeFromPreference(saved: String?): ThemeMode = when (saved) {
     "DARK" -> ThemeMode.DARK
     "LIGHT" -> ThemeMode.LIGHT
     "SYSTEM" -> ThemeMode.SYSTEM
-    else -> ThemeMode.LIGHT
+    else -> ThemeMode.AMOLED
 }
 
 internal fun isDarkThemeMode(mode: ThemeMode, systemInDark: Boolean): Boolean = when (mode) {
@@ -53,34 +53,28 @@ enum class ThemeAccentPreset(
         secondaryColor = Color(0xFFFF6482)
     ),
     OCEAN(
-        title = "Ocean",
-        subtitle = "Pacific deep blue & marine teal",
-        primaryColor = Color(0xFF0EA5E9),
-        secondaryColor = Color(0xFF14B8A6)
+        title = "Cyber Cyan",
+        subtitle = "Electric blue & bright marine cyan",
+        primaryColor = Color(0xFF0091FF),
+        secondaryColor = Color(0xFF00D4B2)
     ),
     BERRY(
-        title = "Berry",
-        subtitle = "Muted velvet rose & deep burgundy",
-        primaryColor = Color(0xFFE11D48),
-        secondaryColor = Color(0xFFBE123C)
+        title = "Electric Violet",
+        subtitle = "High-contrast neon violet & purple",
+        primaryColor = Color(0xFF8B5CF6),
+        secondaryColor = Color(0xFFA855F7)
     ),
     FOREST(
-        title = "Sage Forest",
-        subtitle = "Natural sage emerald & calm woodland green",
-        primaryColor = Color(0xFF236B43),
-        secondaryColor = Color(0xFF388E5E)
+        title = "Cyber Emerald",
+        subtitle = "Vivid futuristic mint & emerald",
+        primaryColor = Color(0xFF10B981),
+        secondaryColor = Color(0xFF00E599)
     ),
     SUNSET(
-        title = "Sunset",
+        title = "Sunset Coral",
         subtitle = "Warm amber glow & dusk coral",
-        primaryColor = Color(0xFFF59E0B),
-        secondaryColor = Color(0xFFF97316)
-    ),
-    MONOCHROME(
-        title = "Monochrome",
-        subtitle = "Pure minimalist white, silver & slate",
-        primaryColor = Color(0xFFFFFFFF),
-        secondaryColor = Color(0xFF94A3B8)
+        primaryColor = Color(0xFFFF6B4A),
+        secondaryColor = Color(0xFFF59E0B)
     )
 }
 
@@ -102,12 +96,10 @@ object ThemeState {
 
     val Presets = listOf(
         Color(0xFFFA2D48) to "Apple Music Red",
-        Color(0xFF00D4B2) to "MasterWave Turquoise",
-        Color(0xFF0EA5E9) to "Ocean Blue",
-        Color(0xFFE11D48) to "Velvet Berry",
-        Color(0xFF10B981) to "Emerald Forest",
-        Color(0xFFF59E0B) to "Sunset Amber",
-        Color(0xFFFFFFFF) to "Monochrome White"
+        Color(0xFF0091FF) to "Cyber Cyan",
+        Color(0xFF8B5CF6) to "Electric Violet",
+        Color(0xFF10B981) to "Cyber Emerald",
+        Color(0xFFFF6B4A) to "Sunset Coral"
     )
 
     private val _themeMode = MutableStateFlow(
@@ -242,8 +234,8 @@ object ThemeState {
     }
 
     fun setSelectedFont(font: AppFont) {
-        _selectedFont.value = AppFont.FUCEK
-        prefs.edit().putString(KEY_APP_FONT, AppFont.FUCEK.id).apply()
+        _selectedFont.value = font
+        prefs.edit().putString(KEY_APP_FONT, font.id).apply()
     }
 
     fun setAnimatedAlbumArtEnabled(enabled: Boolean) {

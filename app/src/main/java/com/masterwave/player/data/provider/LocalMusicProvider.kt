@@ -47,6 +47,9 @@ class LocalMusicProvider(private val context: Context) {
                 val albumIdCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                 val dataCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
+                val seenPaths = HashSet<String>()
+                val seenSignatures = HashSet<String>()
+
                 while (it.moveToNext()) {
                     val id = it.getLong(idCol)
                     val title = it.getString(titleCol) ?: "Unknown"
@@ -55,6 +58,25 @@ class LocalMusicProvider(private val context: Context) {
                     val durationMs = it.getLong(durationCol)
                     val albumId = it.getLong(albumIdCol)
                     val filePath = it.getString(dataCol)
+
+                    // 1. Ghost file verification: must actually exist as a physical file on storage
+                    if (filePath.isNullOrBlank()) continue
+                    val file = File(filePath)
+                    if (!file.exists() || !file.isFile || file.length() <= 0L) continue
+
+                    // 2. Filter out non-music audio, short ringtones & notification sounds (<10s or <100KB)
+                    if (durationMs < 10_000L || file.length() < 100 * 1024L) continue
+
+                    // 3. Deduplication by canonical storage path
+                    val canonicalPath = runCatching { file.canonicalPath.lowercase() }.getOrDefault(filePath.lowercase())
+                    if (!seenPaths.add(canonicalPath)) continue
+
+                    // 4. Deduplication by track acoustic signature (normalized title + artist + duration in seconds)
+                    val cleanTitle = title.trim().lowercase()
+                    val cleanArtist = artist.trim().lowercase()
+                    val durationSec = durationMs / 1000L
+                    val signature = "${cleanTitle}_${cleanArtist}_$durationSec"
+                    if (!seenSignatures.add(signature)) continue
 
                     val contentUri = ContentUris.withAppendedId(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
