@@ -216,6 +216,10 @@ class MasterWavePlayer(
 
     private var isFadingOut = false
     private var trackRetryCount = 0
+    private var isPreparingTrack = false
+    private var consecutiveErrorCount = 0
+    private var lastAdvanceTimeMs = 0L
+    private var playJob: Job? = null
 
     private val _isSpeedPitchLinked = MutableStateFlow(true)
     val isSpeedPitchLinked: StateFlow<Boolean> = _isSpeedPitchLinked.asStateFlow()
@@ -255,12 +259,19 @@ class MasterWavePlayer(
                 }
                 Player.STATE_READY -> {
                     _isLoading.value = false
+                    isPreparingTrack = false
+                    consecutiveErrorCount = 0
                     _durationMs.value = exoPlayer.duration.coerceAtLeast(0L)
                 }
                 Player.STATE_ENDED -> {
                     _isLoading.value = false
-                    _currentTrack.value?.let { repository.recommendationManager.eventTracker.onTrackEndedNaturally(it) }
-                    playNext()
+                    val duration = exoPlayer.duration
+                    val curPos = exoPlayer.currentPosition
+                    // Only advance if playback actually reached the genuine end of a track!
+                    if (!isPreparingTrack && duration > 5000L && curPos >= (duration - 2500L)) {
+                        _currentTrack.value?.let { repository.recommendationManager.eventTracker.onTrackEndedNaturally(it) }
+                        playNext(isUserInitiated = false)
+                    }
                 }
                 Player.STATE_IDLE -> {
                     _isLoading.value = false
@@ -271,13 +282,21 @@ class MasterWavePlayer(
         override fun onPlayerError(error: PlaybackException) {
             _isLoading.value = false
             _isPlaying.value = false
+            isPreparingTrack = false
             error.printStackTrace()
 
+            consecutiveErrorCount++
+            if (consecutiveErrorCount >= 3) {
+                consecutiveErrorCount = 0
+                _playbackError.value = "Playback stopped: tracks unavailable"
+                return
+            }
+
             val curTrack = _currentTrack.value
-            if (curTrack != null && trackRetryCount < 2) {
+            if (curTrack != null && trackRetryCount < 1) {
                 trackRetryCount++
                 scope.launch {
-                    delay(800L * trackRetryCount) // Exponential backoff with delay
+                    delay(1000L)
                     try {
                         val refreshedUrl = repository.resolveStreamUrl(curTrack)
                         if (!refreshedUrl.isNullOrBlank()) {
@@ -301,19 +320,13 @@ class MasterWavePlayer(
                             return@launch
                         }
                     } catch (_: Exception) {}
-                    // If retry fails:
-                    _playbackError.value = "Playback error: ${curTrack.title}. Skipping..."
-                    delay(1200L)
-                    _playbackError.value = null
-                    playNext()
+                    playNext(isUserInitiated = false)
                 }
-            } else if (curTrack != null) {
+            } else {
                 trackRetryCount = 0
-                _playbackError.value = "Track unavailable: ${curTrack.title}"
                 scope.launch {
                     delay(1200L)
-                    _playbackError.value = null
-                    playNext()
+                    playNext(isUserInitiated = false)
                 }
             }
         }
@@ -333,10 +346,10 @@ class MasterWavePlayer(
                     _durationMs.value = curDuration
                     repository.recommendationManager.eventTracker.onProgressUpdate(curPos, curDuration)
 
-                    // Crossfade & Automix auto-transition near genuine end of track
+                    // Crossfade volume fade out near end of track (STATE_ENDED will advance the track naturally)
                     val fadeSec = if (_crossfadeSeconds.value > 0) _crossfadeSeconds.value else if (_automixEnabled.value) 4 else 0
                     val fadeMs = fadeSec * 1000L
-                    if (fadeMs > 0 && curDuration > (fadeMs + 10_000L) && curPos > 10_000L && (curDuration - curPos) <= fadeMs && !isFadingOut && !isAdvancing) {
+                    if (fadeMs > 0 && curDuration > (fadeMs + 10_000L) && curPos > 10_000L && (curDuration - curPos) <= fadeMs && !isFadingOut) {
                         isFadingOut = true
                         launch {
                             try {
@@ -347,9 +360,6 @@ class MasterWavePlayer(
                                     delay(stepTime)
                                 }
                             } catch (_: Exception) {}
-                            playNext()
-                            isFadingOut = false
-                            exoPlayer.volume = _volume.value
                         }
                     }
                 }
@@ -388,8 +398,14 @@ class MasterWavePlayer(
         trackRetryCount = 0
         isAdvancing = false
         isFadingOut = false
+        isPreparingTrack = true
+        exoPlayer.stop()
         exoPlayer.volume = _volume.value
-        scope.launch {
+        _positionMs.value = startPositionMs.coerceAtLeast(0L)
+        _durationMs.value = 0L
+
+        playJob?.cancel()
+        playJob = scope.launch {
             _isLoading.value = true
             _currentTrack.value = track
             _queue.value = newQueue
@@ -421,7 +437,6 @@ class MasterWavePlayer(
                     .setMediaMetadata(mediaMetadata)
                     .build()
 
-                exoPlayer.clearMediaItems()
                 exoPlayer.setMediaItem(mediaItem, startPositionMs.coerceAtLeast(0L))
                 exoPlayer.prepare()
                 if (autoPlay) exoPlayer.play() else exoPlayer.pause()
@@ -450,9 +465,15 @@ class MasterWavePlayer(
             } catch (e: Exception) {
                 e.printStackTrace()
                 _isLoading.value = false
-                // Auto-advance to next track on failure so playback never dies silently
+                isPreparingTrack = false
+                consecutiveErrorCount++
+                if (consecutiveErrorCount >= 3) {
+                    consecutiveErrorCount = 0
+                    _playbackError.value = "Playback stopped: tracks unavailable"
+                    return@launch
+                }
                 delay(1200L)
-                playNext()
+                playNext(isUserInitiated = false)
             }
         }
     }
@@ -564,9 +585,15 @@ class MasterWavePlayer(
 
     private val aiRecommender = com.masterwave.player.data.recommendation.AiMusicRecommender()
 
-    fun playNext() {
+    fun playNext(isUserInitiated: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!isUserInitiated && now - lastAdvanceTimeMs < 1200L) {
+            return
+        }
         if (isAdvancing) return
         isAdvancing = true
+        lastAdvanceTimeMs = now
+
         val q = _queue.value
         val cur = _currentTrack.value
         cur?.let { repository.recommendationManager.eventTracker.onTrackSkipped(it) }
@@ -625,7 +652,7 @@ class MasterWavePlayer(
         }
     }
 
-    fun skipToNext() = playNext()
+    fun skipToNext() = playNext(isUserInitiated = true)
 
     fun playPrevious() {
         val cur = _currentTrack.value
