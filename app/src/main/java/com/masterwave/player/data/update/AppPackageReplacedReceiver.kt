@@ -20,6 +20,7 @@ class AppPackageReplacedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
             Log.i(TAG, "MasterWave update completed! Cleaning old APKs and relaunching latest build...")
+            com.masterwave.player.data.icon.AppIconManager.ensureValidLauncherAlias(context)
 
             // 1. Delete all old APK files from cache to free user storage
             try {

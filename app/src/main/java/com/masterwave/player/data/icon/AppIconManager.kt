@@ -23,45 +23,52 @@ enum class AppIcon(
         aliasName = "com.masterwave.player.MainActivityDefault",
         previewResId = R.drawable.ic_app_icon_default
     ),
-    IOS(
-        id = "ios",
-        title = "iOS Glass",
-        subtitle = "Glossy squircle with liquid refraction sheen",
-        aliasName = "com.masterwave.player.MainActivityIos",
-        previewResId = R.drawable.ic_app_icon_ios
+    LIQUID_GLASS(
+        id = "liquid_glass",
+        title = "Liquid Glass",
+        subtitle = "Apple transparent liquid glass refraction",
+        aliasName = "com.masterwave.player.MainActivityLiquidGlass",
+        previewResId = R.drawable.ic_app_icon_liquid_glass
     ),
-    NOTHING(
-        id = "nothing",
-        title = "Nothing Matrix",
-        subtitle = "Matte industrial with dot-matrix grid & red glyph",
-        aliasName = "com.masterwave.player.MainActivityNothing",
-        previewResId = R.drawable.ic_app_icon_nothing
+    SPOTIFY(
+        id = "spotify",
+        title = "Spotify Style",
+        subtitle = "Electric neon green on matte obsidian",
+        aliasName = "com.masterwave.player.MainActivitySpotify",
+        previewResId = R.drawable.ic_app_icon_spotify
     ),
-    MATERIAL(
-        id = "material",
-        title = "Material You",
-        subtitle = "Minimalist dual-tone adaptive aesthetic",
-        aliasName = "com.masterwave.player.MainActivityMaterial",
-        previewResId = R.drawable.ic_app_icon_material
+    MONOGRAM(
+        id = "monogram",
+        title = "Monogram",
+        subtitle = "Brushed champagne gold luxury emblem",
+        aliasName = "com.masterwave.player.MainActivityMonogram",
+        previewResId = R.drawable.ic_app_icon_monogram
     ),
-    CYBER(
-        id = "cyber",
-        title = "Cyber Neon",
-        subtitle = "Electric cyan & magenta neon synthwave glow",
-        aliasName = "com.masterwave.player.MainActivityCyber",
-        previewResId = R.drawable.ic_app_icon_cyber
+    ABSTRACT(
+        id = "abstract",
+        title = "Abstract",
+        subtitle = "Cosmic iridescent wave frequency",
+        aliasName = "com.masterwave.player.MainActivityAbstract",
+        previewResId = R.drawable.ic_app_icon_abstract
     ),
-    GOLD(
-        id = "gold",
-        title = "Obsidian Gold",
-        subtitle = "Luxury champagne gold on polished black ceramic",
-        aliasName = "com.masterwave.player.MainActivityGold",
-        previewResId = R.drawable.ic_app_icon_gold
+    APPLE_MUSIC(
+        id = "apple_music",
+        title = "Apple Music",
+        subtitle = "Crisp white glyph on radiant rose gradient",
+        aliasName = "com.masterwave.player.MainActivityAppleMusic",
+        previewResId = R.drawable.ic_app_icon_apple_music
     );
 
     companion object {
         fun fromId(id: String?): AppIcon {
-            return values().firstOrNull { it.id.equals(id, ignoreCase = true) } ?: DEFAULT
+            return when (id?.lowercase()) {
+                "liquid_glass", "ios" -> LIQUID_GLASS
+                "spotify" -> SPOTIFY
+                "monogram", "gold" -> MONOGRAM
+                "abstract", "cyber" -> ABSTRACT
+                "apple_music" -> APPLE_MUSIC
+                else -> values().firstOrNull { it.id.equals(id, ignoreCase = true) } ?: DEFAULT
+            }
         }
     }
 }
@@ -115,6 +122,41 @@ object AppIconManager {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    /**
+     * Ensures that at least one valid launcher alias is enabled on the device.
+     * Prevents cases where an update or prior state left launcher components disabled.
+     */
+    fun ensureValidLauncherAlias(context: Context) {
+        try {
+            val pm = context.packageManager
+            val pkg = context.packageName
+            val savedId = prefs.getString(KEY_SELECTED_ICON, AppIcon.DEFAULT.id)
+            val current = AppIcon.fromId(savedId)
+
+            val currentComp = ComponentName(pkg, current.aliasName)
+            val state = pm.getComponentEnabledSetting(currentComp)
+            if (state != PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                pm.setComponentEnabledSetting(
+                    currentComp,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+            }
+
+            // If current is Default, guarantee Default is enabled
+            if (current == AppIcon.DEFAULT) {
+                val defaultComp = ComponentName(pkg, AppIcon.DEFAULT.aliasName)
+                pm.setComponentEnabledSetting(
+                    defaultComp,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

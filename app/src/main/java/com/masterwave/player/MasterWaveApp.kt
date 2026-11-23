@@ -63,6 +63,7 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        com.masterwave.player.data.icon.AppIconManager.ensureValidLauncherAlias(this)
         createNotificationChannels()
         // Automated cache clean engine (every 1 hour)
         com.masterwave.player.data.cache.CacheCleanManager.getInstance(this).startAutoCleanup()

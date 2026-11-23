@@ -459,94 +459,173 @@ fun AppearanceScreen(
 
         item {
             AppearanceCardSection(title = "App Icon", textSecondary = textSecondary) {
+                val currentAppIcon by AppIconManager.currentIcon.collectAsState()
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    val currentAppIcon by AppIconManager.currentIcon.collectAsState()
-                    AppIcon.values().forEachIndexed { index, appIcon ->
-                        val isSelected = currentAppIcon == appIcon
+                    val iconRows = AppIcon.values().toList().chunked(3)
+                    iconRows.forEach { rowIcons ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bouncyClickable(scaleDown = 0.98f) {
-                                    val success = AppIconManager.setAppIcon(context, appIcon)
-                                    if (success) {
-                                        Toast.makeText(context, "App Icon: ${appIcon.title} applied", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Image(
-                                painter = painterResource(id = appIcon.previewResId),
-                                contentDescription = appIcon.title,
-                                modifier = Modifier
-                                    .size(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) effectiveAccent else Color.White.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                            )
+                            rowIcons.forEach { appIcon ->
+                                val isSelected = currentAppIcon == appIcon
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            if (isSelected) effectiveAccent.copy(alpha = 0.14f)
+                                            else Color.White.copy(alpha = 0.04f)
+                                        )
+                                        .border(
+                                            width = if (isSelected) 2.dp else 1.dp,
+                                            color = if (isSelected) effectiveAccent else Color.White.copy(alpha = 0.08f),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        .bouncyClickable(scaleDown = 0.95f) {
+                                            val success = AppIconManager.setAppIcon(context, appIcon)
+                                            if (success) {
+                                                Toast.makeText(context, "App Icon: ${appIcon.title} applied", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                        .padding(vertical = 12.dp, horizontal = 6.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(56.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Image(
+                                            painter = painterResource(id = appIcon.previewResId),
+                                            contentDescription = appIcon.title,
+                                            modifier = Modifier
+                                                .size(52.dp)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .border(
+                                                    width = if (isSelected) 1.5.dp else 0.5.dp,
+                                                    color = if (isSelected) effectiveAccent else Color.White.copy(alpha = 0.2f),
+                                                    shape = RoundedCornerShape(14.dp)
+                                                )
+                                        )
 
-                            Spacer(modifier = Modifier.width(14.dp))
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(20.dp)
+                                                    .clip(CircleShape)
+                                                    .background(effectiveAccent),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = "Selected",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                    }
 
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+
                                     Text(
                                         text = appIcon.title,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
                                         color = if (isSelected) effectiveAccent else textPrimary
                                     )
-                                    if (appIcon == AppIcon.DEFAULT) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(effectiveAccent.copy(alpha = 0.16f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "DEFAULT",
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 9.sp,
-                                                color = effectiveAccent
+
+                                    Spacer(modifier = Modifier.height(3.dp))
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(
+                                                if (appIcon == AppIcon.DEFAULT) effectiveAccent.copy(alpha = 0.16f)
+                                                else Color.White.copy(alpha = 0.08f)
                                             )
-                                        }
+                                            .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                                    ) {
+                                        Text(
+                                            text = if (appIcon == AppIcon.DEFAULT) "DEFAULT" else "STYLE",
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 8.5.sp,
+                                            color = if (appIcon == AppIcon.DEFAULT) effectiveAccent else textSecondary
+                                        )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = appIcon.subtitle,
-                                    fontSize = 12.sp,
-                                    color = textSecondary
-                                )
                             }
-
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(26.dp)
-                                        .clip(CircleShape)
-                                        .background(effectiveAccent),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                            repeat(3 - rowIcons.size) {
+                                Spacer(modifier = Modifier.weight(1f))
                             }
                         }
+                    }
 
-                        if (index < AppIcon.values().size - 1) {
-                            AppearanceDivider(dividerColor)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AppearanceDivider(dividerColor)
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Active Selection Details
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Active Icon: ",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = textSecondary
+                            )
+                            Text(
+                                text = currentAppIcon.title,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = effectiveAccent
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = currentAppIcon.subtitle,
+                            fontSize = 11.5.sp,
+                            color = textSecondary.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Contact & Support Notice
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.03f))
+                            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "Support & Inquiries",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "For icon assistance or inquiries, email us at: masterwaveofficial@gmail.com",
+                                fontSize = 11.sp,
+                                color = textSecondary,
+                                lineHeight = 15.sp
+                            )
                         }
                     }
                 }

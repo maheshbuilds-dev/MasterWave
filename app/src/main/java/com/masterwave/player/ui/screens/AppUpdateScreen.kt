@@ -262,6 +262,69 @@ fun AppUpdateScreen(
                         )
                     }
 
+                    val progress = downloadProgress
+                    if (progress != null) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            LinearProgressIndicator(
+                                progress = { progress.coerceIn(0f, 1f) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(999.dp)),
+                                color = WebAccentGreen,
+                                trackColor = colors.hairline
+                            )
+                            Text(
+                                text = if (isInstalling || progress >= 1f) "Installing update silently in background…" else "Downloading update: ${(progress * 100).toInt()}%",
+                                fontFamily = DisplayFontFamily,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.ink
+                            )
+                        }
+                    }
+
+                    // Direct "Download & Install Latest APK" Button (High-Contrast Emerald/Green Pill)
+                    Button(
+                        onClick = {
+                            if (availableUpdate != null) {
+                                actualUpdateManager.downloadAndInstall(availableUpdate!!)
+                            } else {
+                                actualUpdateManager.downloadAndInstallLatest()
+                            }
+                        },
+                        shape = RoundedCornerShape(999.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = WebAccentGreen,
+                            contentColor = Color(0xFF101828)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = null,
+                            tint = Color(0xFF101828),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (availableUpdate != null) {
+                                "Download & Install v${availableUpdate!!.versionName}"
+                            } else {
+                                "Download & Install Latest APK"
+                            },
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF101828)
+                        )
+                    }
+
                     // Update Check Pill Button (Black button, bold white text)
                     Button(
                         onClick = { checkForUpdates() },
@@ -272,7 +335,7 @@ fun AppUpdateScreen(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .height(46.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -286,9 +349,19 @@ fun AppUpdateScreen(
                         Text(
                             text = if (isChecking) "Checking Updates..." else "Update Check",
                             fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
                             color = Color.White
+                        )
+                    }
+
+                    if (installError != null && downloadProgress == null) {
+                        Text(
+                            text = installError!!,
+                            fontFamily = DisplayFontFamily,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFB3261E)
                         )
                     }
                 }

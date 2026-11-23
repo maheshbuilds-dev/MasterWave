@@ -171,27 +171,57 @@ class AppUpdateManager(
 
     /**
      * Resolves update metadata across multi-tiered sources:
-     * 1. Direct GitHub Releases API (latest release tag, notes, and APK assets)
-     * 2. Direct GitHub Raw Repository Manifest (unmetered high-availability CDN)
-     * 3. Official Website Mirror (Vercel)
+     * 1. Official Website Mirror (Vercel) - primary release channel
+     * 2. Direct GitHub Raw Repository Manifest
+     * 3. Direct GitHub Releases API
      */
     private fun fetchUpdateMetadata(): UpdateInfo? {
-        fetchFromGitHubReleases()?.let {
-            Log.i(TAG, "Resolved update metadata from GitHub Releases API: v${it.versionName}")
-            return it
+        val candidates = mutableListOf<UpdateInfo>()
+
+        fetchFromManifestUrl(UPDATE_MANIFEST_URL)?.let {
+            Log.i(TAG, "Resolved update candidate from Vercel mirror: v${it.versionName} (code=${it.versionCode})")
+            candidates.add(it)
         }
 
         fetchFromManifestUrl(GITHUB_RAW_MANIFEST_URL)?.let {
-            Log.i(TAG, "Resolved update metadata from GitHub Raw Manifest: v${it.versionName}")
-            return it
+            Log.i(TAG, "Resolved update candidate from GitHub Raw Manifest: v${it.versionName} (code=${it.versionCode})")
+            candidates.add(it)
         }
 
-        fetchFromManifestUrl(UPDATE_MANIFEST_URL)?.let {
-            Log.i(TAG, "Resolved update metadata from Vercel mirror: v${it.versionName}")
-            return it
+        fetchFromGitHubReleases()?.let {
+            Log.i(TAG, "Resolved update candidate from GitHub Releases API: v${it.versionName} (code=${it.versionCode})")
+            candidates.add(it)
         }
 
-        return null
+        return candidates.maxWithOrNull(
+            compareBy<UpdateInfo> { it.versionCode }
+                .thenBy { it.versionName }
+        )
+    }
+
+    /**
+     * Triggers download & install of the latest available release.
+     * If metadata has not been fetched yet, resolves metadata or uses official fallbacks.
+     */
+    fun downloadAndInstallLatest(fallbackVersionName: String = "2.2.18", fallbackVersionCode: Int = 39) {
+        val currentUpdate = _availableUpdate.value
+        if (currentUpdate != null) {
+            downloadAndInstall(currentUpdate)
+        } else {
+            scope.launch {
+                val remote = fetchUpdateMetadata()
+                val target = remote ?: UpdateInfo(
+                    versionCode = fallbackVersionCode,
+                    versionName = fallbackVersionName,
+                    releaseNotes = "• 5 New Authentic App Icon Styles: Apple Liquid Glass, Spotify Style, Luxury Monogram, Cosmic Abstract, and Apple Music.\n• 3-per-row balanced icon grid in Appearance Settings.\n• High-Contrast In-App Update Engine & Launcher Recovery.",
+                    apkUrl = "https://masterwave.vercel.app/assets/MasterWave.apk",
+                    apkSize = "21 MB",
+                    publishedAt = "2026-11-23T10:45:00Z",
+                    forceUpdate = false
+                )
+                downloadAndInstall(target)
+            }
+        }
     }
 
     private fun fetchFromGitHubReleases(): UpdateInfo? {

@@ -1,10 +1,10 @@
 {
-  "versionCode": 32,
-  "versionName": "2.2.11",
-  "releaseNotes": "• Complete Legal & Privacy Compliance: COPPA 13+ digital age gate, credential input masking, FTC non-renewal disclosures, self-hosted fonts, and DMCA safe harbor\n• Apple Liquid Glass Tab Switcher: Authentic translucent optical liquid glass switcher button with dual-bevel specular rim and top reflex sheen\n• Zero Tracking & Zero Session Replay: Verified privacy architecture with zero commercial analytics\n• Audio & Playback: 32-bit float audio HAL, real-time synced lyrics, and continuous background playback",
+  "versionCode": 39,
+  "versionName": "2.2.18",
+  "releaseNotes": "• 5 New Authentic App Icon Styles: Apple Liquid Glass, Spotify Style, Luxury Monogram, Cosmic Abstract, and Apple Music.\n• 3-per-row balanced icon grid in Appearance Settings.\n• High-Contrast In-App Update Engine & Launcher Recovery.",
   "apkUrl": "https://masterwave.vercel.app/assets/MasterWave.apk",
-  "apkSize": "18.3 MB",
-  "publishedAt": "2026-11-23T10:15:00Z",
+  "apkSize": "21 MB",
+  "publishedAt": "2026-11-23T10:45:00Z",
   "minSupportedVersion": 1,
   "forceUpdate": false
 }
