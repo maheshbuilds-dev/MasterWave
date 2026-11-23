@@ -15,7 +15,7 @@ class ThemeModePreferenceTest {
 
     @Test
     fun unknownThemePreferenceUsesDefaultMode() {
-        assertEquals(ThemeMode.AMOLED, themeModeFromPreference(null))
-        assertEquals(ThemeMode.AMOLED, themeModeFromPreference("invalid"))
+        assertEquals(ThemeMode.LIGHT, themeModeFromPreference(null))
+        assertEquals(ThemeMode.LIGHT, themeModeFromPreference("invalid"))
     }
 }

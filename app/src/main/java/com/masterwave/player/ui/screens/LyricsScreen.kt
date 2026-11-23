@@ -1,10 +1,21 @@
 package com.masterwave.player.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,9 +62,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -65,8 +78,8 @@ import com.masterwave.player.data.model.LyricLine
 import com.masterwave.player.data.model.LyricsResult
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
-import com.masterwave.player.ui.components.AnimatedWaveform
 import com.masterwave.player.ui.components.bouncyClickable
+import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeState
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
@@ -577,35 +590,131 @@ fun LyricsScreen(
                     }
                 }
 
-                // Waveform scrubber
-                AnimatedWaveform(
-                    positionMs = positionMs,
-                    durationMs = safeDurationMs,
-                    isPlaying = isPlaying,
-                    waveColor = com.masterwave.player.ui.theme.MasterWaveTurquoise,
-                    onSeek = { player.seekTo(it) }
+                // --- Scrubber Seekbar with Dynamic Expansion & Pop-Out Thumb (Now Playing Style) ---
+                var isDragging by remember { mutableStateOf(false) }
+                var dragPositionMs by remember { mutableStateOf<Long?>(null) }
+                val activePosition = dragPositionMs ?: positionMs
+                val progressFraction = if (safeDurationMs > 0) (activePosition.toFloat() / safeDurationMs.toFloat()).coerceIn(0f, 1f) else 0f
+
+                val scrubberBarHeight by animateDpAsState(
+                    targetValue = if (isDragging) 8.dp else 4.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "lyrics_scrubber_height"
                 )
 
-                // Timestamps
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp)
+                        .pointerInput(safeDurationMs) {
+                            detectTapGestures { offset ->
+                                if (safeDurationMs > 0 && size.width > 0) {
+                                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                    val targetMs = (fraction * safeDurationMs).toLong()
+                                    player.seekTo(targetMs)
+                                }
+                            }
+                        }
+                        .pointerInput(safeDurationMs) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    if (safeDurationMs > 0 && size.width > 0) {
+                                        val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                        dragPositionMs = (fraction * safeDurationMs).toLong()
+                                    }
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    dragPositionMs?.let { player.seekTo(it) }
+                                    dragPositionMs = null
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                    dragPositionMs = null
+                                },
+                                onHorizontalDrag = { change, _ ->
+                                    change.consume()
+                                    if (safeDurationMs > 0 && size.width > 0) {
+                                        val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                        dragPositionMs = (fraction * safeDurationMs).toLong()
+                                    }
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    // Background track
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(scrubberBarHeight)
+                            .clip(RoundedCornerShape(scrubberBarHeight / 2))
+                            .background(Color.White.copy(alpha = 0.22f))
+                    )
+                    // Filled progress with signature white-to-accent gradient
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progressFraction)
+                            .height(scrubberBarHeight)
+                            .clip(RoundedCornerShape(scrubberBarHeight / 2))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.85f),
+                                        Color.White,
+                                        accentColor
+                                    )
+                                )
+                            )
+                    )
+
+                    // Dynamic Floating Thumb Knob when scrubbing
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = isDragging,
+                        enter = scaleIn(spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(120)),
+                        exit = scaleOut(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)),
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progressFraction.coerceIn(0.01f, 1f))
+                            .height(28.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.45f))
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .border(2.dp, accentColor, CircleShape)
+                            )
+                        }
+                    }
+                }
+
+                // Timestamps: Elapsed & Remaining with DisplayFontFamily
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = formatTime(positionMs),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        ),
-                        color = Color(0xCCFFFFFF)
+                        text = formatTime(activePosition),
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.82f)
                     )
                     Text(
-                        text = "-${formatTime(remainingMs)}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        ),
-                        color = Color(0xCCFFFFFF)
+                        text = "-${formatTime((safeDurationMs - activePosition).coerceAtLeast(0L))}",
+                        fontFamily = DisplayFontFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.82f)
                     )
                 }
 

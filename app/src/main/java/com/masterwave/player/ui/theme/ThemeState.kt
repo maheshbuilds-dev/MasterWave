@@ -25,7 +25,7 @@ internal fun themeModeFromPreference(saved: String?): ThemeMode = when (saved) {
     "DARK" -> ThemeMode.DARK
     "LIGHT" -> ThemeMode.LIGHT
     "SYSTEM" -> ThemeMode.SYSTEM
-    else -> ThemeMode.AMOLED
+    else -> ThemeMode.LIGHT
 }
 
 internal fun isDarkThemeMode(mode: ThemeMode, systemInDark: Boolean): Boolean = when (mode) {
@@ -106,7 +106,7 @@ object ThemeState {
         try {
             themeModeFromPreference(prefs.getString(KEY_THEME_MODE, null))
         } catch (_: Exception) {
-            ThemeMode.AMOLED
+            ThemeMode.LIGHT
         }
     )
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()

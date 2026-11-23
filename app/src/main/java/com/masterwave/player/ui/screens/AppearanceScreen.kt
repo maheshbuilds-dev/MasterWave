@@ -2,6 +2,7 @@ package com.masterwave.player.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,9 +47,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masterwave.player.data.icon.AppIcon
+import com.masterwave.player.data.icon.AppIconManager
 import com.masterwave.player.ui.components.bouncyClickable
 import com.masterwave.player.ui.theme.AppFont
 import com.masterwave.player.ui.theme.DisplayFontFamily
@@ -175,14 +179,18 @@ fun AppearanceScreen(
                                 color = textPrimary
                             )
                             Text(
-                                text = if (themeMode == ThemeMode.LIGHT) "Clean Studio Light" else "AMOLED Pure Dark",
+                                text = when (themeMode) {
+                                    ThemeMode.LIGHT -> "Clean Studio Light (Default)"
+                                    ThemeMode.SYSTEM -> "Follows Android System Mode"
+                                    else -> "AMOLED Pure Dark"
+                                },
                                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                                 color = textSecondary
                             )
                         }
                     }
 
-                    // Strict Dark (AMOLED) & Light Capsule Only
+                    // 3 Theme Styles: Light, Dark AMOLED, System Default
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = if (isAmoled) Color(0xFF181A24) else Color(0xFFEFF1F5),
@@ -192,17 +200,20 @@ fun AppearanceScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             val themes = listOf(
-                                ThemeMode.DARK to ("Dark (AMOLED)" to Icons.Default.DarkMode),
-                                ThemeMode.LIGHT to ("Light" to Icons.Default.LightMode)
+                                ThemeMode.LIGHT to ("Light" to Icons.Default.LightMode),
+                                ThemeMode.AMOLED to ("Dark AMOLED" to Icons.Default.DarkMode),
+                                ThemeMode.SYSTEM to ("System" to Icons.Default.AutoAwesome)
                             )
                             themes.forEach { (mode, pair) ->
                                 val (label, icon) = pair
                                 val isSelected = when (mode) {
                                     ThemeMode.LIGHT -> themeMode == ThemeMode.LIGHT
-                                    else -> themeMode != ThemeMode.LIGHT
+                                    ThemeMode.SYSTEM -> themeMode == ThemeMode.SYSTEM
+                                    ThemeMode.AMOLED -> themeMode == ThemeMode.AMOLED || themeMode == ThemeMode.DARK
+                                    else -> false
                                 }
                                 Surface(
                                     shape = RoundedCornerShape(50),
@@ -210,7 +221,7 @@ fun AppearanceScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .bouncyClickable {
-                                            ThemeState.setThemeMode(if (mode == ThemeMode.LIGHT) ThemeMode.LIGHT else ThemeMode.AMOLED)
+                                            ThemeState.setThemeMode(mode)
                                             Toast.makeText(context, "$label Theme applied", Toast.LENGTH_SHORT).show()
                                         }
                                 ) {
@@ -223,14 +234,15 @@ fun AppearanceScreen(
                                             imageVector = icon,
                                             contentDescription = null,
                                             tint = if (isSelected) Color.White else textSecondary,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = label,
-                                            fontSize = 13.sp,
+                                            fontSize = 12.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color.White else textSecondary
+                                            color = if (isSelected) Color.White else textSecondary,
+                                            maxLines = 1
                                         )
                                     }
                                 }
@@ -438,6 +450,102 @@ fun AppearanceScreen(
                         }
 
                         if (index < AppFont.entries.size - 1) {
+                            AppearanceDivider(dividerColor)
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            AppearanceCardSection(title = "App Icon", textSecondary = textSecondary) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    val currentAppIcon by AppIconManager.currentIcon.collectAsState()
+                    AppIcon.values().forEachIndexed { index, appIcon ->
+                        val isSelected = currentAppIcon == appIcon
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bouncyClickable(scaleDown = 0.98f) {
+                                    val success = AppIconManager.setAppIcon(context, appIcon)
+                                    if (success) {
+                                        Toast.makeText(context, "App Icon: ${appIcon.title} applied", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(id = appIcon.previewResId),
+                                contentDescription = appIcon.title,
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) effectiveAccent else Color.White.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                            )
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = appIcon.title,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = if (isSelected) effectiveAccent else textPrimary
+                                    )
+                                    if (appIcon == AppIcon.DEFAULT) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(effectiveAccent.copy(alpha = 0.16f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "DEFAULT",
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 9.sp,
+                                                color = effectiveAccent
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = appIcon.subtitle,
+                                    fontSize = 12.sp,
+                                    color = textSecondary
+                                )
+                            }
+
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(26.dp)
+                                        .clip(CircleShape)
+                                        .background(effectiveAccent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (index < AppIcon.values().size - 1) {
                             AppearanceDivider(dividerColor)
                         }
                     }
