@@ -17,10 +17,10 @@ MasterWave is a native Android music player and streaming client engineered with
 
 ## Interface
 
-| Home Feed | Playback | Listening Analytics | Playlists & Sync | Studio Settings |
-|:---:|:---:|:---:|:---:|:---:|
-| <img src="store-assets/screenshots/01-home-feed.png" width="180" alt="Home Feed" /> | <img src="store-assets/screenshots/02-smart-flow.png" width="180" alt="Audio Playback" /> | <img src="store-assets/screenshots/03-listening-analytics.png" width="180" alt="Listening Analytics" /> | <img src="store-assets/screenshots/04-library-playlists.png" width="180" alt="Playlists & Sync" /> | <img src="store-assets/screenshots/05-studio-settings.png" width="180" alt="Studio Settings" /> |
-| Smart Sonic Flow | ExoPlayer 48 kHz | 3-Day History | Cloud Account Sync | 10-Band EQ & Shaders |
+| Home Feed | Listening Analytics | Playlists & Sync | Studio Settings |
+|:---:|:---:|:---:|:---:|
+| <img src="store-assets/screenshots/01-home-feed.png" width="200" alt="Home Feed & Smart Sonic Flow" /> | <img src="store-assets/screenshots/02-listening-analytics.png" width="200" alt="Listening Analytics" /> | <img src="store-assets/screenshots/03-library-playlists.png" width="200" alt="Playlists & Sync" /> | <img src="store-assets/screenshots/04-studio-settings.png" width="200" alt="Studio Settings" /> |
+| Smart Sonic Flow & Feed | 3-Day History & Insights | Google Account & Local Sync | Audio Engine & Spotify Grab |
 
 ---
 
