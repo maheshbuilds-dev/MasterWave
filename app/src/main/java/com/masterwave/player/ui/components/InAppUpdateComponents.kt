@@ -17,11 +17,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
@@ -207,22 +210,28 @@ fun InAppUpdateModal(
     Dialog(onDismissRequest = {
         if (downloadProgress == null) onDismiss()
     }) {
+        val scrollState = rememberScrollState()
+
         Surface(
             shape = RoundedCornerShape(26.dp),
             color = colors.surfaceCard,
             border = androidx.compose.foundation.BorderStroke(2.dp, colors.border),
             shadowElevation = if (colors.isDark) 0.dp else 8.dp,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
         ) {
             Column(
-                modifier = Modifier.padding(22.dp),
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Header Icon
                 Box(
                     modifier = Modifier
-                        .size(62.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
                         .background(WebAccentGreen)
                         .border(2.dp, colors.border, CircleShape),
@@ -232,7 +241,7 @@ fun InAppUpdateModal(
                         imageVector = Icons.Default.SystemUpdate,
                         contentDescription = null,
                         tint = Color(0xFF0A0A0A),
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
@@ -241,10 +250,10 @@ fun InAppUpdateModal(
                         text = "New MasterWave Update",
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 20.sp,
+                        fontSize = 19.sp,
                         color = colors.ink
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -273,28 +282,34 @@ fun InAppUpdateModal(
                     }
                 }
 
-                // Changelog Bento Box
+                // Changelog Bento Box with max height constraint
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = colors.surfaceSoft,
                     border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.border),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 160.dp)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
                         Text(
                             text = "What's in this version:",
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
+                            fontSize = 12.5.sp,
                             color = colors.ink
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = update.releaseNotes,
                             fontFamily = DisplayFontFamily,
                             fontSize = 12.sp,
                             color = colors.body,
-                            lineHeight = 17.sp
+                            lineHeight = 16.sp
                         )
                     }
                 }
