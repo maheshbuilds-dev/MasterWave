@@ -39,6 +39,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -441,17 +442,24 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                 .background(MaterialTheme.colorScheme.background)
                 .pointerInput(currentTab, isSecondaryScreenOpen, isOverlayOpen) {
                     if (isSecondaryScreenOpen || isOverlayOpen) return@pointerInput
-                    val swipeThreshold = 65.dp.toPx()
+                    val swipeThreshold = 85.dp.toPx()
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val down = awaitFirstDown(requireUnconsumed = true)
                         var totalX = 0f
                         var totalY = 0f
                         var isHorizontal: Boolean? = null
+                        var isCancelled = false
 
                         while (true) {
-                            val event = awaitPointerEvent()
+                            val event = awaitPointerEvent(PointerEventPass.Final)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             if (!change.pressed) break
+
+                            // If any child component (track item, button, slider, carousel) consumed the event, abort immediately!
+                            if (change.isConsumed) {
+                                isCancelled = true
+                                break
+                            }
 
                             val dx = change.position.x - change.previousPosition.x
                             val dy = change.position.y - change.previousPosition.y
@@ -459,17 +467,20 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
                             totalY += dy
 
                             if (isHorizontal == null) {
-                                if (kotlin.math.abs(totalX) > 24f || kotlin.math.abs(totalY) > 24f) {
-                                    isHorizontal = kotlin.math.abs(totalX) > kotlin.math.abs(totalY) * 1.35f
+                                val absX = kotlin.math.abs(totalX)
+                                val absY = kotlin.math.abs(totalY)
+                                if (absX > 36f || absY > 36f) {
+                                    if (absX > absY * 2.2f) {
+                                        isHorizontal = true
+                                    } else {
+                                        isCancelled = true
+                                        break
+                                    }
                                 }
-                            }
-
-                            if (isHorizontal == true) {
-                                change.consume()
                             }
                         }
 
-                        if (isHorizontal == true && kotlin.math.abs(totalX) > swipeThreshold) {
+                        if (!isCancelled && isHorizontal == true && kotlin.math.abs(totalX) > swipeThreshold) {
                             val tabs = listOf(MainTab.HOME, MainTab.STATS, MainTab.LIBRARY, MainTab.SEARCH)
                             val currentIndex = tabs.indexOf(currentTab)
                             if (totalX < 0) {

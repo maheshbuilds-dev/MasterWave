@@ -2055,17 +2055,23 @@ private fun HomeScreenHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .glassySurface(
-                shape = headerShape,
-                style = GlassyStyle.HEADER,
-                isDark = isAmoled,
-                isGlassEnabled = isGlassEnabled,
-                borderWidth = if (isScrolled) 1.dp else 0.dp,
-                elevation = if (isScrolled) 8.dp else 0.dp,
-                accentGlow = accentColor.copy(alpha = if (isScrolled) 0.12f else 0.0f),
-                tintColor = accentColor,
-                hasSheen = isScrolled,
-                liquidState = liquidState
+            .then(
+                if (isScrolled) {
+                    Modifier.glassySurface(
+                        shape = headerShape,
+                        style = GlassyStyle.HEADER,
+                        isDark = isAmoled,
+                        isGlassEnabled = isGlassEnabled,
+                        borderWidth = 1.dp,
+                        elevation = 8.dp,
+                        accentGlow = accentColor.copy(alpha = 0.12f),
+                        tintColor = accentColor,
+                        hasSheen = true,
+                        liquidState = liquidState
+                    )
+                } else {
+                    Modifier.background(Color.Transparent)
+                }
             )
     ) {
         if (isScrolled) {

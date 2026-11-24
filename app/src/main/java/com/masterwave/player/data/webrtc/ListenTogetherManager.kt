@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
@@ -123,9 +125,16 @@ class ListenTogetherManager private constructor(
 
     companion object {
         private const val TAG = "ListenTogetherManager"
-        const val WS_JAM_SERVER_URL = "wss://jam.clashprojects.qd.je/ws"
+        const val RELAY_HTTP_BASE = "https://ntfy.sh"
+        const val RELAY_WS_BASE = "wss://ntfy.sh"
         private const val DRIFT_SEEK_THRESHOLD_MS = 1800L
         private const val TRACK_CHANGE_GRACE_PERIOD_MS = 3500L
+
+        fun getRoomTopic(code: String): String =
+            "mw_jam_" + code.replace("-", "").replace(" ", "").trim().lowercase()
+
+        fun getFeedbackTopic(code: String): String =
+            getRoomTopic(code) + "_fb"
 
         @Volatile
         private var INSTANCE: ListenTogetherManager? = null
@@ -229,6 +238,19 @@ class ListenTogetherManager private constructor(
         _liveReactions.value = list
     }
 
+    private fun publishRelayMessage(topic: String, envelope: JSONObject) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val url = "$RELAY_HTTP_BASE/$topic"
+                val body = envelope.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val req = Request.Builder().url(url).post(body).build()
+                MasterWaveApp.instance.okHttpClient.newCall(req).execute().close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Relay publish error: ${e.message}")
+            }
+        }
+    }
+
     fun sendReaction(emoji: String) {
         if (emoji.isBlank()) return
         val senderName = if (_isBroadcasting.value) "You (Host)" else "You"
@@ -236,24 +258,22 @@ class ListenTogetherManager private constructor(
 
         val activeRoom = if (_isBroadcasting.value) _currentRoomCode.value else _connectedRoomCode.value ?: return
 
-        // 1. Send via WebSocket
-        val ws = webSocket
-        if (ws != null) {
-            try {
-                val payload = JSONObject().apply {
-                    put("room_code", activeRoom)
-                    put("emoji", emoji)
-                    put("sender_name", senderName)
-                    put("sender_id", deviceId)
-                }
-                val env = JSONObject().apply {
-                    put("type", "reaction")
-                    put("payload", payload)
-                }
-                ws.send(env.toString())
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to send WS reaction: ${e.message}")
+        // 1. Send via Relay Cloud HTTP pub/sub
+        try {
+            val payload = JSONObject().apply {
+                put("room_code", activeRoom)
+                put("emoji", emoji)
+                put("sender_name", senderName)
+                put("sender_id", deviceId)
             }
+            val env = JSONObject().apply {
+                put("type", "reaction")
+                put("payload", payload)
+            }
+            val targetTopic = if (_isBroadcasting.value) getRoomTopic(activeRoom) else getFeedbackTopic(activeRoom)
+            publishRelayMessage(targetTopic, env)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send relay reaction: ${e.message}")
         }
 
         // 2. Broadcast via UDP mesh
@@ -410,38 +430,27 @@ class ListenTogetherManager private constructor(
     private fun connectHostWebSocket() {
         try {
             webSocket?.close(1000, "Reconnecting")
+            val feedbackTopic = getFeedbackTopic(_currentRoomCode.value)
             val request = Request.Builder()
-                .url(WS_JAM_SERVER_URL)
+                .url("$RELAY_WS_BASE/$feedbackTopic/ws")
                 .build()
 
             webSocket = MasterWaveApp.instance.okHttpClient.newWebSocket(request, object : WebSocketListener() {
                 override fun onOpen(ws: WebSocket, response: Response) {
-                    Log.d(TAG, "Host WebSocket connected to $WS_JAM_SERVER_URL")
-                    val persistentCode = loadOrGenerateRoomCode()
-                    val createRoomMsg = JSONObject().apply {
-                        put("type", "create_room")
-                        put("payload", JSONObject().apply {
-                            put("name", "MasterWave Host")
-                            put("room_code", persistentCode)
-                            put("room_mode", "collaborative")
-                        })
-                    }
-                    ws.send(createRoomMsg.toString())
+                    Log.d(TAG, "Host connected to Relay topic $feedbackTopic")
                 }
 
                 override fun onMessage(ws: WebSocket, text: String) {
                     try {
-                        val envelope = JSONObject(text)
+                        val outer = JSONObject(text)
+                        if (outer.optString("event") != "message") return
+                        val msgStr = outer.optString("message")
+                        if (msgStr.isBlank()) return
+                        val envelope = JSONObject(msgStr)
                         val type = envelope.optString("type")
                         val payload = envelope.optJSONObject("payload") ?: return
 
                         when (type) {
-                            "room_created" -> {
-                                val persistentCode = loadOrGenerateRoomCode()
-                                _currentRoomCode.value = persistentCode
-                                prefs.edit().putString("persistent_user_room_code", persistentCode).putString("room_code", persistentCode).apply()
-                                Log.d(TAG, "Host active on permanent user party code: $persistentCode")
-                            }
                             "reaction" -> {
                                 val emoji = payload.optString("emoji")
                                 val sender = payload.optString("sender_name", "Listener")
@@ -450,7 +459,7 @@ class ListenTogetherManager private constructor(
                                     addLiveReaction(emoji, sender)
                                 }
                             }
-                            "peer_joined", "peer_ping" -> {
+                            "listener_ping", "peer_joined", "peer_ping" -> {
                                 val peerId = payload.optString("user_id").ifBlank { payload.optString("sender_id") }
                                 val peerName = payload.optString("name").ifBlank { payload.optString("sender_name", "Listener") }
                                 val drift = payload.optLong("drift_ms", 0L)
@@ -466,12 +475,12 @@ class ListenTogetherManager private constructor(
                             }
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Host error parsing WS message: ${e.message}")
+                        Log.w(TAG, "Host error parsing relay message: ${e.message}")
                     }
                 }
 
                 override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                    Log.w(TAG, "Host WebSocket failure: ${t.message}. Retrying in 3s...")
+                    Log.w(TAG, "Host relay WebSocket failure: ${t.message}. Retrying in 3s...")
                     scope.launch {
                         delay(3000L)
                         if (_isBroadcasting.value) connectHostWebSocket()
@@ -490,7 +499,6 @@ class ListenTogetherManager private constructor(
         isPlaying: Boolean,
         clientTimeMs: Long
     ) {
-        val ws = webSocket ?: return
         try {
             val payload = JSONObject().apply {
                 put("action", action)
@@ -513,9 +521,10 @@ class ListenTogetherManager private constructor(
                 put("type", "playback_action")
                 put("payload", payload)
             }
-            ws.send(envelope.toString())
+            val roomTopic = getRoomTopic(_currentRoomCode.value)
+            publishRelayMessage(roomTopic, envelope)
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to send WS playback action: ${e.message}")
+            Log.w(TAG, "Failed to send relay playback action: ${e.message}")
         }
     }
 
@@ -578,6 +587,11 @@ class ListenTogetherManager private constructor(
                                 put("senderName", "Listener ${deviceId.take(3)}")
                                 put("driftMs", _syncDriftMs.value)
                             }
+                            val env = JSONObject().apply {
+                                put("type", "listener_ping")
+                                put("payload", pingJson)
+                            }
+                            publishRelayMessage(getFeedbackTopic(cleanCode), env)
                             val pingBytes = pingJson.toString().toByteArray(Charsets.UTF_8)
                             val pingPacket = DatagramPacket(pingBytes, pingBytes.size, broadcastAddress, feedbackPort)
                             sendSocket?.send(pingPacket)
@@ -644,28 +658,58 @@ class ListenTogetherManager private constructor(
     }
 
     private fun connectListenerWebSocket(roomCode: String) {
+        val topic = getRoomTopic(roomCode)
+        // 1. Immediate HTTP Fast Poll: Retrieve current playing state within <150ms
+        scope.launch(Dispatchers.IO) {
+            try {
+                val pollUrl = "$RELAY_HTTP_BASE/$topic/json?poll=1&since=all"
+                val req = Request.Builder().url(pollUrl).build()
+                val res = MasterWaveApp.instance.okHttpClient.newCall(req).execute()
+                val body = res.body?.string()
+                res.close()
+                if (!body.isNullOrBlank()) {
+                    val lines = body.lines().filter { it.isNotBlank() }
+                    for (line in lines.reversed()) {
+                        try {
+                            val obj = JSONObject(line)
+                            if (obj.optString("event") == "message") {
+                                val msgStr = obj.optString("message")
+                                if (msgStr.isNotBlank()) {
+                                    val env = JSONObject(msgStr)
+                                    val p = env.optJSONObject("payload")
+                                    if (p != null) {
+                                        handleRemotePlayback(p)
+                                        break
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Listener initial relay poll error: ${e.message}")
+            }
+        }
+
+        // 2. Persistent Live WebSocket via Relay
         try {
             webSocket?.close(1000, "Rejoining")
             val request = Request.Builder()
-                .url(WS_JAM_SERVER_URL)
+                .url("$RELAY_WS_BASE/$topic/ws")
                 .build()
 
             webSocket = MasterWaveApp.instance.okHttpClient.newWebSocket(request, object : WebSocketListener() {
                 override fun onOpen(ws: WebSocket, response: Response) {
-                    Log.d(TAG, "Listener connected to Jam server. Joining room $roomCode...")
-                    val joinMsg = JSONObject().apply {
-                        put("type", "join_room")
-                        put("payload", JSONObject().apply {
-                            put("room_code", roomCode)
-                            put("name", "MasterWave Listener")
-                        })
-                    }
-                    ws.send(joinMsg.toString())
+                    Log.d(TAG, "Listener connected to Relay topic $topic")
                 }
 
                 override fun onMessage(ws: WebSocket, text: String) {
                     try {
-                        val envelope = JSONObject(text)
+                        val outer = JSONObject(text)
+                        if (outer.optString("event") != "message") return
+                        val msgStr = outer.optString("message")
+                        if (msgStr.isBlank()) return
+                        val envelope = JSONObject(msgStr)
                         val type = envelope.optString("type")
                         val payload = envelope.optJSONObject("payload") ?: return
 
@@ -678,23 +722,17 @@ class ListenTogetherManager private constructor(
                                     addLiveReaction(emoji, sender)
                                 }
                             }
-                            "sync_state" -> {
-                                val playback = payload.optJSONObject("playback")
-                                if (playback != null) {
-                                    handleRemotePlayback(playback)
-                                }
-                            }
-                            "sync_playback" -> {
+                            "playback_action", "sync_packet", "sync_playback", "sync_state" -> {
                                 handleRemotePlayback(payload)
                             }
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Error handling listener WS msg: ${e.message}")
+                        Log.w(TAG, "Error handling listener relay WS msg: ${e.message}")
                     }
                 }
 
                 override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                    Log.w(TAG, "Listener WebSocket error: ${t.message}. Reconnecting in 3s...")
+                    Log.w(TAG, "Listener relay WebSocket error: ${t.message}. Reconnecting in 3s...")
                     scope.launch {
                         delay(3000L)
                         if (_isJoinedAsListener.value && _connectedRoomCode.value == roomCode) {

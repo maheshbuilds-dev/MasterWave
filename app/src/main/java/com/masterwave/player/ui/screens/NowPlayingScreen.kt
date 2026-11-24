@@ -87,8 +87,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VolumeMute
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -121,6 +119,10 @@ import com.masterwave.player.data.download.MusicDownloadManager
 import com.masterwave.player.data.repository.MusicRepository
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.AudioPlaybackModal
+import com.masterwave.player.ui.components.bouncyClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.masterwave.player.ui.components.GlassyStyle
 import com.masterwave.player.ui.animation.applePressEffect
 import com.masterwave.player.ui.components.glassySurface
@@ -188,25 +190,8 @@ fun NowPlayingScreen(
         ),
         label = "ambient_pulse"
     )
-    val artworkBreathScale by infiniteTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = 1.020f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "artworkBreath"
-    )
-    val targetArtworkScale = if (isPlaying) 1.0f else 0.93f
-    val animatedBaseArtworkScale by animateFloatAsState(
-        targetValue = targetArtworkScale,
-        animationSpec = spring(
-            dampingRatio = 0.74f,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "baseArtworkScale"
-    )
-    val effectiveArtworkScale = if (isPlaying && !reduceMotion) animatedBaseArtworkScale * artworkBreathScale else animatedBaseArtworkScale
+    // Static edge-to-edge artwork presentation with downward bleed effect (no breathing animation)
+    val effectiveArtworkScale = 1.0f
 
     // Dynamic Artwork Bleed & Ambient Pool Colors:
     // Uses the actual bottom slice color of the current track's thumbnail for a seamless downward bleed,
@@ -550,7 +535,7 @@ fun NowPlayingScreen(
                                 ),
                                 shape = RoundedCornerShape(16.dp)
                             )
-                            .applePressEffect(onClick = { showMenu = true }),
+                            .applePressEffect(onClick = { showMenu = !showMenu }),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -559,120 +544,6 @@ fun NowPlayingScreen(
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
-
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                            shape = RoundedCornerShape(24.dp),
-                            containerColor = Color.Transparent,
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp,
-                            border = null,
-                            modifier = Modifier
-                                .glassySurface(
-                                    shape = RoundedCornerShape(24.dp),
-                                    style = GlassyStyle.DOCK,
-                                    isDark = true,
-                                    borderWidth = 1.3.dp,
-                                    elevation = 20.dp,
-                                    hasSheen = true,
-                                    liquidState = liquidState,
-                                    isGlassEnabled = isGlassEnabled
-                                )
-                                .padding(vertical = 4.dp)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Queue (${queue.size})", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = accentColor) },
-                                onClick = {
-                                    showMenu = false
-                                    onOpenQueue()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Lyrics", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Filled.ChatBubbleOutline, contentDescription = null, tint = accentColor) },
-                                onClick = {
-                                    showMenu = false
-                                    onOpenLyrics()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(if (isShuffle) "Shuffle: On" else "Shuffle: Off", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Filled.Shuffle, contentDescription = null, tint = if (isShuffle) accentColor else Color.White.copy(alpha = 0.6f)) },
-                                onClick = {
-                                    showMenu = false
-                                    player.toggleShuffle()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Repeat Mode", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat, contentDescription = null, tint = accentColor) },
-                                onClick = {
-                                    showMenu = false
-                                    player.cycleRepeatMode()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Audio settings", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = accentColor) },
-                                onClick = {
-                                    showMenu = false
-                                    showAudioPlaybackModal = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Add to Playlist", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null, tint = accentColor) },
-                                onClick = {
-                                    showMenu = false
-                                    showAddToPlaylistDialog = true
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Download", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null, tint = accentColor) },
-                                onClick = {
-                                    showMenu = false
-                                    val dm = MusicDownloadManager.getInstance(
-                                        context,
-                                        MasterWaveApp.instance.okHttpClient,
-                                        repository
-                                    )
-                                    dm.downloadTrack(currentTrack)
-                                    Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("More like this", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = accentColor) },
-                                onClick = {
-                                    showMenu = false
-                                    repository.recommendationManager.onMoreLikeThis(currentTrack)
-                                    Toast.makeText(context, "More like ${currentTrack.artist}", Toast.LENGTH_SHORT).show()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Don't recommend artist", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Filled.Block, contentDescription = null, tint = Color(0xFFF43F5E)) },
-                                onClick = {
-                                    showMenu = false
-                                    repository.recommendationManager.onDontRecommendArtist(currentTrack.artist)
-                                    Toast.makeText(context, "Artist hidden from recommendations", Toast.LENGTH_SHORT).show()
-                                    player.skipToNext()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Hide track", color = Color.White, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = { Icon(Icons.Filled.VisibilityOff, contentDescription = null, tint = Color(0xFFF43F5E)) },
-                                onClick = {
-                                    showMenu = false
-                                    repository.recommendationManager.onHideTrack(currentTrack)
-                                    Toast.makeText(context, "Track hidden", Toast.LENGTH_SHORT).show()
-                                    player.skipToNext()
-                                }
-                            )
-                        }
                     }
                 }
             }
@@ -1173,6 +1044,195 @@ fun NowPlayingScreen(
                 }
             }
         }
+
+        // --- Authentic Liquid Glass 3-Dots Floating Menu Overlay ---
+        AnimatedVisibility(
+            visible = showMenu,
+            enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(150, easing = FastOutSlowInEasing))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showMenu = false }
+                    )
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showMenu,
+            enter = scaleIn(
+                initialScale = 0.88f,
+                transformOrigin = TransformOrigin(0.88f, 0.85f),
+                animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
+            ) + fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)),
+            exit = scaleOut(
+                targetScale = 0.88f,
+                transformOrigin = TransformOrigin(0.88f, 0.85f),
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+            ) + fadeOut(animationSpec = tween(150, easing = FastOutSlowInEasing)),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 230.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(260.dp)
+                    .glassySurface(
+                        shape = RoundedCornerShape(24.dp),
+                        style = GlassyStyle.DOCK,
+                        isDark = true,
+                        borderWidth = 1.3.dp,
+                        elevation = 20.dp,
+                        accentGlow = accentColor.copy(alpha = 0.22f),
+                        hasSheen = true,
+                        liquidState = liquidState,
+                        isGlassEnabled = isGlassEnabled
+                    )
+                    .padding(vertical = 6.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    NowPlayingGlassMenuItem(
+                        title = "Queue (${queue.size})",
+                        icon = Icons.AutoMirrored.Filled.QueueMusic,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            onOpenQueue()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Lyrics",
+                        icon = Icons.Filled.ChatBubbleOutline,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            onOpenLyrics()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = if (isShuffle) "Shuffle: On" else "Shuffle: Off",
+                        icon = Icons.Filled.Shuffle,
+                        accentColor = if (isShuffle) accentColor else Color.White.copy(alpha = 0.6f),
+                        onClick = {
+                            showMenu = false
+                            player.toggleShuffle()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Repeat Mode",
+                        icon = if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            player.cycleRepeatMode()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Audio settings",
+                        icon = Icons.Filled.GraphicEq,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            showAudioPlaybackModal = true
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Add to Playlist",
+                        icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            showAddToPlaylistDialog = true
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Download",
+                        icon = Icons.Filled.Download,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            val dm = MusicDownloadManager.getInstance(
+                                context,
+                                MasterWaveApp.instance.okHttpClient,
+                                repository
+                            )
+                            dm.downloadTrack(currentTrack)
+                            Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "More like this",
+                        icon = Icons.Filled.AutoAwesome,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            repository.recommendationManager.onMoreLikeThis(currentTrack)
+                            Toast.makeText(context, "More like ${currentTrack.artist}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Don't recommend artist",
+                        icon = Icons.Filled.Block,
+                        accentColor = Color(0xFFF43F5E),
+                        onClick = {
+                            showMenu = false
+                            repository.recommendationManager.onDontRecommendArtist(currentTrack.artist)
+                            Toast.makeText(context, "Artist hidden from recommendations", Toast.LENGTH_SHORT).show()
+                            player.skipToNext()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Hide track",
+                        icon = Icons.Filled.VisibilityOff,
+                        accentColor = Color(0xFFF43F5E),
+                        onClick = {
+                            showMenu = false
+                            repository.recommendationManager.onHideTrack(currentTrack)
+                            Toast.makeText(context, "Track hidden", Toast.LENGTH_SHORT).show()
+                            player.skipToNext()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NowPlayingGlassMenuItem(
+    title: String,
+    icon: ImageVector,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .bouncyClickable(scaleDown = 0.96f, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = accentColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            text = title,
+            fontFamily = DisplayFontFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.5.sp,
+            color = Color.White
+        )
     }
 }
 

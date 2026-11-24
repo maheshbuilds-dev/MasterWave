@@ -11,6 +11,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,6 +73,11 @@ fun TrackItem(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(if (isPlaying) accent.copy(alpha = 0.12f) else Color.Transparent)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures { change, _ ->
+                        change.consume()
+                    }
+                }
                 .bouncyClickable(scaleDown = 0.98f, onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically

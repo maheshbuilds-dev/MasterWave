@@ -152,8 +152,7 @@ fun PlaylistsScreen(
     val ytLikedPlaylist = playlists.find { it.id == "yt_liked_songs" }
     val spLikedPlaylist = playlists.find { it.id == "spotify_liked_songs" }
     val userPlaylists = playlists.filter {
-        it.id != "liked_songs" && it.id != "local_songs" && it.id != "yt_liked_songs" && it.id != "spotify_liked_songs" &&
-        (it.source != "Spotify" || isSpotifyConnected)
+        it.id != "liked_songs" && it.id != "local_songs" && it.id != "yt_liked_songs" && it.id != "spotify_liked_songs"
     }
     val sortedPlaylists = remember(userPlaylists, activeSortOption, searchQuery) {
         val filtered = if (searchQuery.isBlank()) {

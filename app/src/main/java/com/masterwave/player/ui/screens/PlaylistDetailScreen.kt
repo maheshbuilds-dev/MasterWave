@@ -108,7 +108,7 @@ fun PlaylistDetailScreen(
     val scope = rememberCoroutineScope()
     var showGoogleAuth by remember { mutableStateOf(false) }
 
-    val isCustomPlaylist = playlist.source == "Custom" || playlist.source == "User" || playlist.id.startsWith("custom_") || playlist.id.startsWith("user_")
+    val isCustomPlaylist = playlist.source == "Custom" || playlist.source == "User" || playlist.id.startsWith("custom_") || playlist.id.startsWith("user_") || playlist.source == "Spotify" || playlist.id.startsWith("spotify_") || playlist.id.startsWith("sp_")
     var tracksList by remember(playlist.id, playlist.tracks) { mutableStateOf(playlist.tracks) }
     var isLoadingTracks by remember(playlist.id) {
         mutableStateOf(playlist.tracks.isEmpty() && !isCustomPlaylist && (playlist.description.isNotBlank() || playlist.title.isNotBlank()))

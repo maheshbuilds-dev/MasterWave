@@ -13,6 +13,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.masterwave.player.R
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -200,7 +203,7 @@ fun SupportCommunityScreen(
             }
         }
 
-        // --- Cute Mascot (Wavey) & Inspiring Support Quote ---
+        // --- Cute Mascot (Capybara) & Inspiring Support Quote ---
         item {
             CuteMascotQuoteCard(
                 colors = colors,
@@ -608,15 +611,33 @@ private fun CuteMascotQuoteCard(
     onQuickTip: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "mascot_anim")
+    val infiniteTransition = rememberInfiniteTransition(label = "capybara_anim")
     val bobOffset by infiniteTransition.animateFloat(
         initialValue = -5f,
         targetValue = 5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = FastOutSlowInEasing),
+            animation = tween(2200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "mascot_bob"
+        label = "capybara_bob"
+    )
+    val breathScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.035f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "capybara_breath"
+    )
+    val cozyTilt by infiniteTransition.animateFloat(
+        initialValue = -1.8f,
+        targetValue = 1.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "capybara_tilt"
     )
 
     Surface(
@@ -632,7 +653,7 @@ private fun CuteMascotQuoteCard(
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- 1. Speech Bubble (On top of character) ---
+            // --- 1. Speech Bubble (On top of Capybara) ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -667,7 +688,7 @@ private fun CuteMascotQuoteCard(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "🐾 WAVEY'S SPECIAL NOTE",
+                                text = "🦫 CAPYBARA'S SPECIAL NOTE",
                                 fontFamily = DisplayFontFamily,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 10.sp,
@@ -684,7 +705,7 @@ private fun CuteMascotQuoteCard(
                     }
 
                     Text(
-                        text = "“Psst! I work day & night with ZERO ads, ZERO trackers, and ZERO paywalls so your favorite music stays completely free and magical.”",
+                        text = "“Psst! I sit here listening peacefully with ZERO ads, ZERO trackers, and ZERO paywalls so your music stays free and magical.”",
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
@@ -693,7 +714,7 @@ private fun CuteMascotQuoteCard(
                     )
 
                     Text(
-                        text = "If MasterWave made your day even a little brighter, helped you focus while studying, or gave you peaceful sleep, would you consider buying me a warm cup of chai? Every little tip directly keeps our indie servers running forever! 💖",
+                        text = "If MasterWave made your day brighter, helped you focus, or brought you peaceful sleep, would you consider treating this chill capybara to a warm coffee? Every contribution directly keeps our indie servers running! 💖",
                         fontFamily = DisplayFontFamily,
                         fontSize = 12.5.sp,
                         lineHeight = 17.5.sp,
@@ -717,171 +738,45 @@ private fun CuteMascotQuoteCard(
                 drawPath(trianglePath, color = WebAccentPink.copy(alpha = 0.5f))
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // --- 2. The Cute Musical Mascot (Wavey) ---
+            // --- 2. The Animated Cute Capybara Mascot ---
             Box(
                 modifier = Modifier
-                    .size(130.dp)
-                    .graphicsLayer {
-                        translationY = bobOffset
-                    },
+                    .size(width = 170.dp, height = 170.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val w = size.width
-                    val h = size.height
-                    val cx = w / 2f
-                    val cy = h / 2f + 4f
-
-                    // Soft ambient ground shadow
+                // Soft ambient ground shadow that breathes with the capybara
+                Canvas(
+                    modifier = Modifier
+                        .size(width = 130.dp, height = 22.dp)
+                        .align(Alignment.BottomCenter)
+                        .graphicsLayer {
+                            scaleX = breathScale
+                            alpha = 0.35f
+                        }
+                ) {
                     drawOval(
-                        color = Color.Black.copy(alpha = 0.12f),
-                        topLeft = Offset(w * 0.22f, h * 0.88f),
-                        size = Size(w * 0.56f, 12f)
-                    )
-
-                    // Left Outer Ear
-                    val leftEarPath = Path().apply {
-                        moveTo(cx - 36f, cy - 30f)
-                        quadraticTo(cx - 52f, cy - 82f, cx - 28f, cy - 78f)
-                        quadraticTo(cx - 16f, cy - 74f, cx - 18f, cy - 36f)
-                        close()
-                    }
-                    drawPath(leftEarPath, color = Color(0xFFFFD1DC))
-                    drawPath(leftEarPath, color = Color(0xFF101828), style = Stroke(width = 3.5f))
-
-                    // Left Inner Ear
-                    val leftInnerEarPath = Path().apply {
-                        moveTo(cx - 33f, cy - 34f)
-                        quadraticTo(cx - 46f, cy - 74f, cx - 29f, cy - 70f)
-                        quadraticTo(cx - 20f, cy - 66f, cx - 21f, cy - 38f)
-                        close()
-                    }
-                    drawPath(leftInnerEarPath, color = Color(0xFFFF85A1))
-
-                    // Right Outer Ear
-                    val rightEarPath = Path().apply {
-                        moveTo(cx + 18f, cy - 36f)
-                        quadraticTo(cx + 16f, cy - 74f, cx + 28f, cy - 78f)
-                        quadraticTo(cx + 52f, cy - 82f, cx + 36f, cy - 30f)
-                        close()
-                    }
-                    drawPath(rightEarPath, color = Color(0xFFFFD1DC))
-                    drawPath(rightEarPath, color = Color(0xFF101828), style = Stroke(width = 3.5f))
-
-                    // Right Inner Ear
-                    val rightInnerEarPath = Path().apply {
-                        moveTo(cx + 21f, cy - 38f)
-                        quadraticTo(cx + 20f, cy - 66f, cx + 29f, cy - 70f)
-                        quadraticTo(cx + 46f, cy - 74f, cx + 33f, cy - 34f)
-                        close()
-                    }
-                    drawPath(rightInnerEarPath, color = Color(0xFFFF85A1))
-
-                    // Main Head (Fluffy kawaii round face)
-                    drawCircle(
-                        brush = Brush.verticalGradient(
-                            listOf(Color(0xFFFFFFFF), Color(0xFFFFF0F5))
+                        brush = Brush.radialGradient(
+                            listOf(Color.Black.copy(alpha = 0.35f), Color.Transparent)
                         ),
-                        radius = 44f,
-                        center = Offset(cx, cy)
+                        size = size
                     )
-                    drawCircle(
-                        color = Color(0xFF101828),
-                        radius = 44f,
-                        center = Offset(cx, cy),
-                        style = Stroke(width = 3.8f)
-                    )
-
-                    // Big Kawaii Anime Eyes
-                    drawOval(
-                        color = Color(0xFF101828),
-                        topLeft = Offset(cx - 24f, cy - 10f),
-                        size = Size(12f, 16f)
-                    )
-                    drawCircle(color = Color.White, radius = 3.2f, center = Offset(cx - 20f, cy - 6f))
-                    drawCircle(color = Color.White, radius = 1.4f, center = Offset(cx - 16f, cy - 1f))
-
-                    drawOval(
-                        color = Color(0xFF101828),
-                        topLeft = Offset(cx + 12f, cy - 10f),
-                        size = Size(12f, 16f)
-                    )
-                    drawCircle(color = Color.White, radius = 3.2f, center = Offset(cx + 16f, cy - 6f))
-                    drawCircle(color = Color.White, radius = 1.4f, center = Offset(cx + 20f, cy - 1f))
-
-                    // Rosy Blushing Cheeks
-                    drawCircle(
-                        color = Color(0xFFFF6584).copy(alpha = 0.45f),
-                        radius = 8f,
-                        center = Offset(cx - 28f, cy + 8f)
-                    )
-                    drawCircle(
-                        color = Color(0xFFFF6584).copy(alpha = 0.45f),
-                        radius = 8f,
-                        center = Offset(cx + 28f, cy + 8f)
-                    )
-
-                    // Tiny Cute Nose & Cat Mouth (ω)
-                    drawCircle(
-                        color = Color(0xFFFF6584),
-                        radius = 2.5f,
-                        center = Offset(cx, cy + 4f)
-                    )
-                    val mouthLeft = Path().apply {
-                        moveTo(cx, cy + 6f)
-                        quadraticTo(cx - 5f, cy + 12f, cx - 10f, cy + 8f)
-                    }
-                    drawPath(mouthLeft, color = Color(0xFF101828), style = Stroke(width = 2.6f))
-                    val mouthRight = Path().apply {
-                        moveTo(cx, cy + 6f)
-                        quadraticTo(cx + 5f, cy + 12f, cx + 10f, cy + 8f)
-                    }
-                    drawPath(mouthRight, color = Color(0xFF101828), style = Stroke(width = 2.6f))
-
-                    // Cute Over-Ear Headphones
-                    val headband = Path().apply {
-                        moveTo(cx - 44f, cy - 6f)
-                        cubicTo(cx - 46f, cy - 54f, cx + 46f, cy - 54f, cx + 44f, cy - 6f)
-                    }
-                    drawPath(headband, color = Color(0xFFFA2D48), style = Stroke(width = 7.5f))
-                    drawPath(headband, color = Color(0xFF101828), style = Stroke(width = 1.8f))
-
-                    // Left Headphone Cup
-                    drawRoundRect(
-                        color = Color(0xFFFA2D48),
-                        topLeft = Offset(cx - 52f, cy - 16f),
-                        size = Size(14f, 26f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
-                    )
-                    drawRoundRect(
-                        color = Color(0xFF101828),
-                        topLeft = Offset(cx - 52f, cy - 16f),
-                        size = Size(14f, 26f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
-                        style = Stroke(width = 2.6f)
-                    )
-
-                    // Right Headphone Cup
-                    drawRoundRect(
-                        color = Color(0xFFFA2D48),
-                        topLeft = Offset(cx + 38f, cy - 16f),
-                        size = Size(14f, 26f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
-                    )
-                    drawRoundRect(
-                        color = Color(0xFF101828),
-                        topLeft = Offset(cx + 38f, cy - 16f),
-                        size = Size(14f, 26f),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
-                        style = Stroke(width = 2.6f)
-                    )
-
-                    // Floating Music Notes (♫ ♪)
-                    drawCircle(color = Color(0xFFFF2D55), radius = 3f, center = Offset(cx - 48f, cy - 42f))
-                    drawCircle(color = Color(0xFF8B5CF6), radius = 3.5f, center = Offset(cx + 50f, cy - 38f))
                 }
+
+                // Animated Capybara with Bobbing, Breathing, and Cozy Tilting
+                Image(
+                    painter = painterResource(id = R.drawable.ic_cute_capybara),
+                    contentDescription = "Cute MasterWave Capybara Supporter",
+                    modifier = Modifier
+                        .size(150.dp)
+                        .graphicsLayer {
+                            translationY = bobOffset
+                            scaleX = breathScale
+                            scaleY = breathScale
+                            rotationZ = cozyTilt
+                        }
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -905,7 +800,7 @@ private fun CuteMascotQuoteCard(
                     Icon(Icons.Default.Coffee, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Buy Wavey a Chai (₹50)",
+                        text = "Buy Capybara a Coffee (₹50)",
                         fontFamily = DisplayFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
