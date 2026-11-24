@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -206,8 +207,8 @@ class ListenTogetherManager private constructor(
         val generatedHostToken = UUID.randomUUID().toString().replace("-", "")
 
         scope.launch {
-            try {
-                // Initialize room state
+            val result: Result<String> = try {
+                // Initialize room state on background dispatcher
                 currentHostToken = generatedHostToken
                 _currentRoomCode.value = generatedCode
                 _roomName.value = roomNameVal
@@ -232,13 +233,26 @@ class ListenTogetherManager private constructor(
                 startHostBroadcastLoop()
 
                 _connectionState.value = RoomConnectionState.CONNECTED
-                onComplete(true, generatedCode)
                 Log.d(TAG, "Successfully created Listening Room $generatedCode (capacity: $cleanCapacity)")
+                Result.success(generatedCode)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to create room", e)
                 _connectionState.value = RoomConnectionState.ERROR
                 _errorMessage.value = "Failed to create room: ${e.message}"
-                onComplete(false, null)
+                Result.failure(e)
+            }
+
+            // Always dispatch UI callback safely on Main Thread
+            withContext(Dispatchers.Main) {
+                try {
+                    if (result.isSuccess) {
+                        onComplete(true, result.getOrNull())
+                    } else {
+                        onComplete(false, null)
+                    }
+                } catch (uiErr: Exception) {
+                    Log.w(TAG, "UI callback error in createRoom: ${uiErr.message}", uiErr)
+                }
             }
         }
     }
@@ -253,7 +267,13 @@ class ListenTogetherManager private constructor(
         val cleanCode = QrCodeHelper.extractRoomCode(rawCode)
         if (cleanCode == null || cleanCode.length != 6) {
             _errorMessage.value = "Please enter a valid 6-digit room code."
-            onComplete(false, "Invalid room code.")
+            scope.launch(Dispatchers.Main) {
+                try {
+                    onComplete(false, "Invalid room code.")
+                } catch (uiErr: Exception) {
+                    Log.w(TAG, "UI callback error in joinRoom: ${uiErr.message}", uiErr)
+                }
+            }
             return
         }
 
@@ -262,7 +282,7 @@ class ListenTogetherManager private constructor(
         clearError()
 
         scope.launch {
-            try {
+            val result: Result<Unit> = try {
                 // 1. Pre-flight check via cloud relay to verify room existence and capacity
                 val topic = getRelayTopic(cleanCode)
                 val pollUrl = "$RELAY_HTTP_BASE/$topic/json?poll=1&since=all"
@@ -323,13 +343,26 @@ class ListenTogetherManager private constructor(
                 })
 
                 _connectionState.value = RoomConnectionState.CONNECTED
-                onComplete(true, null)
                 Log.d(TAG, "Joined Listening Room $cleanCode successfully")
+                Result.success(Unit)
             } catch (e: Exception) {
                 Log.e(TAG, "Error joining room $cleanCode", e)
                 _connectionState.value = RoomConnectionState.ERROR
                 _errorMessage.value = "Could not connect to room: ${e.message}"
-                onComplete(false, e.message)
+                Result.failure(e)
+            }
+
+            // Always dispatch UI callback safely on Main Thread
+            withContext(Dispatchers.Main) {
+                try {
+                    if (result.isSuccess) {
+                        onComplete(true, null)
+                    } else {
+                        onComplete(false, result.exceptionOrNull()?.message)
+                    }
+                } catch (uiErr: Exception) {
+                    Log.w(TAG, "UI callback error in joinRoom: ${uiErr.message}", uiErr)
+                }
             }
         }
     }
