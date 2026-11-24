@@ -1,0 +1,17 @@
+{
+  "name": "masterwave-jam-server",
+  "version": "1.0.0",
+  "description": "MasterWave Listen Together real-time synchronized music room server",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test_server.js"
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

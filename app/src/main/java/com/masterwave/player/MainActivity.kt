@@ -116,6 +116,10 @@ import io.github.fletchmckee.liquid.rememberLiquidState
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        val pendingListenTogetherRoomCode = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    }
+
     private var playbackService: MasterWavePlaybackService? = null
     private val isServiceBoundState = mutableStateOf(false)
 
@@ -177,7 +181,7 @@ class MainActivity : ComponentActivity() {
         startService(serviceIntent)
         bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
-        handleSpotifyDeepLink(intent)
+        handleDeepLinks(intent)
 
         setContent {
             MasterWaveTheme {
@@ -191,10 +195,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleSpotifyDeepLink(intent)
+        handleDeepLinks(intent)
     }
 
-    private fun handleSpotifyDeepLink(intent: Intent?) {
+    private fun handleDeepLinks(intent: Intent?) {
         val uri = intent?.data ?: return
         if (uri.scheme == "masterwave" && uri.host == "spotify-callback") {
             lifecycleScope.launch {
@@ -209,6 +213,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+            return
+        }
+
+        // Listen Together Room Deep Link Handling
+        val code = com.masterwave.player.data.listentogether.QrCodeHelper.extractRoomCode(uri.toString())
+        if (!code.isNullOrBlank()) {
+            pendingListenTogetherRoomCode.value = code
         }
     }
 
@@ -299,6 +310,12 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
     var isSpotifySyncOpen by remember { mutableStateOf(false) }
     var isDiagnosticsOpen by remember { mutableStateOf(false) }
     var isListenTogetherOpen by remember { mutableStateOf(false) }
+    val pendingDeepLinkCode by MainActivity.pendingListenTogetherRoomCode.collectAsState()
+    LaunchedEffect(pendingDeepLinkCode) {
+        if (!pendingDeepLinkCode.isNullOrBlank()) {
+            isListenTogetherOpen = true
+        }
+    }
     var isDownloadsOpen by remember { mutableStateOf(false) }
     var isLikedSongsOpen by remember { mutableStateOf(false) }
     var selectedArtistForDetail by remember { mutableStateOf<String?>(null) }
@@ -789,8 +806,15 @@ fun MasterWaveRoot(playbackService: MasterWavePlaybackService?) {
             exit = liquidHorizontalExit
         ) {
             ListenTogetherScreen(
-                onBack = { isListenTogetherOpen = false },
-                player = player
+                onBack = {
+                    isListenTogetherOpen = false
+                    MainActivity.pendingListenTogetherRoomCode.value = null
+                },
+                player = player,
+                initialRoomCode = pendingDeepLinkCode,
+                onConsumeInitialRoomCode = {
+                    MainActivity.pendingListenTogetherRoomCode.value = null
+                }
             )
         }
 

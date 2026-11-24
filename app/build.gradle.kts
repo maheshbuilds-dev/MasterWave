@@ -120,5 +120,9 @@ dependencies {
     // Audio Tagging & Artwork Embedding
     implementation("net.jthink:jaudiotagger:3.0.1")
 
+    // QR Code Generation & Scanning (Listen Together)
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+
     testImplementation("junit:junit:4.13.2")
 }
