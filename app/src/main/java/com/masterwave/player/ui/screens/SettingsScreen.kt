@@ -127,8 +127,8 @@ fun SettingsScreen(
         SettingsItemData(
             id = "appearance",
             icon = Icons.Default.Palette,
-            title = "Appearance & Visuals",
-            subtitle = "Website light theme, accent colors, liquid glass",
+            title = "Appearance Studio",
+            subtitle = "Themes, custom colors, templates, typography & profiles",
             accentColor = WebAccentPink,
             onClick = onNavigateToAppearance
         ),

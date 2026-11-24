@@ -128,22 +128,22 @@ fun Modifier.glassySurface(
             )
         } else when (style) {
             GlassyStyle.DOCK -> {
-                // High-fidelity Apple Liquid Glass:
-                // Balanced frosted density preventing underlying text bleed while retaining refractive brilliance
+                // Liquid Glass Skill (deepika-builds/liquid-glass):
+                // Crystal-clear frosted optical transmission preserving full backdrop view
                 if (isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xD812141F), // High-density frosted obsidian top
-                            Color(0xCC0E1018), // Rich frosted glass core
-                            Color(0xE00A0B12)  // Base shadow
+                            Color(0x300E0E16), // Translucent obsidian top
+                            Color(0x200E0E16), // Crystal core
+                            Color(0x400E0E16)  // Base shadow
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xF2FFFFFF), // 95% high-density luminous white top
-                            Color(0xE4FFFFFF), // 89% frosted crystal core
-                            Color(0xECF0F4FA)  // 92% subtle ambient reflection
+                            Color(0x35FFFFFF), // 21% translucent white top
+                            Color(0x15FFFFFF), // 8% crystal core
+                            Color(0x22F0F4FC)  // 13% subtle ambient reflection
                         )
                     )
                 }
@@ -297,30 +297,34 @@ fun Modifier.glassySurface(
         Modifier.liquid(state) {
             this.shape = shape
             frost = when (style) {
-                // High-fidelity Apple Liquid Glass: rich frosted diffusion preventing sharp text bleed
-                GlassyStyle.DOCK -> 24.dp
-                GlassyStyle.PROMINENT -> 20.dp
-                else -> 14.dp
+                // Liquid glass optical clarity: 2dp micro-blur preserves sharp letterforms
+                // so text passing behind the lens visibly bends, warps, and magnifies
+                GlassyStyle.DOCK -> 2.dp
+                GlassyStyle.PROMINENT -> 14.dp
+                else -> 10.dp
             }
             refraction = when (style) {
-                // Elegant lens curvature avoiding extreme fisheye warping
-                GlassyStyle.DOCK -> if (isPressed) 0.22f else 0.16f
-                GlassyStyle.PROMINENT -> if (isPressed) 0.18f else 0.12f
-                else -> if (isPressed) 0.14f else 0.08f
+                // Wide optical lens curvature spanning the full dock capsule radius
+                GlassyStyle.DOCK -> if (isPressed) 0.75f else 0.65f
+                GlassyStyle.PROMINENT -> if (isPressed) 0.22f else 0.16f
+                else -> if (isPressed) 0.16f else 0.10f
             }
-            curve = if (style == GlassyStyle.DOCK) 0.18f else 0.12f
-            edge = if (style == GlassyStyle.DOCK) 0.14f else 0.10f
-            saturation = if (style == GlassyStyle.DOCK) 1.20f else 1.12f
+            // Strong displacement curvature: visibly warps and bends underlying text
+            curve = if (style == GlassyStyle.DOCK) 0.55f else 0.16f
+            edge = if (style == GlassyStyle.DOCK) 0.18f else 0.11f
+            saturation = if (style == GlassyStyle.DOCK) 1.40f else 1.15f
             contrast = 1.05f
-            dispersion = if (style == GlassyStyle.DOCK) 0.015f else 0.010f
+            // Apple chromatic prism dispersion: color fringing along bent letterforms
+            dispersion = if (style == GlassyStyle.DOCK) 0.045f else 0.015f
             tint = when {
                 tintColor != null && style == GlassyStyle.DOCK ->
-                    tintColor.copy(alpha = if (isDark) 0.55f else 0.45f)
+                    tintColor.copy(alpha = if (isDark) 0.08f else 0.05f)
+                // Whisper-sheer optical tint: 100% clarity for underlying text & imagery
                 style == GlassyStyle.DOCK ->
-                    if (isDark) Color(0xFF10121C).copy(alpha = 0.72f)
-                    else Color(0xFFFFFFFF).copy(alpha = 0.78f)
-                tintColor != null -> tintColor.copy(alpha = 0.20f)
-                else -> Color.White.copy(alpha = 0.15f)
+                    if (isDark) Color(0xFF0E0E16).copy(alpha = 0.10f)
+                    else Color(0xFFFFFFFF).copy(alpha = 0.08f)
+                tintColor != null -> tintColor.copy(alpha = 0.12f)
+                else -> Color.White.copy(alpha = 0.10f)
             }
         }
     } ?: Modifier.background(glassFillBrush)
@@ -342,7 +346,6 @@ fun Modifier.glassySurface(
             ambientColor = Color.Black.copy(alpha = if (isDark) 0.30f else 0.05f)
         )
         .clip(shape)
-        .background(glassFillBrush)
         .then(surfaceModifier)
         // LAYER B: Specular Reflex Arc (Restrained overhead radial highlight)
         .then(

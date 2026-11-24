@@ -1,11 +1,15 @@
 package com.masterwave.player.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,37 +24,73 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.masterwave.player.data.appearance.AnimationSpeed
+import com.masterwave.player.data.appearance.AppIconStyle
+import com.masterwave.player.data.appearance.AppearanceStudioManager
+import com.masterwave.player.data.appearance.LibraryLayout
+import com.masterwave.player.data.appearance.NowPlayingBgStyle
+import com.masterwave.player.data.appearance.NowPlayingTemplate
+import com.masterwave.player.data.appearance.ThemePreset
+import com.masterwave.player.data.appearance.TypographyScale
 import com.masterwave.player.data.icon.AppIcon
 import com.masterwave.player.data.icon.AppIconManager
 import com.masterwave.player.ui.components.bouncyClickable
@@ -59,48 +99,78 @@ import com.masterwave.player.ui.theme.DisplayFontFamily
 import com.masterwave.player.ui.theme.ThemeAccentPreset
 import com.masterwave.player.ui.theme.ThemeMode
 import com.masterwave.player.ui.theme.ThemeState
+import com.masterwave.player.ui.theme.rememberAppThemeColors
 import com.masterwave.player.ui.theme.toFontFamily
 
 /**
- * MasterWave Appearance Screen:
- * - Theme Style: Exclusively Dark (AMOLED pitch black) & Light mode.
- * - Accent Colours: Curated palette presets & dynamic art.
- * - High Refresh Rate: Toggle 120Hz display refresh mode.
- * - Liquid Glass: Toggle shader-powered frosted acrylic glass dock.
+ * MASTERWAVE APPEARANCE STUDIO
+ * Professional design-system and personalization hub:
+ * - Theme Engine: Follow System, Light, Dark, AMOLED, and 10 Built-In Theme Presets
+ * - Custom Colour Studio: Curated swatches + custom accents + dynamic artwork palette
+ * - Now Playing Customization Studio: 5 Selectable Templates (Classic, Immersive, Minimal, Compact, Modern Glass)
+ * - Now Playing Background Studio: Blurred Artwork, Solid Canvas, Album Gradient, Dark Cinematic
+ * - Artwork Corner Radius (4dp to 40dp)
+ * - Icon Style Studio: 6 Vector Global Icon Styles (Minimal Outline, Rounded, Filled, Duotone, Soft Rounded, Monochrome)
+ * - Typography Studio: Font Family (Fucek default, System Default) + 3 Scale Ramps (Compact, Balanced, Large)
+ * - Home & Library Layouts: List, Grid, Compact
+ * - Animation Studio: Off, Subtle, Normal, Expressive + 120Hz Refresh Rate
+ * - Appearance Profiles: Save, Apply, Export JSON, Import JSON, Restore Factory Defaults
+ * - Live Interactive Appearance Preview Modal
+ * - Full Settings Search filtering
+ * - Strict Rule 0 Protection: Preserves existing Liquid Glass bottom dock and mini-player!
  */
 @Composable
 fun AppearanceScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val colors = rememberAppThemeColors()
+    val isAmoled = colors.isDark
+
     val themeMode by ThemeState.themeMode.collectAsState()
     val activeAccentPreset by ThemeState.accentPreset.collectAsState()
     val effectiveAccent by ThemeState.effectiveAccentColor.collectAsState()
     val dynamicColorEnabled by ThemeState.dynamicColorEnabled.collectAsState()
-    val isAmoled = ThemeState.isAmoledTheme()
-
     val liquidGlassEnabled by ThemeState.liquidGlassEnabled.collectAsState()
     val highRefreshRateEnabled by ThemeState.highRefreshRateEnabled.collectAsState()
     val selectedFont by ThemeState.selectedFont.collectAsState()
     val animatedAlbumArtEnabled by ThemeState.animatedAlbumArtEnabled.collectAsState()
-    val context = LocalContext.current
 
-    val bgColor = if (isAmoled) Color(0xFF000000) else Color(0xFFFFFFFF)
-    val cardBg = if (isAmoled) Color(0xFF101118) else Color(0xFFF1F3F5)
-    val cardBorder = if (isAmoled) Color(0x1FFFFFFF) else Color(0xFF101828)
-    val textPrimary = if (isAmoled) Color.White else Color(0xFF101828)
-    val textSecondary = if (isAmoled) Color(0xFFA0A5B8) else Color(0xFF6A6A6A)
-    val dividerColor = if (isAmoled) Color(0x14FFFFFF) else Color(0xFFE5E5E5)
+    // Appearance Studio State Flows
+    val activeProfile by AppearanceStudioManager.activeProfileName.collectAsState()
+    val nowPlayingTemplate by AppearanceStudioManager.nowPlayingTemplate.collectAsState()
+    val nowPlayingBgStyle by AppearanceStudioManager.nowPlayingBgStyle.collectAsState()
+    val artworkRadius by AppearanceStudioManager.artworkCornerRadiusDp.collectAsState()
+    val iconStyle by AppearanceStudioManager.iconStyle.collectAsState()
+    val libraryLayout by AppearanceStudioManager.libraryLayout.collectAsState()
+    val animationSpeed by AppearanceStudioManager.animationSpeed.collectAsState()
+    val typographyScale by AppearanceStudioManager.typographyScale.collectAsState()
+    val currentThemePreset by AppearanceStudioManager.themePreset.collectAsState()
+
+    // Search and Dialogs State
+    var searchQuery by remember { mutableStateOf("") }
+    var showLivePreview by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
+    var importText by remember { mutableStateOf("") }
+
+    val bgColor = colors.canvas
+    val cardBg = colors.surfaceCard
+    val cardBorder = colors.border
+    val textPrimary = colors.ink
+    val textSecondary = colors.muted
+    val dividerColor = colors.hairline
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 140.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- Top App Bar ---
+        // --- 1. Top App Bar ---
         item {
             Row(
                 modifier = Modifier
@@ -123,514 +193,1147 @@ fun AppearanceScreen(
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Appearance",
+                        text = "Appearance Studio",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            letterSpacing = (-0.4).sp
+                            fontSize = 21.sp,
+                            letterSpacing = (-0.3).sp
                         ),
                         color = textPrimary
                     )
                     Text(
-                        text = "Theme, colours, high refresh rate, and liquid glass",
-                        fontSize = 12.sp,
+                        text = "Design systems, themes, templates, and UI customization",
+                        fontSize = 11.5.sp,
                         color = textSecondary
+                    )
+                }
+                IconButton(
+                    onClick = { showLivePreview = true },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(effectiveAccent.copy(alpha = 0.16f))
+                        .size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = "Live Preview",
+                        tint = effectiveAccent,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        // --- 1. Theme & Colours ---
+        // --- 2. Live Search Settings Bar ---
         item {
-            AppearanceCardSection(title = "Theme and Colours", textSecondary = textSecondary) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // Theme Style Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(effectiveAccent.copy(alpha = 0.16f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Palette,
-                                contentDescription = null,
-                                tint = effectiveAccent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "Theme Style",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = textPrimary
-                            )
-                            Text(
-                                text = when (themeMode) {
-                                    ThemeMode.LIGHT -> "Clean Studio Light (Default)"
-                                    ThemeMode.SYSTEM -> "Follows Android System Mode"
-                                    else -> "AMOLED Pure Dark"
-                                },
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = textSecondary
-                            )
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = {
+                    Text(
+                        text = "Search themes, colors, templates, fonts...",
+                        fontSize = 13.sp,
+                        color = textSecondary
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = textSecondary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = textSecondary, modifier = Modifier.size(18.dp))
                         }
                     }
+                },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = cardBg,
+                    unfocusedContainerColor = cardBg,
+                    focusedBorderColor = effectiveAccent,
+                    unfocusedBorderColor = cardBorder
+                ),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            )
+        }
 
-                    // 3 Theme Styles: Light, Dark AMOLED, System Default
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (isAmoled) Color(0xFF181A24) else Color(0xFFEFF1F5),
-                        modifier = Modifier.fillMaxWidth()
+        // --- 3. Active Appearance Overview Card ---
+        if (searchQuery.isEmpty()) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = cardBg,
+                    border = BorderStroke(1.5.dp, cardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val themes = listOf(
-                                ThemeMode.LIGHT to ("Light" to Icons.Default.LightMode),
-                                ThemeMode.AMOLED to ("Dark AMOLED" to Icons.Default.DarkMode),
-                                ThemeMode.SYSTEM to ("System" to Icons.Default.AutoAwesome)
-                            )
-                            themes.forEach { (mode, pair) ->
-                                val (label, icon) = pair
-                                val isSelected = when (mode) {
-                                    ThemeMode.LIGHT -> themeMode == ThemeMode.LIGHT
-                                    ThemeMode.SYSTEM -> themeMode == ThemeMode.SYSTEM
-                                    ThemeMode.AMOLED -> themeMode == ThemeMode.AMOLED || themeMode == ThemeMode.DARK
-                                    else -> false
-                                }
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = if (isSelected) effectiveAccent else Color.Transparent,
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Box(
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .bouncyClickable {
-                                            ThemeState.setThemeMode(mode)
-                                            Toast.makeText(context, "$label Theme applied", Toast.LENGTH_SHORT).show()
-                                        }
+                                        .size(14.dp)
+                                        .clip(CircleShape)
+                                        .background(effectiveAccent)
+                                )
+                                Text(
+                                    text = "ACTIVE PROFILE",
+                                    fontFamily = DisplayFontFamily,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 11.sp,
+                                    letterSpacing = 1.sp,
+                                    color = effectiveAccent
+                                )
+                            }
+                            Text(
+                                text = activeProfile,
+                                fontFamily = DisplayFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = textPrimary
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                "Theme" to "${currentThemePreset.title} (${themeMode.name})",
+                                "Template" to nowPlayingTemplate.title,
+                                "Icons" to iconStyle.title
+                            ).forEach { (label, value) ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isAmoled) Color(0xFF141620) else Color(0xFFE5E7EB),
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) Color.White else textSecondary,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(text = label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = textSecondary)
+                                        Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = label,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color.White else textSecondary,
+                                            text = value,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = textPrimary,
                                             maxLines = 1
                                         )
                                     }
                                 }
                             }
                         }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { showLivePreview = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = effectiveAccent,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Live Preview", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    AppearanceStudioManager.resetToDefaults()
+                                    ThemeState.setThemeMode(ThemeMode.SYSTEM)
+                                    ThemeState.setAccentPreset(ThemeAccentPreset.APPLE_MUSIC)
+                                    Toast.makeText(context, "Restored factory appearance defaults", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isAmoled) Color(0xFF1A1C28) else Color(0xFFE2E4EA),
+                                    contentColor = textPrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Reset All", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
+                }
+            }
+        }
 
-                    AppearanceDivider(dividerColor)
+        // --- 4. Section: Themes & Presets ---
+        if (searchQuery.isEmpty() || "theme".contains(searchQuery, true) || "preset".contains(searchQuery, true) || "dark".contains(searchQuery, true) || "light".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Themes & Mode", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // 3 Theme Modes: Light, Dark AMOLED, System
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (isAmoled) Color(0xFF181A24) else Color(0xFFEFF1F5),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                val themes = listOf(
+                                    ThemeMode.LIGHT to ("Light" to Icons.Default.LightMode),
+                                    ThemeMode.AMOLED to ("Dark AMOLED" to Icons.Default.DarkMode),
+                                    ThemeMode.SYSTEM to ("System" to Icons.Default.AutoAwesome)
+                                )
+                                themes.forEach { (mode, pair) ->
+                                    val (label, icon) = pair
+                                    val isSelected = when (mode) {
+                                        ThemeMode.LIGHT -> themeMode == ThemeMode.LIGHT
+                                        ThemeMode.SYSTEM -> themeMode == ThemeMode.SYSTEM
+                                        ThemeMode.AMOLED -> themeMode == ThemeMode.AMOLED || themeMode == ThemeMode.DARK
+                                        else -> false
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = if (isSelected) effectiveAccent else Color.Transparent,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .bouncyClickable {
+                                                ThemeState.setThemeMode(mode)
+                                                Toast.makeText(context, "$label Theme applied", Toast.LENGTH_SHORT).show()
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = icon,
+                                                contentDescription = null,
+                                                tint = if (isSelected) Color.White else textSecondary,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = label,
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSelected) Color.White else textSecondary,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                    // Accent Colors Title
-                    Text(
-                        text = "ACCENT COLOURS",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
-                        color = textSecondary
-                    )
+                        AppearanceDivider(dividerColor)
 
-                    // Interactive Color Swatches
+                        // 10 Curated Theme Presets Horizontal Carousel
+                        Text(
+                            text = "SIGNATURE THEME PRESETS",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ThemePreset.values().forEach { preset ->
+                                val isSelected = currentThemePreset == preset
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isSelected) effectiveAccent.copy(alpha = 0.16f) else (if (isAmoled) Color(0xFF141622) else Color(0xFFF1F3F8)),
+                                    border = BorderStroke(
+                                        width = if (isSelected) 1.8.dp else 1.dp,
+                                        color = if (isSelected) effectiveAccent else cardBorder
+                                    ),
+                                    modifier = Modifier.bouncyClickable {
+                                        AppearanceStudioManager.setThemePreset(preset)
+                                        ThemeState.setThemeMode(preset.defaultMode)
+                                        ThemeState.setAccentColor(preset.primaryColor)
+                                        Toast.makeText(context, "Preset: ${preset.title}", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(18.dp)
+                                                .clip(CircleShape)
+                                                .background(preset.primaryColor)
+                                        )
+                                        Text(
+                                            text = preset.title,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) effectiveAccent else textPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 5. Section: Custom Colour Studio ---
+        if (searchQuery.isEmpty() || "color".contains(searchQuery, true) || "accent".contains(searchQuery, true) || "palette".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Custom Colour Studio", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Dynamic Wallpaper / Album Art Colors Toggle
+                        AppearanceToggleRow(
+                            icon = Icons.Default.AutoAwesome,
+                            tint = effectiveAccent,
+                            title = "Adaptive Album Artwork Color",
+                            subtitle = "Ambient bleed and accents dynamically match currently playing song",
+                            checked = dynamicColorEnabled,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onCheckedChange = {
+                                ThemeState.setDynamicColorEnabled(it)
+                                Toast.makeText(context, if (it) "Dynamic color enabled" else "Static accent color locked", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+
+                        AppearanceDivider(dividerColor)
+
+                        // Curated Accent Palette Swatches
+                        Text(
+                            text = "CURATED ACCENT SWATCHES",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        val swatches = listOf(
+                            Color(0xFFFA2D48) to "Apple Red",
+                            Color(0xFF0091FF) to "Cyber Cyan",
+                            Color(0xFF8B5CF6) to "Electric Violet",
+                            Color(0xFF10B981) to "Emerald Mint",
+                            Color(0xFFFF6B4A) to "Sunset Coral",
+                            Color(0xFF881337) to "Velvet Ruby",
+                            Color(0xFFF59E0B) to "Warm Amber",
+                            Color(0xFF64748B) to "Minimal Slate"
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            swatches.forEach { (color, name) ->
+                                val isSelected = effectiveAccent == color && !dynamicColorEnabled
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .border(
+                                            width = if (isSelected) 3.dp else 0.dp,
+                                            color = if (isSelected) (if (isAmoled) Color.White else Color.Black) else Color.Transparent,
+                                            shape = CircleShape
+                                        )
+                                        .bouncyClickable {
+                                            ThemeState.setDynamicColorEnabled(false)
+                                            ThemeState.setAccentColor(color)
+                                            Toast.makeText(context, "Accent: $name", Toast.LENGTH_SHORT).show()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 6. Section: Now Playing Customization Studio ---
+        if (searchQuery.isEmpty() || "now playing".contains(searchQuery, true) || "template".contains(searchQuery, true) || "corner".contains(searchQuery, true) || "background".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Now Playing Studio", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "PLAYER TEMPLATE",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        // 5 Selectable Templates
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NowPlayingTemplate.values().forEach { template ->
+                                val isSelected = nowPlayingTemplate == template
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (isSelected) effectiveAccent.copy(alpha = 0.12f) else (if (isAmoled) Color(0xFF141622) else Color(0xFFF1F3F8)),
+                                    border = BorderStroke(
+                                        width = if (isSelected) 1.6.dp else 1.dp,
+                                        color = if (isSelected) effectiveAccent else cardBorder
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .bouncyClickable {
+                                            AppearanceStudioManager.setNowPlayingTemplate(template)
+                                            Toast.makeText(context, "Template: ${template.title}", Toast.LENGTH_SHORT).show()
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = template.title,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = if (isSelected) effectiveAccent else textPrimary
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = template.subtitle,
+                                                fontSize = 11.5.sp,
+                                                color = textSecondary
+                                            )
+                                        }
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(effectiveAccent),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        AppearanceDivider(dividerColor)
+
+                        // Background Style Selector
+                        Text(
+                            text = "BACKGROUND STYLE",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            NowPlayingBgStyle.values().forEach { bgStyle ->
+                                val isSelected = nowPlayingBgStyle == bgStyle
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) effectiveAccent else (if (isAmoled) Color(0xFF141622) else Color(0xFFF1F3F8)),
+                                    modifier = Modifier.bouncyClickable {
+                                        AppearanceStudioManager.setNowPlayingBgStyle(bgStyle)
+                                        Toast.makeText(context, "Background: ${bgStyle.title}", Toast.LENGTH_SHORT).show()
+                                    }
+                                ) {
+                                    Text(
+                                        text = bgStyle.title,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else textPrimary,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        AppearanceDivider(dividerColor)
+
+                        // Artwork Corner Radius Slider
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Artwork Corner Radius",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.5.sp,
+                                    color = textPrimary
+                                )
+                                Text(
+                                    text = "${artworkRadius}dp",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = effectiveAccent
+                                )
+                            }
+                            Slider(
+                                value = artworkRadius.toFloat(),
+                                onValueChange = { AppearanceStudioManager.setArtworkCornerRadius(it.toInt()) },
+                                valueRange = 4f..40f,
+                                steps = 17,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = effectiveAccent,
+                                    activeTrackColor = effectiveAccent,
+                                    inactiveTrackColor = if (isAmoled) Color(0xFF222432) else Color(0xFFE2E4EA)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 7. Section: Home & Library Layouts ---
+        if (searchQuery.isEmpty() || "library".contains(searchQuery, true) || "layout".contains(searchQuery, true) || "grid".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Library & List Layouts", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "LAYOUT PRESENTATION",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            LibraryLayout.values().forEach { layout ->
+                                val isSelected = libraryLayout == layout
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) effectiveAccent else (if (isAmoled) Color(0xFF161826) else Color(0xFFE5E7EB)),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .bouncyClickable {
+                                            AppearanceStudioManager.setLibraryLayout(layout)
+                                            Toast.makeText(context, "Library Layout: ${layout.title}", Toast.LENGTH_SHORT).show()
+                                        }
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(vertical = 9.dp)
+                                    ) {
+                                        Text(
+                                            text = layout.title,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 8. Section: Icon Style Studio ---
+        if (searchQuery.isEmpty() || "icon".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Icon Style Studio", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "GLOBAL VECTOR ICON STYLE",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        AppIconStyle.values().toList().chunked(2).forEach { rowStyles ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowStyles.forEach { style ->
+                                    val isSelected = iconStyle == style
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (isSelected) effectiveAccent.copy(alpha = 0.14f) else (if (isAmoled) Color(0xFF141622) else Color(0xFFF1F3F8)),
+                                        border = BorderStroke(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = if (isSelected) effectiveAccent else cardBorder
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .bouncyClickable {
+                                                AppearanceStudioManager.setIconStyle(style)
+                                                Toast.makeText(context, "Icon Style: ${style.title}", Toast.LENGTH_SHORT).show()
+                                            }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = style.title,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) effectiveAccent else textPrimary
+                                            )
+                                            Text(
+                                                text = style.subtitle,
+                                                fontSize = 10.5.sp,
+                                                color = textSecondary,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 9. Section: Typography Studio ---
+        if (searchQuery.isEmpty() || "font".contains(searchQuery, true) || "typography".contains(searchQuery, true) || "scale".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Typography Studio", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Typography Scale Selector
+                        Text(
+                            text = "TYPOGRAPHY SCALE",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TypographyScale.values().forEach { scale ->
+                                val isSelected = typographyScale == scale
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) effectiveAccent else (if (isAmoled) Color(0xFF161826) else Color(0xFFE5E7EB)),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .bouncyClickable {
+                                            AppearanceStudioManager.setTypographyScale(scale)
+                                            Toast.makeText(context, "Font Scale: ${scale.title}", Toast.LENGTH_SHORT).show()
+                                        }
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = scale.title,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        AppearanceDivider(dividerColor)
+
+                        // Font Family Selection
+                        Text(
+                            text = "FONT FAMILY",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        AppFont.entries.forEach { font ->
+                            val isSelected = selectedFont == font
+                            val fontFamily = font.toFontFamily()
+
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) effectiveAccent.copy(alpha = 0.12f) else (if (isAmoled) Color(0xFF141622) else Color(0xFFF1F3F8)),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) effectiveAccent else cardBorder
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bouncyClickable {
+                                        ThemeState.setSelectedFont(font)
+                                        Toast.makeText(context, "Font: ${font.displayName}", Toast.LENGTH_SHORT).show()
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = font.displayName,
+                                            fontFamily = fontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = if (isSelected) effectiveAccent else textPrimary
+                                        )
+                                        Text(
+                                            text = font.previewSubtitle,
+                                            fontFamily = fontFamily,
+                                            fontSize = 11.5.sp,
+                                            color = textSecondary
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(CircleShape)
+                                                .background(effectiveAccent),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 10. Section: Animation Studio ---
+        if (searchQuery.isEmpty() || "animation".contains(searchQuery, true) || "motion".contains(searchQuery, true) || "refresh".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Animation & Display Motion", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = "MOTION SPEED PRESET",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            AnimationSpeed.values().forEach { speed ->
+                                val isSelected = animationSpeed == speed
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) effectiveAccent else (if (isAmoled) Color(0xFF161826) else Color(0xFFE5E7EB)),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .bouncyClickable {
+                                            AppearanceStudioManager.setAnimationSpeed(speed)
+                                            Toast.makeText(context, "Motion: ${speed.title}", Toast.LENGTH_SHORT).show()
+                                        }
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(vertical = 7.dp)
+                                    ) {
+                                        Text(
+                                            text = speed.title,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        AppearanceDivider(dividerColor)
+
+                        // 120Hz High Refresh Rate
+                        AppearanceToggleRow(
+                            icon = Icons.Default.Speed,
+                            tint = Color(0xFF38BDF8),
+                            title = "High Refresh Rate (120Hz)",
+                            subtitle = "Fluid animation physics and ultra-silky list scrolling",
+                            checked = highRefreshRateEnabled,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onCheckedChange = {
+                                ThemeState.setHighRefreshRateEnabled(it)
+                                Toast.makeText(context, if (it) "120Hz High Refresh Rate active" else "Standard Refresh Rate", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+
+                        AppearanceDivider(dividerColor)
+
+                        // Liquid Glass Shader Toggle
+                        AppearanceToggleRow(
+                            icon = Icons.Default.AutoAwesome,
+                            tint = effectiveAccent,
+                            title = "Liquid Glass Shader",
+                            subtitle = "AGSL optical refraction and specular reflection",
+                            checked = liquidGlassEnabled,
+                            textPrimary = textPrimary,
+                            textSecondary = textSecondary,
+                            onCheckedChange = {
+                                ThemeState.setLiquidGlassEnabled(it)
+                                Toast.makeText(context, if (it) "Liquid glass optical shader active" else "Standard acrylic glass active", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 11. Section: Appearance Profiles & Import/Export ---
+        if (searchQuery.isEmpty() || "profile".contains(searchQuery, true) || "export".contains(searchQuery, true) || "import".contains(searchQuery, true)) {
+            item {
+                AppearanceCardSection(title = "Appearance Profiles & Presets", textSecondary = textSecondary) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "PRE-CONFIGURED DESIGN PROFILES",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = textSecondary
+                        )
+
+                        val quickProfiles = listOf(
+                            "Clean Daily" to (ThemePreset.MASTERWAVE_SIGNATURE to NowPlayingTemplate.CLASSIC),
+                            "AMOLED Pure" to (ThemePreset.OBSIDIAN to NowPlayingTemplate.IMMERSIVE),
+                            "Minimal Studio" to (ThemePreset.MINIMAL_SILVER to NowPlayingTemplate.MINIMAL),
+                            "Cyber Ocean" to (ThemePreset.OCEAN to NowPlayingTemplate.MODERN_GLASS)
+                        )
+
+                        quickProfiles.forEach { (name, config) ->
+                            val (preset, template) = config
+                            val isSelected = activeProfile == name
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) effectiveAccent.copy(alpha = 0.12f) else (if (isAmoled) Color(0xFF141622) else Color(0xFFF1F3F8)),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) effectiveAccent else cardBorder
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .bouncyClickable {
+                                        AppearanceStudioManager.setActiveProfileName(name)
+                                        AppearanceStudioManager.setThemePreset(preset)
+                                        AppearanceStudioManager.setNowPlayingTemplate(template)
+                                        ThemeState.setThemeMode(preset.defaultMode)
+                                        ThemeState.setAccentColor(preset.primaryColor)
+                                        Toast.makeText(context, "Applied Profile: $name", Toast.LENGTH_SHORT).show()
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = name, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = if (isSelected) effectiveAccent else textPrimary)
+                                        Text(text = "${preset.title} • ${template.title}", fontSize = 11.sp, color = textSecondary)
+                                    }
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(CircleShape)
+                                                .background(effectiveAccent),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        AppearanceDivider(dividerColor)
+
+                        // Export & Import Buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val json = AppearanceStudioManager.exportCurrentProfileJson()
+                                    clipboardManager.setText(AnnotatedString(json))
+                                    Toast.makeText(context, "Configuration JSON copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isAmoled) Color(0xFF1A1C28) else Color(0xFFE2E4EA),
+                                    contentColor = textPrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Export JSON", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            Button(
+                                onClick = { showImportDialog = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isAmoled) Color(0xFF1A1C28) else Color(0xFFE2E4EA),
+                                    contentColor = textPrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Import JSON", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Live Interactive Appearance Preview Modal Dialog ---
+    if (showLivePreview) {
+        Dialog(onDismissRequest = { showLivePreview = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = cardBg,
+                border = BorderStroke(2.dp, cardBorder),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val presets = listOf(
-                            ThemeAccentPreset.APPLE_MUSIC to Color(0xFFFA2D48),
-                            ThemeAccentPreset.OCEAN to Color(0xFF0091FF),
-                            ThemeAccentPreset.BERRY to Color(0xFF8B5CF6),
-                            ThemeAccentPreset.FOREST to Color(0xFF10B981),
-                            ThemeAccentPreset.SUNSET to Color(0xFFFF6B4A)
-                        )
-                        presets.forEach { (preset, color) ->
-                            val isSelected = activeAccentPreset == preset && !dynamicColorEnabled
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(CircleShape)
-                                    .background(color)
-                                    .border(
-                                        width = if (isSelected) 3.dp else 0.dp,
-                                        color = if (isSelected) (if (isAmoled) Color.White else Color.Black) else Color.Transparent,
-                                        shape = CircleShape
-                                    )
-                                    .clickable {
-                                        ThemeState.setDynamicColorEnabled(false)
-                                        ThemeState.setAccentPreset(preset)
-                                        Toast.makeText(context, "Accent: ${preset.title}", Toast.LENGTH_SHORT).show()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- 2. High Refresh Rate ---
-        item {
-            AppearanceCardSection(title = "Display Refresh Rate", textSecondary = textSecondary) {
-                AppearanceToggleRow(
-                    icon = Icons.Default.Speed,
-                    tint = Color(0xFF38BDF8),
-                    title = "Enable High Refresh Rate",
-                    subtitle = "Force 120Hz display refresh mode for fluid animations and silky scrolling",
-                    checked = highRefreshRateEnabled,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onCheckedChange = {
-                        ThemeState.setHighRefreshRateEnabled(it)
-                        Toast.makeText(context, if (it) "120Hz High Refresh Rate enabled" else "Standard Refresh Rate enabled", Toast.LENGTH_SHORT).show()
-                    }
-                )
-            }
-        }
-
-        // --- 3. Now Playing & Visual Materials ---
-        item {
-            AppearanceCardSection(title = "Now Playing & Materials", textSecondary = textSecondary) {
-                AppearanceToggleRow(
-                    icon = Icons.Default.AutoAwesome,
-                    tint = effectiveAccent,
-                    title = "Ambient Album Art Glow",
-                    subtitle = "Fluid ambient color glow for album art in Now Playing",
-                    checked = animatedAlbumArtEnabled,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onCheckedChange = {
-                        ThemeState.setAnimatedAlbumArtEnabled(it)
-                        Toast.makeText(context, if (it) "Album Cover Art animation enabled" else "Album Cover Art animation disabled", Toast.LENGTH_SHORT).show()
-                    }
-                )
-                AppearanceDivider(dividerColor)
-                AppearanceToggleRow(
-                    icon = Icons.Default.AutoAwesome,
-                    tint = effectiveAccent,
-                    title = "Liquid Glass",
-                    subtitle = "Shader-powered frosted acrylic glass dock and controls",
-                    checked = liquidGlassEnabled,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onCheckedChange = {
-                        ThemeState.setLiquidGlassEnabled(it)
-                        Toast.makeText(context, if (it) "Liquid Glass enabled" else "Liquid Glass disabled", Toast.LENGTH_SHORT).show()
-                    }
-                )
-            }
-        }
-
-        // --- 4. Fonts & Typography ---
-        item {
-            AppearanceCardSection(title = "Fonts & Typography", textSecondary = textSecondary) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    AppFont.entries.forEachIndexed { index, font ->
-                        val isSelected = selectedFont == font
-                        val fontFamily = font.toFontFamily()
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bouncyClickable(scaleDown = 0.98f) {
-                                    ThemeState.setSelectedFont(font)
-                                    Toast.makeText(context, "Font: ${font.displayName}", Toast.LENGTH_SHORT).show()
-                                }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = font.displayName,
-                                        fontFamily = fontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = if (isSelected) effectiveAccent else textPrimary
-                                    )
-                                    if (font == AppFont.FUCEK) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(effectiveAccent.copy(alpha = 0.16f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "DEFAULT",
-                                                fontFamily = fontFamily,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 9.sp,
-                                                color = effectiveAccent
-                                            )
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = font.previewSubtitle,
-                                    fontFamily = fontFamily,
-                                    fontSize = 12.sp,
-                                    color = textSecondary
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = font.sampleText,
-                                    fontFamily = fontFamily,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 13.5.sp,
-                                    color = textPrimary.copy(alpha = 0.90f)
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "1234567890!@#%&*()_+-=",
-                                    fontFamily = fontFamily,
-                                    fontSize = 12.sp,
-                                    color = textSecondary
-                                )
-                            }
-
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(26.dp)
-                                        .clip(CircleShape)
-                                        .background(effectiveAccent),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        if (index < AppFont.entries.size - 1) {
-                            AppearanceDivider(dividerColor)
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            AppearanceCardSection(title = "App Icon", textSecondary = textSecondary) {
-                val currentAppIcon by AppIconManager.currentIcon.collectAsState()
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    val iconRows = AppIcon.values().toList().chunked(3)
-                    iconRows.forEach { rowIcons ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            rowIcons.forEach { appIcon ->
-                                val isSelected = currentAppIcon == appIcon
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(
-                                            if (isSelected) effectiveAccent.copy(alpha = 0.14f)
-                                            else Color.White.copy(alpha = 0.04f)
-                                        )
-                                        .border(
-                                            width = if (isSelected) 2.dp else 1.dp,
-                                            color = if (isSelected) effectiveAccent else Color.White.copy(alpha = 0.08f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .bouncyClickable(scaleDown = 0.95f) {
-                                            val success = AppIconManager.setAppIcon(context, appIcon)
-                                            if (success) {
-                                                Toast.makeText(context, "App Icon: ${appIcon.title} applied", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                        .padding(vertical = 12.dp, horizontal = 6.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Box(
-                                        modifier = Modifier.size(56.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Image(
-                                            painter = painterResource(id = appIcon.previewResId),
-                                            contentDescription = appIcon.title,
-                                            modifier = Modifier
-                                                .size(52.dp)
-                                                .clip(RoundedCornerShape(14.dp))
-                                                .border(
-                                                    width = if (isSelected) 1.5.dp else 0.5.dp,
-                                                    color = if (isSelected) effectiveAccent else Color.White.copy(alpha = 0.2f),
-                                                    shape = RoundedCornerShape(14.dp)
-                                                )
-                                        )
-
-                                        if (isSelected) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .align(Alignment.TopEnd)
-                                                    .size(20.dp)
-                                                    .clip(CircleShape)
-                                                    .background(effectiveAccent),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = "Selected",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(13.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Text(
-                                        text = appIcon.title,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        color = if (isSelected) effectiveAccent else textPrimary
-                                    )
-
-                                    Spacer(modifier = Modifier.height(3.dp))
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(
-                                                if (appIcon == AppIcon.DEFAULT) effectiveAccent.copy(alpha = 0.16f)
-                                                else Color.White.copy(alpha = 0.08f)
-                                            )
-                                            .padding(horizontal = 5.dp, vertical = 1.5.dp)
-                                    ) {
-                                        Text(
-                                            text = if (appIcon == AppIcon.DEFAULT) "DEFAULT" else "STYLE",
-                                            fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 8.5.sp,
-                                            color = if (appIcon == AppIcon.DEFAULT) effectiveAccent else textSecondary
-                                        )
-                                    }
-                                }
-                            }
-                            repeat(3 - rowIcons.size) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    AppearanceDivider(dividerColor)
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Active Selection Details
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Active Icon: ",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = textSecondary
-                            )
-                            Text(
-                                text = currentAppIcon.title,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = effectiveAccent
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = currentAppIcon.subtitle,
-                            fontSize = 11.5.sp,
-                            color = textSecondary.copy(alpha = 0.85f)
+                            text = "Live Appearance Preview",
+                            fontFamily = DisplayFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = textPrimary
                         )
+                        IconButton(onClick = { showLivePreview = false }, modifier = Modifier.size(30.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = textSecondary)
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Contact & Support Notice
+                    // Mini Mockup Container
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.03f))
-                            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
-                            .padding(12.dp)
+                            .height(240.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(bgColor)
+                            .border(1.dp, cardBorder, RoundedCornerShape(16.dp))
+                            .padding(14.dp)
                     ) {
-                        Column {
-                            Text(
-                                text = "Support & Inquiries",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textPrimary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "For icon assistance or inquiries, email us at: masterwaveofficial@gmail.com",
-                                fontSize = 11.sp,
-                                color = textSecondary,
-                                lineHeight = 15.sp
-                            )
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Mock Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("MasterWave", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimary)
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(effectiveAccent)
+                                )
+                            }
+
+                            // Mock Now Playing Mini Card
+                            Surface(
+                                shape = RoundedCornerShape(artworkRadius.coerceAtMost(24).dp),
+                                color = if (isAmoled) Color(0xFF141624) else Color(0xFFE5E7EB),
+                                border = BorderStroke(1.dp, cardBorder),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(effectiveAccent),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Sample Track", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = textPrimary)
+                                        Text("${nowPlayingTemplate.title} Template • ${currentThemePreset.title}", fontSize = 10.sp, color = textSecondary)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(effectiveAccent),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+
+                            // Mock Bottom Navigation Dock
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (isAmoled) Color(0x30FFFFFF) else Color(0x30000000),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(34.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.SmartDisplay, contentDescription = null, tint = effectiveAccent, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Tune, contentDescription = null, tint = textSecondary, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = textSecondary, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Search, contentDescription = null, tint = textSecondary, modifier = Modifier.size(16.dp))
+                                }
+                            }
                         }
+                    }
+
+                    Button(
+                        onClick = { showLivePreview = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = effectiveAccent),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Looks Perfect", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
         }
+    }
+
+    // --- Import Configuration Dialog ---
+    if (showImportDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportDialog = false },
+            title = { Text("Import Appearance Profile", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Paste profile JSON configuration below:", fontSize = 12.sp, color = textSecondary)
+                    OutlinedTextField(
+                        value = importText,
+                        onValueChange = { importText = it },
+                        placeholder = { Text("{\n  \"profileName\": \"Custom\"...\n}", fontSize = 11.sp) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val success = AppearanceStudioManager.importProfileJson(importText)
+                        if (success) {
+                            Toast.makeText(context, "Profile successfully loaded!", Toast.LENGTH_SHORT).show()
+                            showImportDialog = false
+                            importText = ""
+                        } else {
+                            Toast.makeText(context, "Invalid profile JSON format", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Text("Apply Profile", fontWeight = FontWeight.Bold, color = effectiveAccent)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportDialog = false }) {
+                    Text("Cancel", color = textSecondary)
+                }
+            }
+        )
     }
 }
 
@@ -665,7 +1368,7 @@ private fun AppearanceCardSection(
 @Composable
 private fun AppearanceDivider(color: Color) {
     HorizontalDivider(
-        modifier = Modifier.padding(vertical = 6.dp),
+        modifier = Modifier.padding(vertical = 4.dp),
         thickness = 0.6.dp,
         color = color
     )

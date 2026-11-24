@@ -2,6 +2,9 @@ package com.masterwave.player.ui.screens
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
+import com.masterwave.player.data.appearance.AppearanceStudioManager
+import com.masterwave.player.data.appearance.NowPlayingBgStyle
+import com.masterwave.player.data.appearance.NowPlayingTemplate
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
@@ -219,6 +222,9 @@ fun NowPlayingScreen(
     )
 
     val animatedAlbumArtEnabled by ThemeState.animatedAlbumArtEnabled.collectAsState()
+    val nowPlayingTemplate by AppearanceStudioManager.nowPlayingTemplate.collectAsState()
+    val nowPlayingBgStyle by AppearanceStudioManager.nowPlayingBgStyle.collectAsState()
+    val artworkRadiusDp by AppearanceStudioManager.artworkCornerRadiusDp.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
@@ -244,61 +250,108 @@ fun NowPlayingScreen(
     ) {
         val screenHeight = maxHeight
 
-        // --- 1. Background Ambient Radiant Canvas (Apple Music Animated Kinetic Aura) ---
+        // --- 1. Background Ambient Radiant Canvas ---
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
 
-            // Base top-to-bottom gradient
-            drawRect(
-                brush = Brush.verticalGradient(
-                    0.0f to Color(0xFF07080B),
-                    0.45f to animatedBottomBleed.copy(alpha = 0.75f),
-                    1.0f to animatedBottomBleed
-                )
-            )
+            when (nowPlayingBgStyle) {
+                NowPlayingBgStyle.SOLID -> {
+                    drawRect(color = Color(0xFF0A0C13))
+                }
+                NowPlayingBgStyle.GRADIENT -> {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0.0f to Color(0xFF07080B),
+                            0.45f to animatedAmbientGlow.copy(alpha = 0.55f),
+                            1.0f to animatedBottomBleed
+                        )
+                    )
+                }
+                NowPlayingBgStyle.CINEMATIC -> {
+                    drawRect(color = Color(0xFF050608))
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(animatedAmbientGlow.copy(alpha = 0.28f), Color.Transparent),
+                            center = Offset(w * 0.5f, h * 0.42f),
+                            radius = w * 0.85f
+                        ),
+                        radius = w * 0.85f,
+                        center = Offset(w * 0.5f, h * 0.42f)
+                    )
+                }
+                NowPlayingBgStyle.BLURRED_ARTWORK -> {
+                    // Base top-to-bottom gradient
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            0.0f to Color(0xFF07080B),
+                            0.45f to animatedBottomBleed.copy(alpha = 0.75f),
+                            1.0f to animatedBottomBleed
+                        )
+                    )
 
-            // Dynamic Apple Music Animated Ambient Orbs
-            val orb1X = w * (0.50f + 0.14f * kotlin.math.sin(ambientPhase.toDouble()).toFloat())
-            val orb1Y = h * (0.38f + 0.08f * kotlin.math.cos(ambientPhase.toDouble()).toFloat())
-            val orb1Radius = w * 0.82f * (if (isPlaying) ambientPulse else 0.95f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        animatedAmbientGlow.copy(alpha = if (isPlaying) 0.38f else 0.22f),
-                        animatedBottomBleed.copy(alpha = 0.14f),
-                        Color.Transparent
-                    ),
-                    center = Offset(orb1X, orb1Y),
-                    radius = orb1Radius
-                ),
-                radius = orb1Radius,
-                center = Offset(orb1X, orb1Y)
-            )
+                    // Dynamic Apple Music Animated Ambient Orbs
+                    val orb1X = w * (0.50f + 0.14f * kotlin.math.sin(ambientPhase.toDouble()).toFloat())
+                    val orb1Y = h * (0.38f + 0.08f * kotlin.math.cos(ambientPhase.toDouble()).toFloat())
+                    val orb1Radius = w * 0.82f * (if (isPlaying) ambientPulse else 0.95f)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                animatedAmbientGlow.copy(alpha = if (isPlaying) 0.38f else 0.22f),
+                                animatedBottomBleed.copy(alpha = 0.14f),
+                                Color.Transparent
+                            ),
+                            center = Offset(orb1X, orb1Y),
+                            radius = orb1Radius
+                        ),
+                        radius = orb1Radius,
+                        center = Offset(orb1X, orb1Y)
+                    )
 
-            val orb2X = w * (0.50f - 0.16f * kotlin.math.cos((ambientPhase * 0.7f).toDouble()).toFloat())
-            val orb2Y = h * (0.76f + 0.07f * kotlin.math.sin((ambientPhase * 0.7f).toDouble()).toFloat())
-            val orb2Radius = w * 0.92f * (if (isPlaying) (2f - ambientPulse) else 0.95f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        animatedAmbientGlow.copy(alpha = if (isPlaying) 0.30f else 0.18f),
-                        animatedBottomBleed.copy(alpha = 0.12f),
-                        Color.Transparent
-                    ),
-                    center = Offset(orb2X, orb2Y),
-                    radius = orb2Radius
-                ),
-                radius = orb2Radius,
-                center = Offset(orb2X, orb2Y)
-            )
+                    val orb2X = w * (0.50f - 0.16f * kotlin.math.cos((ambientPhase * 0.7f).toDouble()).toFloat())
+                    val orb2Y = h * (0.76f + 0.07f * kotlin.math.sin((ambientPhase * 0.7f).toDouble()).toFloat())
+                    val orb2Radius = w * 0.92f * (if (isPlaying) (2f - ambientPulse) else 0.95f)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                animatedAmbientGlow.copy(alpha = if (isPlaying) 0.30f else 0.18f),
+                                animatedBottomBleed.copy(alpha = 0.12f),
+                                Color.Transparent
+                            ),
+                            center = Offset(orb2X, orb2Y),
+                            radius = orb2Radius
+                        ),
+                        radius = orb2Radius,
+                        center = Offset(orb2X, orb2Y)
+                    )
+                }
+            }
         }
 
         // --- 2. Full-Bleed Artwork Hero with Downward Bleed Effect (Edge-to-Edge with Apple Breathing Scale) ---
+        val isImmersive = nowPlayingTemplate == NowPlayingTemplate.IMMERSIVE
+        val isCompact = nowPlayingTemplate == NowPlayingTemplate.COMPACT
+        val isMinimal = nowPlayingTemplate == NowPlayingTemplate.MINIMAL
+        val artworkHeightFraction = when {
+            isCompact -> 0.44f
+            isMinimal -> 0.46f
+            isImmersive -> 0.58f
+            else -> 0.54f
+        }
+        val artworkPaddingHorizontal = when {
+            isImmersive -> 0.dp
+            isCompact -> 32.dp
+            isMinimal -> 24.dp
+            else -> 18.dp
+        }
+        val effectiveCornerRadius = if (isImmersive) 0.dp else artworkRadiusDp.dp
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(screenHeight * 0.56f)
+                .height(screenHeight * artworkHeightFraction)
+                .padding(horizontal = artworkPaddingHorizontal)
+                .clip(RoundedCornerShape(effectiveCornerRadius))
                 .graphicsLayer {
                     scaleX = effectiveArtworkScale
                     scaleY = effectiveArtworkScale
