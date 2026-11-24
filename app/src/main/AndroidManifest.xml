@@ -82,6 +82,10 @@
                     android:scheme="https"
                     android:host="masterwave.vercel.app"
                     android:pathPrefix="/join" />
+                <data
+                    android:scheme="https"
+                    android:host="masterwave-music.vercel.app"
+                    android:pathPrefix="/join" />
             </intent-filter>
         </activity>
 
