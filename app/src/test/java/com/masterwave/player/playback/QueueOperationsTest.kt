@@ -37,4 +37,25 @@ class QueueOperationsTest {
         assertEquals(listOf(track("a"), track("c"), track("b")), updated)
         assertEquals(2, index)
     }
+
+    @Test
+    fun playNextInsertsDirectlyAfterCurrentTrack() {
+        val queue = listOf(track("a"), track("b"), track("c"))
+        val d = track("d")
+
+        val (updated, index) = QueueOperations.playNext(queue, 0, d)
+
+        assertEquals(listOf(track("a"), track("d"), track("b"), track("c")), updated)
+        assertEquals(0, index)
+    }
+
+    @Test
+    fun playNextRepositionsExistingTrackWithoutDuplicates() {
+        val queue = listOf(track("a"), track("b"), track("c"), track("d"))
+
+        val (updated, index) = QueueOperations.playNext(queue, 0, track("c"))
+
+        assertEquals(listOf(track("a"), track("c"), track("b"), track("d")), updated)
+        assertEquals(0, index)
+    }
 }

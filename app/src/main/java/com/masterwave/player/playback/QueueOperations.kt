@@ -38,4 +38,20 @@ internal object QueueOperations {
         }
         return updated to updatedIndex
     }
+
+    fun playNext(queue: List<Track>, currentIndex: Int, track: Track): Pair<List<Track>, Int> {
+        val updated = queue.toMutableList()
+        val existingIndex = updated.indexOfFirst { it.id == track.id }
+        var current = currentIndex
+        if (existingIndex >= 0) {
+            updated.removeAt(existingIndex)
+            if (existingIndex < current) {
+                current--
+            }
+        }
+        val insertAt = if (current >= 0) (current + 1).coerceAtMost(updated.size) else 0
+        updated.add(insertAt, track)
+        val finalIndex = if (current < 0) 0 else current
+        return updated to finalIndex
+    }
 }

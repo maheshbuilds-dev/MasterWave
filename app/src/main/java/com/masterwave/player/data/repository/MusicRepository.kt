@@ -859,6 +859,95 @@ class MusicRepository(private val context: Context) {
         )
     }
 
+    /**
+     * Feature 4: Smart Playlists
+     * Generates dynamic, automatically curated collections based on real listening data.
+     */
+    fun getSmartPlaylists(): List<Playlist> {
+        val result = mutableListOf<Playlist>()
+        val history = _playHistory.value
+        val counts = _playCounts.value
+        val allLocal = _localTracks.value
+        val recents = _recentTracks.value
+        val favs = _favorites.value
+
+        // 1. Most Played
+        val topPlayedTracks = (history.map { it.track } + favs + allLocal)
+            .distinctBy { it.id }
+            .filter { (counts[it.id] ?: 0) > 0 }
+            .sortedByDescending { counts[it.id] ?: 0 }
+            .take(50)
+        if (topPlayedTracks.isNotEmpty()) {
+            result.add(
+                Playlist(
+                    id = "smart_most_played",
+                    title = "Most Played",
+                    description = "Your top played tracks across all sessions",
+                    trackCount = topPlayedTracks.size,
+                    tracks = topPlayedTracks,
+                    source = "Smart",
+                    artworkUrl = topPlayedTracks.firstOrNull()?.artworkUrl
+                )
+            )
+        }
+
+        // 2. Recently Played
+        if (recents.isNotEmpty()) {
+            result.add(
+                Playlist(
+                    id = "smart_recently_played",
+                    title = "Recently Played",
+                    description = "Latest tracks from your active listening sessions",
+                    trackCount = recents.size,
+                    tracks = recents,
+                    source = "Smart",
+                    artworkUrl = recents.firstOrNull()?.artworkUrl
+                )
+            )
+        }
+
+        // 3. Forgotten Gems (played in history, but not in the last 48 hours)
+        val twoDaysAgo = System.currentTimeMillis() - (2 * 24 * 60 * 60 * 1000L)
+        val recentIds = history.filter { it.playedAt >= twoDaysAgo }.map { it.track.id }.toSet()
+        val forgottenTracks = (favs + allLocal + history.map { it.track })
+            .distinctBy { it.id }
+            .filter { it.id !in recentIds && (counts[it.id] ?: 0) > 0 }
+            .take(30)
+        if (forgottenTracks.isNotEmpty()) {
+            result.add(
+                Playlist(
+                    id = "smart_forgotten_gems",
+                    title = "Forgotten Gems",
+                    description = "Songs you love that haven't been played in recent days",
+                    trackCount = forgottenTracks.size,
+                    tracks = forgottenTracks,
+                    source = "Smart",
+                    artworkUrl = forgottenTracks.firstOrNull()?.artworkUrl
+                )
+            )
+        }
+
+        // 4. Never Played (Local songs with 0 plays)
+        val neverPlayedTracks = allLocal
+            .filter { (counts[it.id] ?: 0) == 0 }
+            .take(50)
+        if (neverPlayedTracks.isNotEmpty()) {
+            result.add(
+                Playlist(
+                    id = "smart_never_played",
+                    title = "Never Played",
+                    description = "Unplayed audio files waiting in your library",
+                    trackCount = neverPlayedTracks.size,
+                    tracks = neverPlayedTracks,
+                    source = "Smart",
+                    artworkUrl = neverPlayedTracks.firstOrNull()?.artworkUrl
+                )
+            )
+        }
+
+        return result
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: MusicRepository? = null

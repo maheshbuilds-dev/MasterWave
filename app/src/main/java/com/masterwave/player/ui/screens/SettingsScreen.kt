@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolunteerActivism
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -110,6 +111,7 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val colors = rememberAppThemeColors()
     var searchQuery by remember { mutableStateOf("") }
+    var showTasteDialog by remember { mutableStateOf(false) }
 
     // --- Clean, Curated Settings Groups ---
     // Group 1: Sound & Experience
@@ -137,6 +139,14 @@ fun SettingsScreen(
             subtitle = "Host or join real-time music sync with friends",
             accentColor = WebAccentSky,
             onClick = onNavigateToListenTogether
+        ),
+        SettingsItemData(
+            id = "taste_controls",
+            icon = Icons.Default.Tune,
+            title = "Taste & Recommendations",
+            subtitle = "Manage hidden tracks and reset excluded artists",
+            accentColor = WebAccentEmerald,
+            onClick = { showTasteDialog = true }
         )
     )
 
@@ -463,6 +473,77 @@ fun SettingsScreen(
                     fontSize = 12.sp,
                     color = colors.muted
                 )
+            }
+        }
+    }
+
+    // Feature 18: Taste Controls Dialog
+    if (showTasteDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showTasteDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = colors.surfaceCard,
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.border),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(22.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(WebAccentEmerald.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Tune, contentDescription = null, tint = WebAccentEmerald, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text("Taste Controls", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = colors.ink)
+                            Text("Recommendations & Exclusions", fontSize = 12.sp, color = colors.muted)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Reset all hidden songs and unblock excluded artists so they can appear in your Sonic Flows and Mixes again.",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                        color = colors.muted
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { showTasteDialog = false },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel", color = colors.ink)
+                        }
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                val tasteFile = java.io.File(context.filesDir, "masterwave_taste_profile.json")
+                                if (tasteFile.exists()) tasteFile.delete()
+                                showTasteDialog = false
+                                Toast.makeText(context, "Taste preferences & exclusions reset", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = WebAccentEmerald),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Reset All", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
     }

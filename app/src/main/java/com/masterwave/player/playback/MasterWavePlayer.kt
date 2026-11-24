@@ -447,7 +447,31 @@ class MasterWavePlayer(
 
                 exoPlayer.setMediaItem(mediaItem, startPositionMs.coerceAtLeast(0L))
                 exoPlayer.prepare()
-                if (autoPlay) exoPlayer.play() else exoPlayer.pause()
+                if (autoPlay) {
+                    val fadeSec = if (_crossfadeSeconds.value > 0) _crossfadeSeconds.value else if (_automixEnabled.value) 4 else 0
+                    if (fadeSec > 0 && startPositionMs == 0L) {
+                        exoPlayer.volume = 0f
+                        exoPlayer.play()
+                        launch {
+                            try {
+                                val steps = 8
+                                val stepTime = 150L
+                                val targetVol = _volume.value
+                                for (s in 1..steps) {
+                                    delay(stepTime)
+                                    exoPlayer.volume = (s.toFloat() / steps) * targetVol
+                                }
+                                exoPlayer.volume = targetVol
+                            } catch (_: Exception) {}
+                        }
+                    } else {
+                        exoPlayer.volume = _volume.value
+                        exoPlayer.play()
+                    }
+                } else {
+                    exoPlayer.pause()
+                }
+                isFadingOut = false
                 saveSnapshot()
 
                 // If newQueue has only 1 track, populate smart recommendations into queue in background
@@ -712,6 +736,47 @@ class MasterWavePlayer(
         _queue.value = QueueOperations.add(_queue.value, track)
         if (_currentIndex.value < 0 && _queue.value.isNotEmpty()) {
             _currentIndex.value = 0
+        }
+        saveSnapshot()
+    }
+
+    fun playNext(track: Track) {
+        val (updatedQueue, updatedIndex) = QueueOperations.playNext(
+            _queue.value,
+            _currentIndex.value,
+            track
+        )
+        _queue.value = updatedQueue
+        _currentIndex.value = updatedIndex
+        saveSnapshot()
+    }
+
+    fun saveQueueSnapshot(name: String = "Saved Queue"): Boolean {
+        return try {
+            val q = _queue.value
+            if (q.isEmpty()) return false
+            val encoded = snapshotJson.encodeToString(q)
+            audioPrefs.edit().putString("queue_snapshot_${name.trim().lowercase().replace(' ', '_')}", encoded).apply()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun restoreQueueSnapshot(name: String = "Saved Queue"): Boolean {
+        return try {
+            val key = "queue_snapshot_${name.trim().lowercase().replace(' ', '_')}"
+            val encoded = audioPrefs.getString(key, null) ?: return false
+            val restored = snapshotJson.decodeFromString<List<Track>>(encoded)
+            if (restored.isNotEmpty()) {
+                _queue.value = restored
+                _currentIndex.value = 0
+                _currentTrack.value = restored.first()
+                playTrack(restored.first(), restored)
+                true
+            } else false
+        } catch (_: Exception) {
+            false
         }
     }
 

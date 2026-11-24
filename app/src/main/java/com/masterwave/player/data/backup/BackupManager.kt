@@ -261,4 +261,81 @@ class BackupManager(
             false
         }
     }
+
+    /**
+     * Feature 9: Playlist Backup & Restore (Standard M3U8/M3U format).
+     * Exports a playlist to standard Extended M3U representation.
+     */
+    fun exportPlaylistToM3u(playlist: Playlist): String {
+        val sb = StringBuilder()
+        sb.append("#EXTM3U\n")
+        sb.append("#PLAYLIST:${playlist.title}\n")
+        playlist.tracks.forEach { track ->
+            val duration = track.durationSeconds
+            sb.append("#EXTINF:$duration,${track.artist} - ${track.title}\n")
+            val location = track.localUri ?: track.streamUrl ?: track.id
+            sb.append(location).append("\n")
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Imports an M3U format playlist string with duplicate suppression.
+     */
+    suspend fun importPlaylistFromM3u(m3uContent: String, playlistName: String): Playlist = withContext(Dispatchers.IO) {
+        val lines = m3uContent.lines()
+        val tracks = mutableListOf<Track>()
+        var currentTitle = ""
+        var currentArtist = ""
+        var currentDuration = 0L
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("#EXTINF:")) {
+                val commaIdx = trimmed.indexOf(',')
+                val info = trimmed.substring(8, if (commaIdx > 8) commaIdx else trimmed.length)
+                currentDuration = info.toLongOrNull() ?: 0L
+                if (commaIdx > 0 && commaIdx < trimmed.length - 1) {
+                    val fullTitle = trimmed.substring(commaIdx + 1).trim()
+                    if (fullTitle.contains(" - ")) {
+                        val parts = fullTitle.split(" - ", limit = 2)
+                        currentArtist = parts[0].trim()
+                        currentTitle = parts[1].trim()
+                    } else {
+                        currentTitle = fullTitle
+                        currentArtist = "Unknown"
+                    }
+                }
+            } else if (trimmed.isNotBlank() && !trimmed.startsWith("#")) {
+                val id = "m3u_${System.currentTimeMillis()}_${tracks.size}"
+                val isLocalPath = trimmed.startsWith("/") || trimmed.startsWith("file://") || trimmed.startsWith("content://")
+                tracks.add(
+                    Track(
+                        id = id,
+                        title = currentTitle.ifBlank { trimmed.substringAfterLast('/').substringBeforeLast('.') },
+                        artist = currentArtist.ifBlank { "Unknown" },
+                        durationSeconds = currentDuration,
+                        streamUrl = trimmed,
+                        localUri = if (isLocalPath) trimmed else null,
+                        isLocal = isLocalPath
+                    )
+                )
+                currentTitle = ""
+                currentArtist = ""
+                currentDuration = 0L
+            }
+        }
+
+        val finalName = playlistName.ifBlank { "Imported M3U Playlist" }
+        val imported = Playlist(
+            id = "m3u_${System.currentTimeMillis()}",
+            title = finalName,
+            description = "Imported from standard M3U playlist file",
+            trackCount = tracks.size,
+            tracks = tracks.distinctBy { it.streamUrl ?: it.title },
+            source = "Local"
+        )
+        repository.addCustomPlaylist(imported)
+        imported
+    }
 }

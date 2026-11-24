@@ -74,4 +74,41 @@ object AudioTagCompiler {
             false
         }
     }
+
+    /**
+     * Feature 8: Music File Manager & ID3 Editor
+     * Updates metadata tags of local or downloaded audio containers.
+     */
+    fun updateTags(
+        audioFile: File,
+        title: String,
+        artist: String,
+        album: String,
+        year: String? = null,
+        genre: String? = null
+    ): Boolean {
+        if (!audioFile.exists() || !audioFile.canWrite()) {
+            Log.w(TAG, "File cannot be written: ${audioFile.absolutePath}")
+            return false
+        }
+        return try {
+            val audio = AudioFileIO.read(audioFile)
+            var tag = audio.tag
+            if (tag == null) {
+                tag = audio.createDefaultTag()
+                audio.tag = tag
+            }
+            if (title.isNotBlank()) tag.setField(FieldKey.TITLE, title.trim())
+            if (artist.isNotBlank()) tag.setField(FieldKey.ARTIST, artist.trim())
+            if (album.isNotBlank()) tag.setField(FieldKey.ALBUM, album.trim())
+            if (!year.isNullOrBlank()) tag.setField(FieldKey.YEAR, year.trim())
+            if (!genre.isNullOrBlank()) tag.setField(FieldKey.GENRE, genre.trim())
+            audio.commit()
+            Log.i(TAG, "Updated ID3 tags for ${audioFile.name}")
+            true
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed updating tags for ${audioFile.name}", e)
+            false
+        }
+    }
 }

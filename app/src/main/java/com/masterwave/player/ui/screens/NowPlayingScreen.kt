@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.screens
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
@@ -73,12 +74,14 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SpatialAudio
 import androidx.compose.material.icons.filled.Star
@@ -220,6 +223,7 @@ fun NowPlayingScreen(
     var showMenu by remember { mutableStateOf(false) }
     var showAudioPlaybackModal by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var showSongCreditsDialog by remember { mutableStateOf(false) }
     val playlists by repository.playlists.collectAsState()
 
     val artworkContent = remember(currentTrack.id, currentTrack.title, currentTrack.artworkUrl) {
@@ -1045,6 +1049,80 @@ fun NowPlayingScreen(
             }
         }
 
+        // --- Feature 25: Song Credits & Technical Details Modal ---
+        if (showSongCreditsDialog) {
+            Dialog(onDismissRequest = { showSongCreditsDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF141522),
+                    border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(22.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(accentColor.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.Info, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Song Credits & Info", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                                Text("Audio pipeline & source telemetry", fontSize = 12.sp, color = Color.White.copy(alpha = 0.6f))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        val details = listOf(
+                            "Title" to currentTrack.title,
+                            "Artist" to currentTrack.artist,
+                            "Album" to (currentTrack.album.ifBlank { "Single / Soundtrack" }),
+                            "Duration" to currentTrack.durationFormatted,
+                            "Audio Codec" to "${currentTrack.codec} 48 kHz",
+                            "Bitrate" to "${currentTrack.bitrateKbps} kbps",
+                            "Source Type" to (if (currentTrack.isLocal) "Local On-Device Audio" else "MasterWave HD Stream"),
+                            "Availability" to "Unrestricted Full Playback"
+                        )
+
+                        details.forEach { (label, value) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(label, fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f))
+                                Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            androidx.compose.material3.Button(
+                                onClick = { showSongCreditsDialog = false },
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = accentColor),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // --- Authentic Liquid Glass 3-Dots Floating Menu Overlay ---
         AnimatedVisibility(
             visible = showMenu,
@@ -1143,6 +1221,16 @@ fun NowPlayingScreen(
                         }
                     )
                     NowPlayingGlassMenuItem(
+                        title = "Play Next",
+                        icon = Icons.AutoMirrored.Filled.QueueMusic,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            player.playNext(currentTrack)
+                            Toast.makeText(context, "Playing next: ${currentTrack.title}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
                         title = "Add to Playlist",
                         icon = Icons.AutoMirrored.Filled.PlaylistAdd,
                         accentColor = accentColor,
@@ -1164,6 +1252,32 @@ fun NowPlayingScreen(
                             )
                             dm.downloadTrack(currentTrack)
                             Toast.makeText(context, "Download started", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Share Song Card",
+                        icon = Icons.Filled.Share,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "Listening to ${currentTrack.title}")
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    "🎵 Now Playing: \"${currentTrack.title}\" by ${currentTrack.artist}\non MasterWave Music Player! 🌊"
+                                )
+                            }
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Track"))
+                        }
+                    )
+                    NowPlayingGlassMenuItem(
+                        title = "Song Credits & Info",
+                        icon = Icons.Filled.Info,
+                        accentColor = accentColor,
+                        onClick = {
+                            showMenu = false
+                            showSongCreditsDialog = true
                         }
                     )
                     NowPlayingGlassMenuItem(

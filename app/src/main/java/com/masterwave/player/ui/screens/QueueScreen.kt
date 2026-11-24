@@ -157,27 +157,63 @@ fun QueueScreen(
                 )
             }
 
-            // Clear Queue Button
+            // Actions: Save Queue as Playlist & Clear Queue Buttons
             if (queue.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .glassySlab(
-                            shape = CircleShape,
-                            isDark = isAmoled,
-                            onClick = {
-                                player.clearQueue()
-                                Toast.makeText(context, "Queue cleared", Toast.LENGTH_SHORT).show()
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteSweep,
-                        contentDescription = "Clear Queue",
-                        tint = MasterWaveTurquoise,
-                        modifier = Modifier.size(20.dp)
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Feature 3 & 26: Save Queue as Playlist
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .glassySlab(
+                                shape = CircleShape,
+                                isDark = isAmoled,
+                                onClick = {
+                                    val dateStr = java.text.SimpleDateFormat("MMM dd, HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                                    val pl = com.masterwave.player.data.model.Playlist(
+                                        id = "queue_saved_${System.currentTimeMillis()}",
+                                        title = "Queue ($dateStr)",
+                                        description = "Saved playback queue",
+                                        trackCount = queue.size,
+                                        tracks = queue,
+                                        source = "User",
+                                        artworkUrl = queue.firstOrNull()?.artworkUrl
+                                    )
+                                    repository?.addCustomPlaylist(pl)
+                                    player.saveQueueSnapshot("Active Snapshot")
+                                    Toast.makeText(context, "Queue saved as playlist", Toast.LENGTH_SHORT).show()
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Save Queue as Playlist",
+                            tint = textPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Clear Queue Button
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .glassySlab(
+                                shape = CircleShape,
+                                isDark = isAmoled,
+                                onClick = {
+                                    player.clearQueue()
+                                    Toast.makeText(context, "Queue cleared", Toast.LENGTH_SHORT).show()
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteSweep,
+                            contentDescription = "Clear Queue",
+                            tint = MasterWaveTurquoise,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             } else {
                 Box(modifier = Modifier.size(42.dp))

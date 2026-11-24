@@ -87,6 +87,7 @@ import kotlinx.coroutines.launch
 enum class SearchFilter(val label: String) {
     ALL("Top Results"),
     SONGS("Songs"),
+    LOCAL("Local Audio"),
     ALBUMS("Albums"),
     ARTISTS("Artists"),
     PLAYLISTS("Playlists")
@@ -543,6 +544,50 @@ fun SearchScreen(
                             }
                         }
 
+                        // Feature 12: Ask Wave & Smart Mood Intents
+                        item {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    text = "Ask Wave • Smart Moods",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 17.sp,
+                                        letterSpacing = (-0.3).sp
+                                    ),
+                                    color = textPrimary
+                                )
+                                val askWaveIntents = listOf(
+                                    "🌊 Chill Acoustic" to "chill acoustic relaxing guitar songs",
+                                    "⚡ High Energy" to "high energy workout edm music",
+                                    "🌙 Late Night" to "late night lo-fi chill beats",
+                                    "💖 Romantic Hits" to "romantic love melodious songs",
+                                    "🎯 Deep Focus" to "deep focus ambient study music",
+                                    "🕺 Party Pop" to "club dance party music hits"
+                                )
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(askWaveIntents) { (label, intentQuery) ->
+                                        Surface(
+                                            shape = RoundedCornerShape(50),
+                                            color = cardBg,
+                                            border = BorderStroke(1.dp, if (isAmoled) Color(0x22FFFFFF) else Color(0x14000000)),
+                                            modifier = Modifier.bouncyClickable {
+                                                query = label
+                                                performSearch(intentQuery)
+                                            }
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                fontSize = 12.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = textPrimary,
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Apple Music "Browse Categories" Grid
                         item {
                             Text(
@@ -779,11 +824,17 @@ fun SearchScreen(
                         }
                     }
 
-                    // Songs List Section
-                    if (songs.isNotEmpty() && (selectedFilter == SearchFilter.ALL || selectedFilter == SearchFilter.SONGS)) {
+                    // Songs List Section (Supports ALL, SONGS and LOCAL filters)
+                    val displaySongs = when (selectedFilter) {
+                        SearchFilter.LOCAL -> songs.filter { it.isLocal }
+                        SearchFilter.SONGS, SearchFilter.ALL -> songs
+                        else -> emptyList()
+                    }
+
+                    if (displaySongs.isNotEmpty()) {
                         item {
                             Text(
-                                text = "Songs",
+                                text = if (selectedFilter == SearchFilter.LOCAL) "Local Audio Tracks" else "Songs",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 18.sp
@@ -792,14 +843,29 @@ fun SearchScreen(
                             )
                         }
 
-                        items(songs, key = { it.id }) { track ->
+                        items(displaySongs, key = { it.id }) { track ->
                             TrackItem(
                                 track = track,
                                 isPlaying = player.currentTrack.collectAsState().value?.id == track.id && player.isPlaying.collectAsState().value,
                                 isFavorite = favorites.any { it.id == track.id },
-                                onClick = { player.playTrack(track, songs) },
+                                onClick = { player.playTrack(track, displaySongs) },
                                 onFavoriteToggle = { repository.toggleFavorite(track) }
                             )
+                        }
+                    } else if (selectedFilter == SearchFilter.LOCAL) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No local audio matches \"$query\"",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = textSecondary
+                                )
+                            }
                         }
                     }
                 }

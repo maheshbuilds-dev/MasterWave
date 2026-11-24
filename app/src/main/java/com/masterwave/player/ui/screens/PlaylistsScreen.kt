@@ -149,6 +149,7 @@ fun PlaylistsScreen(
     val ytRed = Color(0xFFFF0000)
 
     val playCounts by repository.playCounts.collectAsState()
+    val smartPlaylists = remember(playlists, playCounts) { repository.getSmartPlaylists() }
     val ytLikedPlaylist = playlists.find { it.id == "yt_liked_songs" }
     val spLikedPlaylist = playlists.find { it.id == "spotify_liked_songs" }
     val userPlaylists = playlists.filter {
@@ -781,6 +782,93 @@ fun PlaylistsScreen(
         }
 
         // --- Playlists header ---
+        // --- Feature 4: Smart Playlists (Auto-generated from listening behavior) ---
+        if (smartPlaylists.isNotEmpty()) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Smart Playlists",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            ),
+                            color = textPrimary
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = brandTurquoise.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "AUTO-CURATED",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 0.8.sp
+                                ),
+                                color = brandTurquoise,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    androidx.compose.foundation.lazy.LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(smartPlaylists) { spPl ->
+                            Surface(
+                                shape = RoundedCornerShape(18.dp),
+                                color = cardBg,
+                                border = BorderStroke(1.dp, borderColor),
+                                modifier = Modifier
+                                    .width(160.dp)
+                                    .bouncyClickable { onPlaylistSelected(spPl) }
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(brandTurquoise.copy(alpha = 0.18f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = brandTurquoise,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = spPl.title,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.5.sp,
+                                        color = textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "${spPl.trackCount} tracks",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                        color = textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Custom User Playlists Section ---
         item {
             Row(
                 modifier = Modifier

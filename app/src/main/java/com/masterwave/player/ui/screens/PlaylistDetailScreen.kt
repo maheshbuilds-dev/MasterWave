@@ -232,6 +232,32 @@ fun PlaylistDetailScreen(
                             Toast.makeText(context, "Queued all tracks for download", Toast.LENGTH_SHORT).show()
                         }
                     )
+                    // Feature 9: Export to M3U format
+                    DropdownMenuItem(
+                        text = { Text("Export as M3U Playlist") },
+                        onClick = {
+                            showMenu = false
+                            val backupMgr = com.masterwave.player.data.backup.BackupManager(context, repository, player)
+                            val m3u = backupMgr.exportPlaylistToM3u(playlist)
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "${playlist.title}.m3u")
+                                putExtra(android.content.Intent.EXTRA_TEXT, m3u)
+                            }
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Export M3U Playlist"))
+                        }
+                    )
+                    if (playlist.id != "liked_songs" && playlist.id != "local_songs" && playlist.id != "yt_liked_songs" && playlist.id != "spotify_liked_songs") {
+                        DropdownMenuItem(
+                            text = { Text("Delete Playlist", color = Color(0xFFEF4444)) },
+                            onClick = {
+                                showMenu = false
+                                repository.deletePlaylist(playlist.id)
+                                Toast.makeText(context, "Playlist deleted", Toast.LENGTH_SHORT).show()
+                                onBack()
+                            }
+                        )
+                    }
                 }
             }
         }

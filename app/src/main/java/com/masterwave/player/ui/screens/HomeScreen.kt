@@ -45,7 +45,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Download
+import com.masterwave.player.data.network.NetworkObserver
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Group
@@ -410,9 +412,10 @@ fun HomeScreen(
     }
 
     var selectedCategory by remember { mutableStateOf(HomeFeedCache.selectedCategory) }
-    // Mood-first browse row. Language matching still happens silently behind the scenes.
+    // Feature 20: Mood & Activity Filters integrated directly into categories
     val categories = listOf(
-        "All", "Trending", "New Releases", "Podcasts", "Playlists", "Top Charts"
+        "All", "Trending", "New Releases", "Podcasts", "Playlists", "Top Charts",
+        "Chill", "Workout", "Focus", "Party", "Sleep"
     )
 
     val indianCategories = remember {
@@ -421,6 +424,9 @@ fun HomeScreen(
             "Hindustani", "Carnatic", "Classical", "Devotional", "Indie"
         )
     }
+
+    val networkObserver = remember { NetworkObserver.getInstance(context) }
+    val isOnline by networkObserver.observe().collectAsState(initial = networkObserver.isCurrentlyOnline())
 
     var categoryFilterTracks by remember { mutableStateOf(HomeFeedCache.categoryFilterTracks) }
     var isLoadingCategoryFilter by remember { mutableStateOf(false) }
@@ -439,6 +445,11 @@ fun HomeScreen(
                         "Podcasts" -> "podcast episodes music discussion"
                         "Playlists" -> "top hit music playlists"
                         "Top Charts" -> "billboard top charts music"
+                        "Chill" -> "chill relaxing acoustic lo-fi songs"
+                        "Workout" -> "high energy workout edm music"
+                        "Focus" -> "focus study ambient instrumental music"
+                        "Party" -> "party dance pop club hits"
+                        "Sleep" -> "sleep calming rain soothing sounds"
                         else -> "$selectedCategory hits"
                     }
                     repository.search(query).songs
@@ -501,6 +512,41 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = headerHeight + 8.dp, bottom = 220.dp)
         ) {
+            // Feature 23: Smart Offline Mode Indicator
+            if (!isOnline) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF59E0B).copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.35f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudOff,
+                                contentDescription = null,
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Offline Mode • Playing from Local & Offline Storage",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.5.sp
+                                ),
+                                color = textPrimary
+                            )
+                        }
+                    }
+                }
+            }
+
             // --- 1. Greeting, Infinite Radio Hero Card, My genres, and Discover New Music (Reference Page 1) ---
             if (selectedCategory == "All") {
                 // Greeting & Uppercase Date

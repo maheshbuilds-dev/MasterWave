@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -241,6 +242,93 @@ fun StatsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        // --- Feature 14 & 17: Wave Replay Summary Card (Listening Analytics & Shareable Recap) ---
+        item {
+            val totalSeconds = remember(sevenDayHistory) {
+                sevenDayHistory.sumOf { it.track.durationSeconds }
+            }
+            val hours = totalSeconds / 3600
+            val minutes = (totalSeconds % 3600) / 60
+            val timeDisplay = when {
+                hours > 0 -> "${hours}h ${minutes}m"
+                minutes > 0 -> "${minutes} mins"
+                sevenDayHistory.isNotEmpty() -> "${sevenDayHistory.size * 3} mins"
+                else -> "0 mins"
+            }
+
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = colors.surfaceCard,
+                border = BorderStroke(1.5.dp, colors.border),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "WAVE REPLAY",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 1.sp
+                                ),
+                                color = Color(0xFF165B33)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("• 7 Days", fontSize = 11.sp, color = colors.muted)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Listening Time: $timeDisplay",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.5.sp
+                            ),
+                            color = colors.ink
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "${sevenDayHistory.size} total tracks enjoyed this week",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = colors.muted
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF165B33).copy(alpha = 0.15f))
+                            .bouncyClickable {
+                                val topSong = topTracksRanked.firstOrNull()?.title ?: "Various Hits"
+                                val topArtist = topArtistsRanked.firstOrNull()?.first ?: "Favorite Artists"
+                                val shareText = "🌊 My MasterWave Weekly Replay:\n⏱ Total Listening: $timeDisplay\n🎵 Top Track: $topSong\n🎤 Top Artist: $topArtist\n\nExperience audiophile playback on MasterWave! 🚀"
+                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_SUBJECT, "My MasterWave Replay")
+                                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                }
+                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share Wave Replay"))
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share Recap",
+                            tint = Color(0xFF165B33),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
