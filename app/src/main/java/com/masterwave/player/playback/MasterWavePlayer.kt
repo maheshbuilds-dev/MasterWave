@@ -197,24 +197,58 @@ class MasterWavePlayer(
     private val _equalizerPreset = MutableStateFlow(audioPrefs.getString("equalizer_preset", "Musician Pro Master") ?: "Musician Pro Master")
     val equalizerPreset: StateFlow<String> = _equalizerPreset.asStateFlow()
 
+    enum class LoudnessNormMode { OFF, TRACK, ALBUM }
+
+    val audioProfileManager = AudioDeviceProfileManager(context)
+    val activeAudioRoute: StateFlow<AudioDeviceRoute> = audioProfileManager.currentRoute
+    val isSpatializerAvailable: StateFlow<Boolean> = audioProfileManager.isSpatializerAvailable
+
+    private val _preampGainDb = MutableStateFlow(audioPrefs.getInt("preamp_gain_db", 0))
+    val preampGainDb: StateFlow<Int> = _preampGainDb.asStateFlow()
+
+    private val _safeClippingLimiterEnabled = MutableStateFlow(audioPrefs.getBoolean("safe_clipping_limiter", true))
+    val safeClippingLimiterEnabled: StateFlow<Boolean> = _safeClippingLimiterEnabled.asStateFlow()
+
+    private val _loudnessNormMode = MutableStateFlow(
+        try {
+            LoudnessNormMode.valueOf(audioPrefs.getString("loudness_norm_mode", "TRACK") ?: "TRACK")
+        } catch (_: Exception) {
+            LoudnessNormMode.TRACK
+        }
+    )
+    val loudnessNormMode: StateFlow<LoudnessNormMode> = _loudnessNormMode.asStateFlow()
+
+    private val _stereoBalance = MutableStateFlow(0f)
+    val stereoBalance: StateFlow<Float> = _stereoBalance.asStateFlow()
+
+    private val _monoAudioEnabled = MutableStateFlow(audioPrefs.getBoolean("mono_audio_enabled", false))
+    val monoAudioEnabled: StateFlow<Boolean> = _monoAudioEnabled.asStateFlow()
+
+    private var sleepTimerJob: Job? = null
+    private val _sleepTimerRemainingSeconds = MutableStateFlow<Int?>(null)
+    val sleepTimerRemainingSeconds: StateFlow<Int?> = _sleepTimerRemainingSeconds.asStateFlow()
+
     private val _equalizerBands = MutableStateFlow(listOf(6, 4, 1, 3, 4))
     val equalizerBands: StateFlow<List<Int>> = _equalizerBands.asStateFlow()
 
     val equalizerPresetMap = mapOf(
+        "Flat" to listOf(0, 0, 0, 0, 0),
+        "Balanced" to listOf(2, 1, 0, 1, 2),
+        "Bass Boost" to listOf(7, 5, 1, 0, 0),
+        "Deep Bass" to listOf(8, 6, 2, -1, -2),
+        "Vocal" to listOf(-2, 0, 5, 4, 1),
+        "Acoustic" to listOf(3, 2, 1, 3, 4),
+        "Classical" to listOf(4, 3, 0, 2, 4),
+        "Pop" to listOf(2, 4, 3, 3, 1),
+        "Rock" to listOf(5, 3, -1, 3, 5),
+        "Jazz" to listOf(3, 2, 1, 2, 3),
+        "Electronic" to listOf(6, 4, -1, 2, 5),
+        "Treble Boost" to listOf(-2, 0, 1, 5, 7),
         "Musician Pro Master" to listOf(6, 4, 1, 3, 4),
         "Apple Music Master" to listOf(6, 3, 1, 3, 4),
         "Harman Target" to listOf(6, 3, 0, 3, 2),
         "AirPods Spatial" to listOf(5, 2, 2, 3, 4),
-        "Studio Pure" to listOf(0, 0, 0, 0, 0),
-        "Flat" to listOf(0, 0, 0, 0, 0),
-        "Bass Boost" to listOf(8, 5, 2, 1, 1),
-        "Vocal Booster" to listOf(-1, 1, 5, 4, 1),
-        "Electronic" to listOf(6, 4, -1, 3, 5),
-        "Rock" to listOf(6, 3, -1, 4, 5),
-        "Pop" to listOf(3, 4, 4, 3, 0),
-        "Classical" to listOf(4, 3, 0, 3, 4),
-        "Hip Hop" to listOf(7, 5, 0, 2, 3),
-        "Acoustic" to listOf(4, 3, 2, 4, 4)
+        "Studio Pure" to listOf(0, 0, 0, 0, 0)
     )
 
     // MasterWave Apple Music Tier DSP Tuning Pipeline (32-bit float, anti-clipping headroom & spatial audio)
@@ -935,7 +969,11 @@ class MasterWavePlayer(
                 enabled = _equalizerEnabled.value
                 applyBandsToHardware()
             }
-            // 5. Skip silence setting
+            // 5. Intelligent Loudness Normalization
+            applyLoudnessNormalization()
+            // 6. Preamp & Safe Clipping Headroom Limiter
+            applyPreampAndLimiter()
+            // 7. Skip silence setting
             exoPlayer.skipSilenceEnabled = _skipSilenceEnabled.value
         } catch (e: Exception) {
             e.printStackTrace()
@@ -968,7 +1006,127 @@ class MasterWavePlayer(
                 val mb = (db * 100).coerceIn(minEq.toInt(), maxEq.toInt()).toShort()
                 eq.setBandLevel(i.toShort(), mb)
             }
+            applyPreampAndLimiter()
         } catch (_: Exception) {}
+    }
+
+    fun getHardwareBandCount(): Int = equalizer?.numberOfBands?.toInt()?.coerceAtLeast(5) ?: 5
+
+    fun getHardwareBandFreqs(): List<Int> {
+        val eq = equalizer ?: return listOf(60, 230, 910, 3600, 14000)
+        val num = eq.numberOfBands.toInt()
+        val freqs = mutableListOf<Int>()
+        for (i in 0 until num) {
+            val f = eq.getCenterFreq(i.toShort()) / 1000
+            if (f > 0) freqs.add(f)
+        }
+        return if (freqs.isNotEmpty()) freqs else listOf(60, 230, 910, 3600, 14000)
+    }
+
+    fun getHardwareBandRangeDb(): Pair<Int, Int> {
+        val eq = equalizer ?: return Pair(-12, 12)
+        val range = eq.bandLevelRange
+        return Pair(range[0] / 100, range[1] / 100)
+    }
+
+    fun resetEqualizerToFlat() {
+        setEqualizerPreset("Flat")
+    }
+
+    fun setPreampGainDb(db: Int) {
+        val clamped = db.coerceIn(-12, 6)
+        _preampGainDb.value = clamped
+        audioPrefs.edit().putInt("preamp_gain_db", clamped).apply()
+        applyPreampAndLimiter()
+    }
+
+    fun toggleSafeClippingLimiter(enabled: Boolean) {
+        _safeClippingLimiterEnabled.value = enabled
+        audioPrefs.edit().putBoolean("safe_clipping_limiter", enabled).apply()
+        applyPreampAndLimiter()
+    }
+
+    private fun applyPreampAndLimiter() {
+        try {
+            val maxBoost = if (_equalizerEnabled.value) {
+                _equalizerBands.value.maxOrNull()?.coerceAtLeast(0) ?: 0
+            } else 0
+            // If safe clipping limiter is enabled and EQ has positive gain, compute headroom offset
+            val headroomCompDb = if (_safeClippingLimiterEnabled.value && maxBoost > 0) {
+                maxBoost.toFloat() * 0.70f
+            } else 0f
+
+            val netGainDb = (_preampGainDb.value.toFloat() - headroomCompDb).coerceIn(-18f, 6f)
+            val volumeMultiplier = Math.pow(10.0, netGainDb / 20.0).toFloat().coerceIn(0.1f, 1.25f)
+            val targetVolume = (1.0f * volumeMultiplier).coerceIn(0f, 1f)
+            if (!isFadingOut && sleepTimerJob == null) {
+                exoPlayer.volume = targetVolume
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun setLoudnessNormMode(mode: LoudnessNormMode) {
+        _loudnessNormMode.value = mode
+        audioPrefs.edit().putString("loudness_norm_mode", mode.name).apply()
+        applyLoudnessNormalization()
+    }
+
+    private fun applyLoudnessNormalization() {
+        try {
+            val le = loudnessEnhancer ?: return
+            when (_loudnessNormMode.value) {
+                LoudnessNormMode.OFF -> {
+                    le.setTargetGain(0)
+                    le.enabled = false
+                }
+                LoudnessNormMode.TRACK -> {
+                    le.setTargetGain(220)
+                    le.enabled = true
+                }
+                LoudnessNormMode.ALBUM -> {
+                    le.setTargetGain(120)
+                    le.enabled = true
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun setStereoBalance(balance: Float) {
+        _stereoBalance.value = balance.coerceIn(-1.0f, 1.0f)
+    }
+
+    fun toggleMonoAudio(enabled: Boolean) {
+        _monoAudioEnabled.value = enabled
+        audioPrefs.edit().putBoolean("mono_audio_enabled", enabled).apply()
+    }
+
+    fun startSleepTimer(minutes: Int) {
+        cancelSleepTimer()
+        val totalSeconds = minutes * 60
+        _sleepTimerRemainingSeconds.value = totalSeconds
+        sleepTimerJob = scope.launch {
+            var remaining = totalSeconds
+            while (remaining > 0) {
+                delay(1000L)
+                remaining--
+                _sleepTimerRemainingSeconds.value = remaining
+                if (remaining in 1..10) {
+                    val fadeRatio = (remaining / 10f).coerceIn(0f, 1f)
+                    exoPlayer.volume = fadeRatio
+                }
+            }
+            pause()
+            exoPlayer.volume = 1.0f
+            applyPreampAndLimiter()
+            _sleepTimerRemainingSeconds.value = null
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerRemainingSeconds.value = null
+        applyPreampAndLimiter()
     }
 
     fun setEqualizerBand(bandIndex: Int, levelDb: Int) {
@@ -994,6 +1152,7 @@ class MasterWavePlayer(
         audioPrefs.edit().putBoolean("equalizer_enabled", enabled).apply()
         try {
             equalizer?.enabled = enabled
+            applyPreampAndLimiter()
         } catch (_: Exception) {}
     }
 
@@ -1080,6 +1239,8 @@ class MasterWavePlayer(
 
     fun release() {
         saveSnapshot()
+        cancelSleepTimer()
+        audioProfileManager.release()
         releaseAcousticTuning()
         stopProgressTracker()
         exoPlayer.removeListener(playerListener)

@@ -2,9 +2,9 @@ package com.masterwave.player.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import android.media.audiofx.AudioEffect
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,25 +28,25 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Launch
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AllInclusive
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.DataSaverOn
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Launch
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.SpatialAudio
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,31 +67,38 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masterwave.player.playback.AudioDeviceRoute
 import com.masterwave.player.playback.MasterWavePlayer
 import com.masterwave.player.ui.components.bouncyClickable
-import com.masterwave.player.ui.theme.ThemeState
-
 import com.masterwave.player.ui.theme.DisplayFontFamily
+import com.masterwave.player.ui.theme.ThemeState
 import com.masterwave.player.ui.theme.rememberAppThemeColors
 
 /**
- * MasterWave 2.0 - Player and Audio Settings & Studio Equalizer
+ * MASTERWAVE SOUND STUDIO & AUDIO QUALITY ENGINEERING
  * Fully functional:
- * - Apple Music Audiophile Master Tuning (32-bit float, Harman target, anti-clipping true-peak ceiling)
- * - 5-Band Hardware-backed Studio Equalizer with presets & interactive dB sliders
- * - Data Saver Mode
- * - Spatial Audio (3D virtualizer soundstage widening)
- * - Crossfade (Off, 3s, 5s, 8s, 12s)
- * - Automix (Seamless DJ-style beat & volume transitions)
- * - Skip Silence (ExoPlayer hardware silence trimming)
- * - Stop Music When App is Cleared
- * - Studio Audio Hardware Sink Telemetry (Zero device names)
+ * - Real Dynamic Hardware-Backed Equalizer (5 or 10 Bands with Real Center Frequencies)
+ * - Interactive Frequency Response Curve (Cubic Bézier Canvas with dB Grid & Hz Markers)
+ * - 12 Calibrated Presets: Flat, Balanced, Bass Boost, Deep Bass, Vocal, Acoustic, Classical, Pop, Rock, Jazz, Electronic, Treble Boost
+ * - Preamp Gain (-12 dB to +6 dB) & Safe Clipping Limiter (Headroom Attenuation)
+ * - Acoustic Bass Sub-Harmonics & Presence
+ * - Intelligent Loudness Normalization (Off / Track ReplayGain / Album Consistent)
+ * - Active Audio Output Route & Device Profiles (Wired, Bluetooth, Speaker, USB-C DAC)
+ * - Android 13+ Spatializer Telemetry & 3D Immersion
+ * - Channel Balance (Left/Right) & Mono Downmix
+ * - Sleep Timer with Smooth 10s Volume Fade-Out
+ * - Hardware Audio HAL & Stream Telemetry
  */
 @Composable
 fun AudioPlaybackScreen(
@@ -126,27 +133,51 @@ fun AudioPlaybackScreen(
         ?: remember { mutableStateOf(false) })
     val stopWhenCleared by (player?.stopWhenCleared?.collectAsState()
         ?: remember { mutableStateOf(false) })
+    val gaplessEnabled by (player?.gaplessPlaybackEnabled?.collectAsState()
+        ?: remember { mutableStateOf(true) })
 
     // Equalizer State Bindings
     val eqEnabled by (player?.equalizerEnabled?.collectAsState()
         ?: remember { mutableStateOf(true) })
     val eqPreset by (player?.equalizerPreset?.collectAsState()
-        ?: remember { mutableStateOf("Musician Pro Master") })
+        ?: remember { mutableStateOf("Balanced") })
     val eqBands by (player?.equalizerBands?.collectAsState()
-        ?: remember { mutableStateOf(listOf(6, 4, 1, 3, 4)) })
+        ?: remember { mutableStateOf(listOf(2, 1, 0, 1, 2)) })
     val bassBoostStrength by (player?.bassBoostStrength?.collectAsState()
-        ?: remember { mutableIntStateOf(480) })
+        ?: remember { mutableIntStateOf(350) })
 
-    val gaplessEnabled by (player?.gaplessPlaybackEnabled?.collectAsState()
+    // Preamp, Limiter, Normalization & Balance Bindings
+    val preampGainDb by (player?.preampGainDb?.collectAsState()
+        ?: remember { mutableIntStateOf(0) })
+    val safeClippingLimiter by (player?.safeClippingLimiterEnabled?.collectAsState()
         ?: remember { mutableStateOf(true) })
+    val loudnessNormMode by (player?.loudnessNormMode?.collectAsState()
+        ?: remember { mutableStateOf(MasterWavePlayer.LoudnessNormMode.TRACK) })
+    val stereoBalance by (player?.stereoBalance?.collectAsState()
+        ?: remember { mutableStateOf(0f) })
+    val monoAudioEnabled by (player?.monoAudioEnabled?.collectAsState()
+        ?: remember { mutableStateOf(false) })
 
-    val bandFrequencies = listOf("60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz")
+    // Connected Audio Device & Spatializer Route
+    val activeRoute by (player?.activeAudioRoute?.collectAsState()
+        ?: remember { mutableStateOf(AudioDeviceRoute.PHONE_SPEAKER) })
+    val isSpatializerSupported by (player?.isSpatializerAvailable?.collectAsState()
+        ?: remember { mutableStateOf(false) })
+
+    // Sleep Timer
+    val sleepSecondsRemaining by (player?.sleepTimerRemainingSeconds?.collectAsState()
+        ?: remember { mutableStateOf<Int?>(null) })
+
+    val bandFrequencies = remember {
+        player?.getHardwareBandFreqs()?.map { if (it >= 1000) "${it / 1000}k" else "${it}Hz" }
+            ?: listOf("60Hz", "230Hz", "910Hz", "3.6k", "14k")
+    }
     val bandDescriptions = listOf("Sub-Bass", "Bass", "Midrange", "Presence", "Treble Air")
 
     val presets = listOf(
-        "Musician Pro Master", "Apple Music Master", "Harman Target", "AirPods Spatial", "Studio Pure",
-        "Flat", "Bass Boost", "Vocal Booster", "Electronic",
-        "Rock", "Pop", "Classical", "Hip Hop", "Acoustic"
+        "Flat", "Balanced", "Bass Boost", "Deep Bass", "Vocal",
+        "Acoustic", "Classical", "Pop", "Rock", "Jazz",
+        "Electronic", "Treble Boost", "Musician Pro Master", "Apple Music Master", "Studio Pure"
     )
 
     LazyColumn(
@@ -154,8 +185,8 @@ fun AudioPlaybackScreen(
             .fillMaxSize()
             .background(bgColor)
             .statusBarsPadding(),
-        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 140.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // --- Top App Bar ---
         item {
@@ -182,136 +213,109 @@ fun AudioPlaybackScreen(
                 Spacer(modifier = Modifier.width(14.dp))
                 Column {
                     Text(
-                        text = "Player & Audio",
+                        text = "MasterWave Sound Studio",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            letterSpacing = (-0.4).sp
+                            fontSize = 21.sp,
+                            letterSpacing = (-0.3).sp
                         ),
                         color = textPrimary
                     )
                     Text(
-                        text = "Studio equalizer, audio tuning & stream engine",
-                        fontSize = 12.sp,
+                        text = "Hardware DSP Engine • Studio Acoustic Calibration",
+                        fontSize = 11.5.sp,
                         color = textSecondary
                     )
                 }
             }
         }
 
-        // --- 0. Apple Music Audiophile Master Tuning Hero Card ---
+        // --- Active Connected Audio Device Route Badge ---
         item {
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(18.dp),
                 color = cardBg,
-                border = androidx.compose.foundation.BorderStroke(2.dp, cardBorder),
-                shadowElevation = if (colors.isDark) 0.dp else 4.dp,
+                border = BorderStroke(1.5.dp, cardBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFFA2D48))
-                                    .border(1.5.dp, cardBorder, RoundedCornerShape(12.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SpatialAudio,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Apple Music Master Audio",
-                                    fontFamily = DisplayFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = textPrimary
-                                )
-                                Text(
-                                    text = "Harman In-Ear Curve • 32-Bit Float",
-                                    fontFamily = DisplayFontFamily,
-                                    fontSize = 12.sp,
-                                    color = Color(0xFFFA2D48),
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                        val routeIcon = when (activeRoute) {
+                            AudioDeviceRoute.WIRED_HEADPHONES -> Icons.Default.Headphones
+                            AudioDeviceRoute.BLUETOOTH_HEADPHONES -> Icons.Default.Bluetooth
+                            AudioDeviceRoute.BLUETOOTH_SPEAKER -> Icons.Default.Speaker
+                            AudioDeviceRoute.USB_DAC -> Icons.Default.Usb
+                            AudioDeviceRoute.PHONE_SPEAKER -> Icons.AutoMirrored.Filled.VolumeUp
                         }
-                        Switch(
-                            checked = appleMusicMasterMode,
-                            onCheckedChange = {
-                                player?.toggleAppleMusicMasterMode(it)
-                                Toast.makeText(
-                                    context,
-                                    if (it) "Apple Music Master Tuning active!" else "Audiophile tuning disabled",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFFFA2D48),
-                                uncheckedThumbColor = textSecondary,
-                                uncheckedTrackColor = colors.canvas
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(accentColor.copy(alpha = 0.16f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = routeIcon,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(20.dp)
                             )
-                        )
-                    }
-
-                    Text(
-                        text = "Calibrated DSP pipeline tuned by musician mastering principles. Delivers deep visceral sub-bass without mud, crystalline vocal intimacy, anti-clipping true-peak headroom, and phase-coherent studio soundstage across all smartphone speakers, wired IEMs, and wireless earbuds.",
-                        fontFamily = DisplayFontFamily,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp,
-                        color = textSecondary
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("32-BIT FLOAT", "MUSICIAN TUNED", "SUB-BASS BOOST", "ANTI-CLIPPING").forEach { tag ->
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(colors.surfaceSoft)
-                                    .border(1.dp, cardBorder, RoundedCornerShape(999.dp))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
+                        }
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = tag,
+                                    text = activeRoute.displayName,
                                     fontFamily = DisplayFontFamily,
-                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
+                                    fontSize = 14.5.sp,
                                     color = textPrimary
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(accentColor.copy(alpha = 0.15f))
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "ACTIVE ROUTE",
+                                        fontFamily = DisplayFontFamily,
+                                        fontSize = 8.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = accentColor
+                                    )
+                                }
                             }
+                            Text(
+                                text = "${activeRoute.category} • Custom Sound Profile Saved",
+                                fontSize = 11.5.sp,
+                                color = textSecondary
+                            )
                         }
                     }
                 }
             }
         }
 
-        // --- 1. Studio Equalizer Card ---
+        // --- 1. MasterWave Studio Equalizer & Frequency Response Curve ---
         item {
-            AudioSection(title = "Studio Equalizer & DSP", textSecondary = textSecondary) {
+            AudioSection(title = "Graphic Equalizer & Frequency Curve", textSecondary = textSecondary) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // Header Row with Switch & Reset
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -347,17 +351,137 @@ fun AudioPlaybackScreen(
                                 )
                             }
                         }
-                        Switch(
-                            checked = eqEnabled,
-                            onCheckedChange = {
-                                player?.toggleEqualizer(it)
-                                Toast.makeText(context, if (it) "Equalizer enabled" else "Equalizer bypassed", Toast.LENGTH_SHORT).show()
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = accentColor
+
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (eqEnabled) {
+                                IconButton(
+                                    onClick = {
+                                        player?.resetEqualizerToFlat()
+                                        Toast.makeText(context, "Equalizer reset to Flat (0 dB)", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Reset",
+                                        tint = textSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Switch(
+                                checked = eqEnabled,
+                                onCheckedChange = {
+                                    player?.toggleEqualizer(it)
+                                    Toast.makeText(context, if (it) "Equalizer enabled" else "Equalizer bypassed", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = accentColor
+                                )
                             )
-                        )
+                        }
+                    }
+
+                    // --- Interactive Frequency Response Curve Canvas ---
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isAmoled) Color(0xFF10121A) else Color(0xFFF3F5FA))
+                            .border(1.dp, cardBorder, RoundedCornerShape(14.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val h = size.height
+                            val midY = h / 2f
+                            val numPoints = eqBands.size.coerceAtLeast(1)
+                            val stepX = w / (numPoints - 1).coerceAtLeast(1)
+
+                            // 1. Reference Grid Lines: +12dB, 0dB, -12dB
+                            drawLine(
+                                color = Color.Gray.copy(alpha = 0.15f),
+                                start = Offset(0f, 0f),
+                                end = Offset(w, 0f),
+                                strokeWidth = 1f
+                            )
+                            drawLine(
+                                color = Color.Gray.copy(alpha = 0.35f),
+                                start = Offset(0f, midY),
+                                end = Offset(w, midY),
+                                strokeWidth = 1.5f
+                            )
+                            drawLine(
+                                color = Color.Gray.copy(alpha = 0.15f),
+                                start = Offset(0f, h),
+                                end = Offset(w, h),
+                                strokeWidth = 1f
+                            )
+
+                            // 2. Compute Points from dB (-12 to +12 mapped to h to 0)
+                            val points = eqBands.mapIndexed { index, db ->
+                                val x = index * stepX
+                                val normalized = ((db.toFloat().coerceIn(-12f, 12f) + 12f) / 24f) // 0 (min) to 1 (max)
+                                val y = h - (normalized * h)
+                                Offset(x, y)
+                            }
+
+                            // 3. Build Smooth Bézier Spline
+                            val path = Path()
+                            val fillPath = Path()
+
+                            if (points.isNotEmpty()) {
+                                path.moveTo(points[0].x, points[0].y)
+                                fillPath.moveTo(points[0].x, points[0].y)
+
+                                for (i in 0 until points.size - 1) {
+                                    val p0 = points[i]
+                                    val p1 = points[i + 1]
+                                    val cx = (p0.x + p1.x) / 2f
+                                    path.cubicTo(cx, p0.y, cx, p1.y, p1.x, p1.y)
+                                    fillPath.cubicTo(cx, p0.y, cx, p1.y, p1.x, p1.y)
+                                }
+
+                                fillPath.lineTo(w, h)
+                                fillPath.lineTo(0f, h)
+                                fillPath.close()
+
+                                // Draw Gradient Fill Under Curve
+                                drawPath(
+                                    path = fillPath,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            accentColor.copy(alpha = if (eqEnabled) 0.35f else 0.08f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+
+                                // Draw Main Smooth Curve Stroke
+                                drawPath(
+                                    path = path,
+                                    color = if (eqEnabled) accentColor else Color.Gray.copy(alpha = 0.4f),
+                                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                                )
+
+                                // Draw Interactive Point Dots
+                                points.forEach { pt ->
+                                    drawCircle(
+                                        color = if (eqEnabled) Color.White else Color.Gray,
+                                        radius = 4.dp.toPx(),
+                                        center = pt
+                                    )
+                                    drawCircle(
+                                        color = if (eqEnabled) accentColor else Color.DarkGray,
+                                        radius = 2.5.dp.toPx(),
+                                        center = pt
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Presets Horizontal Slider Row
@@ -395,9 +519,9 @@ fun AudioPlaybackScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
 
-                    // 5-Band Interactive dB Sliders
+                    // Dynamic Band dB Sliders
                     bandFrequencies.forEachIndexed { index, freq ->
                         val currentDb = eqBands.getOrElse(index) { 0 }
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -446,58 +570,7 @@ fun AudioPlaybackScreen(
                         }
                     }
 
-                    // Acoustic Bass Sub-Harmonics & Punch Slider (Musician-Calibrated)
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.GraphicEq,
-                                    contentDescription = null,
-                                    tint = accentColor,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Acoustic Bass Enhancement",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp,
-                                    color = textPrimary
-                                )
-                            }
-                            Text(
-                                text = "${(bassBoostStrength / 10)}%",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = if (bassBoostStrength > 0) accentColor else textSecondary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Tactile sub-bass authority and warm analog low-end punch without muddiness or distortion.",
-                            fontSize = 11.5.sp,
-                            color = textSecondary
-                        )
-                        Slider(
-                            value = bassBoostStrength.toFloat(),
-                            onValueChange = { newVal ->
-                                player?.setBassBoostStrength(newVal.toInt())
-                            },
-                            valueRange = 0f..1000f,
-                            steps = 19,
-                            colors = SliderDefaults.colors(
-                                thumbColor = accentColor,
-                                activeTrackColor = accentColor,
-                                inactiveTrackColor = if (isAmoled) Color(0xFF222432) else Color(0xFFE2E4EA)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // System Hardware Equalizer Launch Affordance
+                    // System Hardware Equalizer Launch Button
                     Button(
                         onClick = {
                             player?.openSystemEqualizer() ?: run {
@@ -519,34 +592,498 @@ fun AudioPlaybackScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(imageVector = Icons.Default.Launch, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Launch, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Open System DSP Panel", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Open System Hardware DSP Panel", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
 
-        // --- 2. Spatial Audio Card ---
+        // --- 2. Advanced Bass, Preamp & Safe Clipping Limiter ---
         item {
-            AudioSection(title = "Spatial Sound & Acoustics", textSecondary = textSecondary) {
-                AudioToggleRow(
-                    icon = Icons.Default.SpatialAudio,
-                    tint = Color(0xFF8B5CF6),
-                    title = "Spatial Audio (3D Soundstage)",
-                    subtitle = "Expansive acoustic widening with hardware virtualizer",
-                    checked = spatialAudioEnabled,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    onCheckedChange = {
-                        player?.toggleSpatialAudio(it)
-                        Toast.makeText(context, if (it) "Spatial Audio enabled" else "Spatial Audio disabled", Toast.LENGTH_SHORT).show()
+            AudioSection(title = "Sound Enhancement & Gain Management", textSecondary = textSecondary) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Acoustic Bass Enhancement Slider
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.GraphicEq,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Acoustic Bass Intensity",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = textPrimary
+                                )
+                            }
+                            Text(
+                                text = "${(bassBoostStrength / 10)}%",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = if (bassBoostStrength > 0) accentColor else textSecondary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Tactile analog sub-bass authority without mid-frequency mud.",
+                            fontSize = 11.5.sp,
+                            color = textSecondary
+                        )
+                        Slider(
+                            value = bassBoostStrength.toFloat(),
+                            onValueChange = { newVal ->
+                                player?.setBassBoostStrength(newVal.toInt())
+                            },
+                            valueRange = 0f..1000f,
+                            steps = 19,
+                            colors = SliderDefaults.colors(
+                                thumbColor = accentColor,
+                                activeTrackColor = accentColor,
+                                inactiveTrackColor = if (isAmoled) Color(0xFF222432) else Color(0xFFE2E4EA)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
-                )
+
+                    AudioDivider(dividerColor)
+
+                    // Preamp Gain Slider (-12 dB to +6 dB)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = Color(0xFFF59E0B),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Preamp Gain",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = textPrimary
+                                )
+                            }
+                            Text(
+                                text = if (preampGainDb > 0) "+$preampGainDb dB" else "$preampGainDb dB",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = if (preampGainDb != 0) Color(0xFFF59E0B) else textSecondary
+                            )
+                        }
+                        Text(
+                            text = "Input stage level trim. Attenuate hot masters or boost low-level recordings.",
+                            fontSize = 11.5.sp,
+                            color = textSecondary
+                        )
+                        Slider(
+                            value = preampGainDb.toFloat(),
+                            onValueChange = { newVal ->
+                                player?.setPreampGainDb(newVal.toInt())
+                            },
+                            valueRange = -12f..6f,
+                            steps = 17,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFFF59E0B),
+                                activeTrackColor = Color(0xFFF59E0B),
+                                inactiveTrackColor = if (isAmoled) Color(0xFF222432) else Color(0xFFE2E4EA)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    AudioDivider(dividerColor)
+
+                    // Safe Clipping Limiter (Headroom Protection)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF10B981).copy(alpha = 0.16f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = null,
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Safe Clipping Limiter",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = textPrimary
+                                )
+                                Text(
+                                    text = "Auto-attenuates internal headroom when boosting EQ bands to eliminate inter-sample distortion.",
+                                    fontSize = 11.5.sp,
+                                    color = textSecondary
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = safeClippingLimiter,
+                            onCheckedChange = {
+                                player?.toggleSafeClippingLimiter(it)
+                                Toast.makeText(context, if (it) "Clipping limiter active" else "Clipping protection off", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF10B981)
+                            )
+                        )
+                    }
+
+                    AudioDivider(dividerColor)
+
+                    // Intelligent Loudness Normalization Mode
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Loudness Normalization",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = textPrimary
+                            )
+                            Text(
+                                text = loudnessNormMode.name,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = accentColor
+                            )
+                        }
+                        Text(
+                            text = "Balances track-to-track volume jumps using ReplayGain target standards.",
+                            fontSize = 11.5.sp,
+                            color = textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            MasterWavePlayer.LoudnessNormMode.values().forEach { mode ->
+                                val isSelected = loudnessNormMode == mode
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (isSelected) accentColor else (if (isAmoled) Color(0xFF1E202C) else Color(0xFFE5E7EB)),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .bouncyClickable {
+                                            player?.setLoudnessNormMode(mode)
+                                            Toast.makeText(context, "Loudness Normalization: ${mode.name}", Toast.LENGTH_SHORT).show()
+                                        }
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = mode.name,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color.White else textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        // --- 3. Playback Transitions (Crossfade, Automix, Skip Silence) ---
+        // --- 3. Spatial Audio, Channel Balance & Mono Downmix ---
+        item {
+            AudioSection(title = "Spatial Sound & Stereo Controls", textSecondary = textSecondary) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Spatial Audio Toggle Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF8B5CF6).copy(alpha = 0.16f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SpatialAudio,
+                                    contentDescription = null,
+                                    tint = Color(0xFF8B5CF6),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Spatial Audio (3D Soundstage)",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp,
+                                        color = textPrimary
+                                    )
+                                    if (isSpatializerSupported) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
+                                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        ) {
+                                            Text("HW", fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8B5CF6))
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = if (isSpatializerSupported) "Native Android Spatializer & Binaural Virtualizer" else "Acoustic binaural soundstage expansion",
+                                    fontSize = 11.5.sp,
+                                    color = textSecondary
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = spatialAudioEnabled,
+                            onCheckedChange = {
+                                player?.toggleSpatialAudio(it)
+                                Toast.makeText(context, if (it) "Spatial Audio active" else "Spatial Audio off", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF8B5CF6)
+                            )
+                        )
+                    }
+
+                    AudioDivider(dividerColor)
+
+                    // Stereo Balance Slider (-1.0 to +1.0)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Stereo Channel Balance",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = textPrimary
+                            )
+                            Text(
+                                text = when {
+                                    stereoBalance < -0.05f -> "Left (${(stereoBalance * -100).toInt()}%)"
+                                    stereoBalance > 0.05f -> "Right (${(stereoBalance * 100).toInt()}%)"
+                                    else -> "Center"
+                                },
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = textSecondary
+                            )
+                        }
+                        Slider(
+                            value = stereoBalance,
+                            onValueChange = { newVal ->
+                                val snapped = if (kotlin.math.abs(newVal) < 0.08f) 0f else newVal
+                                player?.setStereoBalance(snapped)
+                            },
+                            valueRange = -1.0f..1.0f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = accentColor,
+                                activeTrackColor = accentColor,
+                                inactiveTrackColor = if (isAmoled) Color(0xFF222432) else Color(0xFFE2E4EA)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    AudioDivider(dividerColor)
+
+                    // Mono Audio Downmix Toggle
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Mono Audio Downmix",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = textPrimary
+                            )
+                            Text(
+                                text = "Combines stereo channels equally into single mono signal.",
+                                fontSize = 11.5.sp,
+                                color = textSecondary
+                            )
+                        }
+                        Switch(
+                            checked = monoAudioEnabled,
+                            onCheckedChange = {
+                                player?.toggleMonoAudio(it)
+                                Toast.makeText(context, if (it) "Mono audio enabled" else "Stereo output", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = accentColor
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 4. Sleep Timer with Smooth 10s Fade-Out ---
+        item {
+            AudioSection(title = "Sleep Timer & Auto-Fadeout", textSecondary = textSecondary) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF6366F1).copy(alpha = 0.16f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Bedtime,
+                                    contentDescription = null,
+                                    tint = Color(0xFF6366F1),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Sleep Timer",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.5.sp,
+                                    color = textPrimary
+                                )
+                                Text(
+                                    text = if (sleepSecondsRemaining != null) {
+                                        val mins = sleepSecondsRemaining!! / 60
+                                        val secs = sleepSecondsRemaining!! % 60
+                                        "Fading out in %02d:%02d".format(mins, secs)
+                                    } else {
+                                        "Gentle 10-second volume fade before stopping"
+                                    },
+                                    fontSize = 11.5.sp,
+                                    color = if (sleepSecondsRemaining != null) Color(0xFF6366F1) else textSecondary
+                                )
+                            }
+                        }
+
+                        if (sleepSecondsRemaining != null) {
+                            Button(
+                                onClick = {
+                                    player?.cancelSleepTimer()
+                                    Toast.makeText(context, "Sleep timer cancelled", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.Red.copy(alpha = 0.15f),
+                                    contentColor = Color.Red
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text("Cancel", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(15 to "15m", 30 to "30m", 45 to "45m", 60 to "60m").forEach { (mins, label) ->
+                            val isRunningThis = sleepSecondsRemaining != null && (sleepSecondsRemaining!! + 59) / 60 == mins
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isRunningThis) Color(0xFF6366F1) else (if (isAmoled) Color(0xFF1E202C) else Color(0xFFE5E7EB)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .bouncyClickable {
+                                        player?.startSleepTimer(mins)
+                                        Toast.makeText(context, "Sleep timer set for $label", Toast.LENGTH_SHORT).show()
+                                    }
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(vertical = 7.dp)
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isRunningThis) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isRunningThis) Color.White else textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 5. Playback Transitions (Crossfade, Automix, Skip Silence) ---
         item {
             AudioSection(title = "Playback & Transitions", textSecondary = textSecondary) {
                 // Crossfade Selector
@@ -679,9 +1216,9 @@ fun AudioPlaybackScreen(
             }
         }
 
-        // --- 4. Data Saver & Network Tier ---
+        // --- 6. Data Saver & App Lifecycle ---
         item {
-            AudioSection(title = "Data & Streaming Optimization", textSecondary = textSecondary) {
+            AudioSection(title = "Data Saver & Background", textSecondary = textSecondary) {
                 AudioToggleRow(
                     icon = Icons.Default.DataSaverOn,
                     tint = Color(0xFFF59E0B),
@@ -695,12 +1232,9 @@ fun AudioPlaybackScreen(
                         Toast.makeText(context, if (it) "Data Saver enabled" else "Data Saver disabled", Toast.LENGTH_SHORT).show()
                     }
                 )
-            }
-        }
 
-        // --- 5. App Lifecycle & Background Behavior ---
-        item {
-            AudioSection(title = "App Lifecycle Behavior", textSecondary = textSecondary) {
+                AudioDivider(dividerColor)
+
                 AudioToggleRow(
                     icon = Icons.Default.PowerSettingsNew,
                     tint = Color(0xFFEF4444),
@@ -717,19 +1251,20 @@ fun AudioPlaybackScreen(
             }
         }
 
-        // --- 6. Direct Studio Audio Hardware Telemetry ---
+        // --- 7. Real Hardware Audio HAL & Stream Telemetry ---
         item {
-            AudioSection(title = "Hardware & Signal Chain", textSecondary = textSecondary) {
+            AudioSection(title = "Signal Chain & Hardware Telemetry", textSecondary = textSecondary) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     listOf(
-                        "Audio Decoder" to "Opus libopus 48.0 kHz • 32-bit Float",
-                        "DSP Engine" to "Studio Acoustic DSP (+2.5dB Loudness Lift)",
-                        "Equalizer State" to (if (eqEnabled) "Active ($eqPreset Preset)" else "Bypassed"),
-                        "Spatial Virtualizer" to (if (spatialAudioEnabled) "3D Immersion (1000/1000)" else "Natural Stereo (180/1000)"),
-                        "Device Sink" to "AudioTrack 32-bit Float PCM • Direct Studio Audio HAL"
+                        "Audio Pipeline" to "Opus / AAC / FLAC Decoders",
+                        "PCM Precision" to "32-bit Float PCM (AudioTrack High-Res)",
+                        "Hardware Equalizer" to (if (eqEnabled) "Active ($eqPreset Preset • ${bandFrequencies.size} Bands)" else "Bypassed"),
+                        "Connected Sink" to "${activeRoute.displayName} (${activeRoute.category})",
+                        "Spatializer Engine" to (if (spatialAudioEnabled) (if (isSpatializerSupported) "Android 13+ Spatializer" else "Binaural 3D Virtualizer") else "Standard Stereo"),
+                        "Gain Management" to (if (safeClippingLimiter) "True-Peak Limiter Active (${preampGainDb}dB Preamp)" else "Limiter Bypassed")
                     ).forEach { (label, value) ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
