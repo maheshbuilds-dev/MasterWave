@@ -53,6 +53,8 @@ private data class PlaybackSnapshot(
     val savedAt: Long = 0L
 )
 
+@androidx.media3.common.util.UnstableApi
+@OptIn(androidx.media3.common.util.UnstableApi::class)
 class MasterWavePlayer(
     private val context: Context,
     private val repository: MusicRepository

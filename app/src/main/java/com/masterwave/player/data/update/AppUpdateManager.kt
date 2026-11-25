@@ -493,6 +493,7 @@ class AppUpdateManager(
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     try {
+                        @Suppress("MissingPermission")
                         setRequestUpdateOwnership(true)
                     } catch (_: Exception) {}
                 }

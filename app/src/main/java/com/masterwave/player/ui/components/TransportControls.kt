@@ -1,7 +1,15 @@
 package com.masterwave.player.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -19,7 +27,6 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.masterwave.player.ui.animation.applePressEffect
 import com.masterwave.player.ui.theme.AccentCrimson
 import com.masterwave.player.ui.theme.TextPrimary
 import com.masterwave.player.ui.theme.TextSecondary
@@ -53,7 +61,13 @@ fun TransportControls(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Shuffle Button
-        IconButton(onClick = onToggleShuffle) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .applePressEffect(targetScale = 0.88f, onClick = onToggleShuffle),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 imageVector = Icons.Default.Shuffle,
                 contentDescription = "Shuffle",
@@ -63,7 +77,13 @@ fun TransportControls(
         }
 
         // Previous Button
-        IconButton(onClick = onPrevious) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .applePressEffect(targetScale = 0.90f, onClick = onPrevious),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 imageVector = Icons.Default.SkipPrevious,
                 contentDescription = "Previous",
@@ -83,27 +103,42 @@ fun TransportControls(
                 )
                 .clip(CircleShape)
                 .background(AccentCrimson)
-                .clickable(onClick = onPlayPause),
+                .applePressEffect(targetScale = 0.93f, onClick = onPlayPause),
             contentAlignment = Alignment.Center
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(32.dp)
-                )
-            } else {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(38.dp)
-                )
+            AnimatedContent(
+                targetState = Pair(isLoading, isPlaying),
+                transitionSpec = {
+                    (scaleIn(initialScale = 0.86f, animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(140)))
+                        .togetherWith(scaleOut(targetScale = 0.86f, animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)))
+                },
+                label = "transport_play_pause"
+            ) { (loading, playing) ->
+                if (loading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (playing) "Pause" else "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
             }
         }
 
         // Next Button
-        IconButton(onClick = onNext) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(CircleShape)
+                .applePressEffect(targetScale = 0.90f, onClick = onNext),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 imageVector = Icons.Default.SkipNext,
                 contentDescription = "Next",
@@ -113,7 +148,13 @@ fun TransportControls(
         }
 
         // Repeat Button
-        IconButton(onClick = onToggleRepeat) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .applePressEffect(targetScale = 0.88f, onClick = onToggleRepeat),
+            contentAlignment = Alignment.Center
+        ) {
             val repeatIcon = if (repeatMode == 2) Icons.Default.RepeatOne else Icons.Default.Repeat
             val repeatTint = if (repeatMode != 0) AccentCrimson else TextTertiary
             Icon(

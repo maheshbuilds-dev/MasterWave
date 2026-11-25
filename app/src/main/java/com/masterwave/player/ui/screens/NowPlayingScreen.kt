@@ -328,10 +328,10 @@ fun NowPlayingScreen(
             }
         }
 
-        // --- 2. Full-Bleed Artwork Hero with Downward Bleed Effect (Edge-to-Edge with Apple Breathing Scale) ---
-        val isImmersive = nowPlayingTemplate == NowPlayingTemplate.IMMERSIVE
-        val isCompact = nowPlayingTemplate == NowPlayingTemplate.COMPACT
-        val isMinimal = nowPlayingTemplate == NowPlayingTemplate.MINIMAL
+        // --- 2. Full-Bleed Artwork Hero with Downward Bleed Effect (Strictly Immersive) ---
+        val isImmersive = true
+        val isCompact = false
+        val isMinimal = false
         val artworkHeightFraction = when {
             isCompact -> 0.44f
             isMinimal -> 0.46f
@@ -470,9 +470,9 @@ fun NowPlayingScreen(
                         Text(
                             text = title,
                             fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 24.sp,
-                            letterSpacing = (-0.5).sp,
+                            letterSpacing = (-0.4).sp,
                             color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -492,7 +492,7 @@ fun NowPlayingScreen(
                             fontFamily = DisplayFontFamily,
                             fontWeight = FontWeight.Normal,
                             fontSize = 16.sp,
-                            letterSpacing = (-0.1).sp,
+                            letterSpacing = 0.sp,
                             color = Color.White.copy(alpha = 0.75f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -560,8 +560,8 @@ fun NowPlayingScreen(
                             AnimatedContent(
                                 targetState = isFavorite,
                                 transitionSpec = {
-                                    (scaleIn(spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(120)))
-                                        .togetherWith(scaleOut(tween(90)) + fadeOut(tween(90)))
+                                    (scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(120)))
+                                        .togetherWith(scaleOut(targetScale = 0.85f, animationSpec = tween(90)) + fadeOut(tween(90)))
                                 },
                                 label = "star_icon_swap"
                             ) { fav ->
@@ -693,8 +693,8 @@ fun NowPlayingScreen(
                     // Dynamic Floating Thumb Knob when scrubbing with organic spring pop
                     androidx.compose.animation.AnimatedVisibility(
                         visible = isDragging,
-                        enter = scaleIn(spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(120)),
-                        exit = scaleOut(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)),
+                        enter = scaleIn(initialScale = 0.82f, animationSpec = spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(120)),
+                        exit = scaleOut(targetScale = 0.82f, animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)),
                         modifier = Modifier
                             .fillMaxWidth(fraction = progressFraction.coerceIn(0.01f, 1f))
                             .height(28.dp)
@@ -856,8 +856,8 @@ fun NowPlayingScreen(
                     AnimatedContent(
                         targetState = Pair(isLoading, isPlaying),
                         transitionSpec = {
-                            (scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(140)))
-                                .togetherWith(scaleOut(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)))
+                            (scaleIn(initialScale = 0.86f, animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(140)))
+                                .togetherWith(scaleOut(targetScale = 0.86f, animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)))
                         },
                         label = "play_pause_content"
                     ) { (loading, playing) ->
@@ -939,8 +939,8 @@ fun NowPlayingScreen(
                     AnimatedContent(
                         targetState = repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE,
                         transitionSpec = {
-                            (scaleIn(spring(dampingRatio = 0.70f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(120)))
-                                .togetherWith(scaleOut(tween(90)) + fadeOut(tween(90)))
+                            (scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.70f, stiffness = Spring.StiffnessMedium)) + fadeIn(tween(120)))
+                                .togetherWith(scaleOut(targetScale = 0.85f, animationSpec = tween(90)) + fadeOut(tween(90)))
                         },
                         label = "repeat_icon_swap"
                     ) { isOne ->

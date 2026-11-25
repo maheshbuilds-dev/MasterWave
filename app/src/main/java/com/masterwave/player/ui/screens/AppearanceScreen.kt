@@ -316,7 +316,7 @@ fun AppearanceScreen(
                         ) {
                             listOf(
                                 "Theme" to "${currentThemePreset.title} (${themeMode.name})",
-                                "Template" to nowPlayingTemplate.title,
+                                "Player" to "Immersive",
                                 "Icons" to iconStyle.title
                             ).forEach { (label, value) ->
                                 Surface(
@@ -594,8 +594,8 @@ fun AppearanceScreen(
             }
         }
 
-        // --- 6. Section: Now Playing Customization Studio ---
-        if (searchQuery.isEmpty() || "now playing".contains(searchQuery, true) || "template".contains(searchQuery, true) || "corner".contains(searchQuery, true) || "background".contains(searchQuery, true)) {
+        // --- 6. Section: Now Playing Customization Studio (Background & Artwork Corner Radius) ---
+        if (searchQuery.isEmpty() || "now playing".contains(searchQuery, true) || "corner".contains(searchQuery, true) || "background".contains(searchQuery, true)) {
             item {
                 AppearanceCardSection(title = "Now Playing Studio", textSecondary = textSecondary) {
                     Column(
@@ -604,66 +604,6 @@ fun AppearanceScreen(
                             .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Text(
-                            text = "PLAYER TEMPLATE",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
-                            color = textSecondary
-                        )
-
-                        // 5 Selectable Templates
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            NowPlayingTemplate.values().forEach { template ->
-                                val isSelected = nowPlayingTemplate == template
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = if (isSelected) effectiveAccent.copy(alpha = 0.12f) else (if (isAmoled) Color(0xFF141622) else Color(0xFFF1F3F8)),
-                                    border = BorderStroke(
-                                        width = if (isSelected) 1.6.dp else 1.dp,
-                                        color = if (isSelected) effectiveAccent else cardBorder
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .bouncyClickable {
-                                            AppearanceStudioManager.setNowPlayingTemplate(template)
-                                            Toast.makeText(context, "Template: ${template.title}", Toast.LENGTH_SHORT).show()
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = template.title,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp,
-                                                color = if (isSelected) effectiveAccent else textPrimary
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = template.subtitle,
-                                                fontSize = 11.5.sp,
-                                                color = textSecondary
-                                            )
-                                        }
-                                        if (isSelected) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(24.dp)
-                                                    .clip(CircleShape)
-                                                    .background(effectiveAccent),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        AppearanceDivider(dividerColor)
-
                         // Background Style Selector
                         Text(
                             text = "BACKGROUND STYLE",
@@ -1244,7 +1184,7 @@ fun AppearanceScreen(
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text("Sample Track", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = textPrimary)
-                                        Text("${nowPlayingTemplate.title} Template • ${currentThemePreset.title}", fontSize = 10.sp, color = textSecondary)
+                                        Text("Immersive Player • ${currentThemePreset.title}", fontSize = 10.sp, color = textSecondary)
                                     }
                                     Box(
                                         modifier = Modifier

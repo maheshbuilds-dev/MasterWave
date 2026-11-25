@@ -67,6 +67,9 @@ class AppPackageReplacedReceiver : BroadcastReceiver() {
 
             try {
                 val nm = NotificationManagerCompat.from(context)
+                if (!nm.areNotificationsEnabled()) {
+                    return
+                }
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 }
@@ -86,6 +89,7 @@ class AppPackageReplacedReceiver : BroadcastReceiver() {
                     .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
                     .build()
 
+                @Suppress("MissingPermission")
                 nm.notify(30_001, notification)
             } catch (e: Exception) {
                 Log.w(TAG, "Could not post post-update notification", e)

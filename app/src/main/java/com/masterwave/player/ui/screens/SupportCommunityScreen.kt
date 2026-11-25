@@ -682,23 +682,23 @@ private fun CuteMascotQuoteCard(
                     ) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(WebAccentPink)
-                                .border(1.dp, colors.border, RoundedCornerShape(999.dp))
+                                .border(1.dp, colors.border, RoundedCornerShape(8.dp))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "🦫 CAPYBARA'S SPECIAL NOTE",
+                                text = "Capybara's note",
                                 fontFamily = DisplayFontFamily,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
                                 color = Color(0xFF101828)
                             )
                         }
                         Text(
-                            text = "✨ Pure music forever",
+                            text = "Pure music forever",
                             fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Medium,
                             fontSize = 11.5.sp,
                             color = WebAccentPink
                         )

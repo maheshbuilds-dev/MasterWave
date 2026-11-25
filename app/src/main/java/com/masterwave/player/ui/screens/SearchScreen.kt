@@ -557,12 +557,12 @@ fun SearchScreen(
                                     color = textPrimary
                                 )
                                 val askWaveIntents = listOf(
-                                    "🌊 Chill Acoustic" to "chill acoustic relaxing guitar songs",
-                                    "⚡ High Energy" to "high energy workout edm music",
-                                    "🌙 Late Night" to "late night lo-fi chill beats",
-                                    "💖 Romantic Hits" to "romantic love melodious songs",
-                                    "🎯 Deep Focus" to "deep focus ambient study music",
-                                    "🕺 Party Pop" to "club dance party music hits"
+                                    "Chill Acoustic" to "chill acoustic relaxing guitar songs",
+                                    "High Energy" to "high energy workout edm music",
+                                    "Late Night" to "late night lo-fi chill beats",
+                                    "Romantic Hits" to "romantic love melodious songs",
+                                    "Deep Focus" to "deep focus ambient study music",
+                                    "Party Pop" to "club dance party music hits"
                                 )
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     items(askWaveIntents) { (label, intentQuery) ->

@@ -106,14 +106,8 @@ object AppearanceStudioManager {
     )
     val activeProfileName: StateFlow<String> = _activeProfileName.asStateFlow()
 
-    // 1. Now Playing Template
-    private val _nowPlayingTemplate = MutableStateFlow(
-        try {
-            NowPlayingTemplate.valueOf(prefs.getString("now_playing_template", NowPlayingTemplate.CLASSIC.name) ?: NowPlayingTemplate.CLASSIC.name)
-        } catch (_: Exception) {
-            NowPlayingTemplate.CLASSIC
-        }
-    )
+    // 1. Now Playing Template (Locked strictly to IMMERSIVE per user experience specification)
+    private val _nowPlayingTemplate = MutableStateFlow(NowPlayingTemplate.IMMERSIVE)
     val nowPlayingTemplate: StateFlow<NowPlayingTemplate> = _nowPlayingTemplate.asStateFlow()
 
     // 2. Now Playing Background Style
@@ -181,8 +175,8 @@ object AppearanceStudioManager {
     val themePreset: StateFlow<ThemePreset> = _themePreset.asStateFlow()
 
     fun setNowPlayingTemplate(template: NowPlayingTemplate) {
-        _nowPlayingTemplate.value = template
-        prefs.edit().putString("now_playing_template", template.name).apply()
+        _nowPlayingTemplate.value = NowPlayingTemplate.IMMERSIVE
+        prefs.edit().putString("now_playing_template", NowPlayingTemplate.IMMERSIVE.name).apply()
     }
 
     fun setNowPlayingBgStyle(style: NowPlayingBgStyle) {

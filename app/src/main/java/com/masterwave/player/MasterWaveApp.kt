@@ -32,13 +32,9 @@ class MasterWaveApp : Application(), ImageLoaderFactory {
             .retryOnConnectionFailure(true)
             .addInterceptor { chain ->
                 val request = chain.request()
-                val requestWithUserAgent = if (request.header("User-Agent") == null) {
-                    request.newBuilder()
-                        .header("User-Agent", "MasterWave/2.0 (Android music player)")
-                        .build()
-                } else {
-                    request
-                }
+                val requestWithUserAgent = request.newBuilder()
+                    .header("User-Agent", "MasterWave/2.2 (Android; Linux; rv:128.0) Gecko/20100101 Firefox/128.0")
+                    .build()
                 var response = chain.proceed(requestWithUserAgent)
                 val urlStr = request.url.toString()
                 // Automatic 404 recovery: YouTube maxresdefault.jpg / hq720.jpg fallback to hqdefault.jpg

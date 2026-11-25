@@ -1,6 +1,7 @@
 package com.masterwave.player.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -137,7 +138,7 @@ fun TrackItem(
                             initialValue = 4f,
                             targetValue = 18f,
                             animationSpec = infiniteRepeatable(
-                                animation = tween(400, easing = LinearEasing),
+                                animation = tween(420, easing = FastOutSlowInEasing),
                                 repeatMode = RepeatMode.Reverse
                             ),
                             label = "b1"
@@ -146,7 +147,7 @@ fun TrackItem(
                             initialValue = 16f,
                             targetValue = 6f,
                             animationSpec = infiniteRepeatable(
-                                animation = tween(550, easing = LinearEasing),
+                                animation = tween(520, easing = FastOutSlowInEasing),
                                 repeatMode = RepeatMode.Reverse
                             ),
                             label = "b2"
@@ -155,7 +156,7 @@ fun TrackItem(
                             initialValue = 8f,
                             targetValue = 20f,
                             animationSpec = infiniteRepeatable(
-                                animation = tween(480, easing = LinearEasing),
+                                animation = tween(460, easing = FastOutSlowInEasing),
                                 repeatMode = RepeatMode.Reverse
                             ),
                             label = "b3"

@@ -672,8 +672,8 @@ fun LyricsScreen(
                     // Dynamic Floating Thumb Knob when scrubbing
                     androidx.compose.animation.AnimatedVisibility(
                         visible = isDragging,
-                        enter = scaleIn(spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(120)),
-                        exit = scaleOut(spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)),
+                        enter = scaleIn(initialScale = 0.82f, animationSpec = spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(120)),
+                        exit = scaleOut(targetScale = 0.82f, animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(100)),
                         modifier = Modifier
                             .fillMaxWidth(fraction = progressFraction.coerceIn(0.01f, 1f))
                             .height(28.dp)

@@ -7,7 +7,7 @@ data class CommunityPlaylist(
     val trackCount: Int,
     val artworkUrl: String,
     val searchQuery: String,
-    val trendTag: String = "🔥 TRENDING",
+    val trendTag: String = "Trending",
     val updatedToday: String = "Updated Today"
 )
 
@@ -23,7 +23,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&fit=crop",
                     searchQuery = "trending viral tamil hits 2026 songs",
-                    trendTag = "🔥 #1 IN TAMIL NADU"
+                    trendTag = "#1 in Tamil Nadu"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_anirudh",
@@ -32,7 +32,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("anirudh"),
                     searchQuery = "Anirudh Ravichander best songs 2026",
-                    trendTag = "⚡ POPULAR"
+                    trendTag = "Popular"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_sai",
@@ -41,7 +41,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("sai abhyankkar"),
                     searchQuery = "Sai Abhyankkar songs Aane Wala Star Katchi Sera",
-                    trendTag = "📈 RISING VIRAL"
+                    trendTag = "Rising"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_melodies",
@@ -50,7 +50,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&fit=crop",
                     searchQuery = "tamil melody songs soulful hits",
-                    trendTag = "✨ EDITORS' CHOICE"
+                    trendTag = "Editors' choice"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_yuvan",
@@ -59,7 +59,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("yuvan shankar raja"),
                     searchQuery = "Yuvan Shankar Raja 2000s hits songs",
-                    trendTag = "👑 NOSTALGIA"
+                    trendTag = "Throwback"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_acoustic",
@@ -68,7 +68,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=600&fit=crop",
                     searchQuery = "tamil unplugged chill songs",
-                    trendTag = "☕ RELAX"
+                    trendTag = "Relax"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_kuthu",
@@ -77,7 +77,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&fit=crop",
                     searchQuery = "tamil kuthu dance party songs",
-                    trendTag = "💃 DANCE"
+                    trendTag = "Dance"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_madras_hiphop",
@@ -86,7 +86,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 38,
                     artworkUrl = "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&fit=crop",
                     searchQuery = "tamil hip hop rap independent songs",
-                    trendTag = "🎙️ STREET CYPHER"
+                    trendTag = "Street cypher"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_santhosh",
@@ -95,7 +95,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 42,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("santhosh narayanan"),
                     searchQuery = "Santhosh Narayanan hits songs",
-                    trendTag = "🎸 INDIE"
+                    trendTag = "Indie"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_arr",
@@ -104,7 +104,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 55,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("ar rahman"),
                     searchQuery = "AR Rahman 90s tamil evergreen hits",
-                    trendTag = "🏆 GOLD"
+                    trendTag = "Gold"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_harris",
@@ -113,7 +113,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("harris jayaraj"),
                     searchQuery = "Harris Jayaraj love melody songs",
-                    trendTag = "❤️ ROMANCE"
+                    trendTag = "Romance"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_lofi",
@@ -122,7 +122,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&fit=crop",
                     searchQuery = "tamil lofi chill beats songs",
-                    trendTag = "🌙 MIDNIGHT"
+                    trendTag = "Midnight"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_workout",
@@ -131,7 +131,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&fit=crop",
                     searchQuery = "tamil high energy workout gym songs",
-                    trendTag = "⚡ WORKOUT"
+                    trendTag = "Workout"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_ilaiyaraaja",
@@ -140,7 +140,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 60,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("ilaiyaraaja"),
                     searchQuery = "Ilaiyaraaja golden hits songs",
-                    trendTag = "👑 MAESTRO"
+                    trendTag = "Maestro"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_sid_sriram",
@@ -149,7 +149,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("sid sriram"),
                     searchQuery = "Sid Sriram tamil hit songs",
-                    trendTag = "💖 VIRAL HITS"
+                    trendTag = "Viral hits"
                 ),
                 CommunityPlaylist(
                     id = "pl_tm_indie_fresh",
@@ -158,7 +158,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&fit=crop",
                     searchQuery = "tamil independent indie music 2026",
-                    trendTag = "🌟 NEW RELEASES"
+                    trendTag = "New releases"
                 )
             )
             "Punjabi" -> listOf(
@@ -169,7 +169,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=600&fit=crop",
                     searchQuery = "punjabi trending hits 2026 songs",
-                    trendTag = "🔥 #1 GLOBAL PUNJABI"
+                    trendTag = "#1 Global Punjabi"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_karan_aujla",
@@ -178,7 +178,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("karan aujla"),
                     searchQuery = "Karan Aujla hits songs",
-                    trendTag = "⚡ POPULAR"
+                    trendTag = "Popular"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_diljit",
@@ -187,7 +187,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("diljit dosanjh"),
                     searchQuery = "Diljit Dosanjh best songs",
-                    trendTag = "👑 GOAT"
+                    trendTag = "Essential"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_sidhu",
@@ -196,7 +196,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("sidhu moose wala"),
                     searchQuery = "Sidhu Moose Wala best songs",
-                    trendTag = "🏆 IMMORTAL"
+                    trendTag = "Immortal"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_drill",
@@ -205,7 +205,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=600&fit=crop",
                     searchQuery = "punjabi drill rap bass songs",
-                    trendTag = "🏎️ CAR BASS"
+                    trendTag = "Car bass"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_shubh_ap",
@@ -214,7 +214,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("ap dhillon"),
                     searchQuery = "Shubh AP Dhillon songs",
-                    trendTag = "📈 CHARTBUSTERS"
+                    trendTag = "Chartbusters"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_pind",
@@ -223,7 +223,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&fit=crop",
                     searchQuery = "punjabi folk traditional songs",
-                    trendTag = "🌾 FOLK"
+                    trendTag = "Folk"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_bhangra",
@@ -232,7 +232,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&fit=crop",
                     searchQuery = "bhangra power wedding dance songs",
-                    trendTag = "💃 BHANGRA"
+                    trendTag = "Bhangra"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_bpraak",
@@ -241,7 +241,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 42,
                     artworkUrl = "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&fit=crop",
                     searchQuery = "B Praak Jaani sad songs",
-                    trendTag = "💔 SAD ANTHEMS"
+                    trendTag = "Sad anthems"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_night_drive",
@@ -250,7 +250,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&fit=crop",
                     searchQuery = "punjabi late night drive cruising songs",
-                    trendTag = "🌙 NIGHT DRIVE"
+                    trendTag = "Night drive"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_desi_crew",
@@ -259,7 +259,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=600&fit=crop",
                     searchQuery = "Desi Crew hit songs",
-                    trendTag = "🎧 HIT PRODUCERS"
+                    trendTag = "Hit producers"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_lofi",
@@ -268,7 +268,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&fit=crop",
                     searchQuery = "punjabi lofi chill songs",
-                    trendTag = "☕ CHILL"
+                    trendTag = "Chill"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_honey_badshah",
@@ -277,7 +277,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("badshah"),
                     searchQuery = "Honey Singh Badshah hit party songs",
-                    trendTag = "🎉 PARTY"
+                    trendTag = "Party"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_workout",
@@ -286,7 +286,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&fit=crop",
                     searchQuery = "punjabi gym workout high energy songs",
-                    trendTag = "⚡ WORKOUT"
+                    trendTag = "Workout"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_amrit_jordan",
@@ -295,7 +295,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 38,
                     artworkUrl = "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=600&fit=crop",
                     searchQuery = "Amrit Maan Jordan Sandhu songs",
-                    trendTag = "🤠 SWAG"
+                    trendTag = "Swag"
                 ),
                 CommunityPlaylist(
                     id = "pl_pb_acoustic",
@@ -304,7 +304,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = "https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?w=600&fit=crop",
                     searchQuery = "punjabi unplugged songs",
-                    trendTag = "✨ UNPLUGGED"
+                    trendTag = "Unplugged"
                 )
             )
             "Telugu" -> listOf(
@@ -315,7 +315,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&fit=crop",
                     searchQuery = "telugu trending mass hits 2026 songs",
-                    trendTag = "🔥 #1 TOLLYWOOD"
+                    trendTag = "#1 in Tollywood"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_dsp_thaman",
@@ -324,7 +324,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("devi sri prasad"),
                     searchQuery = "thaman dsp telugu party songs",
-                    trendTag = "⚡ BEAT STORM"
+                    trendTag = "High energy"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_romantic",
@@ -333,7 +333,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&fit=crop",
                     searchQuery = "telugu love melody songs",
-                    trendTag = "💖 LOVE"
+                    trendTag = "Love"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_keeravaani",
@@ -342,7 +342,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&fit=crop",
                     searchQuery = "MM Keeravaani classic hits songs",
-                    trendTag = "🏆 OSCAR WINNER"
+                    trendTag = "Oscar winner"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_ram_miriyala",
@@ -351,7 +351,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=600&fit=crop",
                     searchQuery = "Ram Miriyala telugu songs",
-                    trendTag = "🪘 FOLK"
+                    trendTag = "Folk"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_hesham",
@@ -360,7 +360,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=600&fit=crop",
                     searchQuery = "Hesham Abdul Wahab telugu songs",
-                    trendTag = "✨ CHILL"
+                    trendTag = "Chill"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_party",
@@ -369,7 +369,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&fit=crop",
                     searchQuery = "telugu dj party dance songs",
-                    trendTag = "🎉 PARTY"
+                    trendTag = "Party"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_sid_sriram",
@@ -378,7 +378,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 42,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("sid sriram"),
                     searchQuery = "Sid Sriram telugu songs",
-                    trendTag = "❤️ SOUL"
+                    trendTag = "Soul"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_drill_rap",
@@ -387,7 +387,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 38,
                     artworkUrl = "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&fit=crop",
                     searchQuery = "telugu hip hop rap songs",
-                    trendTag = "🎙️ STREET"
+                    trendTag = "Street"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_lofi",
@@ -396,7 +396,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&fit=crop",
                     searchQuery = "telugu lofi chill songs",
-                    trendTag = "☕ STUDY"
+                    trendTag = "Study"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_anurag",
@@ -405,7 +405,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&fit=crop",
                     searchQuery = "Anurag Kulkarni telugu songs",
-                    trendTag = "🔥 ENERGY"
+                    trendTag = "Energy"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_night_drive",
@@ -414,7 +414,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=600&fit=crop",
                     searchQuery = "telugu travel cruising driving songs",
-                    trendTag = "🚗 ROADTRIP"
+                    trendTag = "Roadtrip"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_workout",
@@ -423,7 +423,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&fit=crop",
                     searchQuery = "telugu workout gym gym songs",
-                    trendTag = "⚡ GYM"
+                    trendTag = "Workout"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_classics",
@@ -432,7 +432,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?w=600&fit=crop",
                     searchQuery = "SP Balasubrahmanyam telugu golden hits",
-                    trendTag = "👑 CLASSICS"
+                    trendTag = "Classics"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_acoustic",
@@ -441,7 +441,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&fit=crop",
                     searchQuery = "telugu unplugged live songs",
-                    trendTag = "✨ UNPLUGGED"
+                    trendTag = "Unplugged"
                 ),
                 CommunityPlaylist(
                     id = "pl_tl_indie",
@@ -450,7 +450,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&fit=crop",
                     searchQuery = "telugu independent indie songs 2026",
-                    trendTag = "🌟 NEW VOICES"
+                    trendTag = "New voices"
                 )
             )
             "Global Hits" -> listOf(
@@ -461,7 +461,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&fit=crop",
                     searchQuery = "top 50 global viral hits songs 2026",
-                    trendTag = "🔥 #1 WORLDWIDE"
+                    trendTag = "#1 Worldwide"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_billboard",
@@ -470,7 +470,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&fit=crop",
                     searchQuery = "billboard top 100 pop hits 2026",
-                    trendTag = "⚡ POPULAR"
+                    trendTag = "Popular"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_synthwave",
@@ -479,7 +479,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&fit=crop",
                     searchQuery = "synthwave outrun retro electro night drive",
-                    trendTag = "🏎️ SYNTHWAVE"
+                    trendTag = "Synthwave"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_lofi",
@@ -488,7 +488,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=600&fit=crop",
                     searchQuery = "lofi hip hop beats study work calm",
-                    trendTag = "☕ STUDY & FOCUS"
+                    trendTag = "Study & focus"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_pop_rising",
@@ -497,7 +497,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&fit=crop",
                     searchQuery = "pop rising new music hits 2026",
-                    trendTag = "📈 RISING"
+                    trendTag = "Rising"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_hiphop",
@@ -506,7 +506,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&fit=crop",
                     searchQuery = "hip hop rap trap bangers 2026",
-                    trendTag = "🎙️ HIP HOP"
+                    trendTag = "Hip hop"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_indie_pop",
@@ -515,7 +515,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&fit=crop",
                     searchQuery = "indie pop bedroom dream pop songs",
-                    trendTag = "✨ INDIE"
+                    trendTag = "Indie"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_rock",
@@ -524,7 +524,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=600&fit=crop",
                     searchQuery = "classic rock legendary stadium songs",
-                    trendTag = "🎸 ROCK"
+                    trendTag = "Rock"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_acoustic",
@@ -533,7 +533,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?w=600&fit=crop",
                     searchQuery = "morning coffee peaceful chill songs",
-                    trendTag = "🌅 MORNING"
+                    trendTag = "Morning"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_edm",
@@ -542,7 +542,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&fit=crop",
                     searchQuery = "edm festival electro house dance songs",
-                    trendTag = "⚡ EDM"
+                    trendTag = "Electronic"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_rnb",
@@ -551,7 +551,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&fit=crop",
                     searchQuery = "rnb soul slow jams chill songs",
-                    trendTag = "💖 R&B"
+                    trendTag = "R&B"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_workout",
@@ -560,7 +560,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&fit=crop",
                     searchQuery = "high energy gym workout motivation songs",
-                    trendTag = "💪 BEAST MODE"
+                    trendTag = "Beast mode"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_melancholy",
@@ -569,7 +569,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=600&fit=crop",
                     searchQuery = "sad emotional pop unplugged songs",
-                    trendTag = "🌧️ RAIN"
+                    trendTag = "Rain"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_ambient",
@@ -578,7 +578,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=600&fit=crop",
                     searchQuery = "ambient chillout lounge relaxing music",
-                    trendTag = "🧘 CALM"
+                    trendTag = "Calm"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_tiktok",
@@ -587,7 +587,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&fit=crop",
                     searchQuery = "viral tiktok reels trending songs 2026",
-                    trendTag = "📱 VIRAL VIDEO"
+                    trendTag = "Viral video"
                 ),
                 CommunityPlaylist(
                     id = "pl_gl_nostalgia",
@@ -596,7 +596,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&fit=crop",
                     searchQuery = "2000s pop nostalgia throwback hits",
-                    trendTag = "📻 NOSTALGIA"
+                    trendTag = "Nostalgia"
                 )
             )
             else -> listOf( // Hindi default
@@ -607,7 +607,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&fit=crop",
                     searchQuery = "bollywood latest trending hits 2026 songs",
-                    trendTag = "🔥 #1 IN INDIA"
+                    trendTag = "#1 in India"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_arijit",
@@ -616,7 +616,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("arijit singh"),
                     searchQuery = "Arijit Singh best romantic songs",
-                    trendTag = "⚡ POPULAR"
+                    trendTag = "Popular"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_dhh",
@@ -625,7 +625,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&fit=crop",
                     searchQuery = "desi hip hop rap viral songs",
-                    trendTag = "🎙️ DHH CYPHER"
+                    trendTag = "DHH cypher"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_shashwat",
@@ -634,7 +634,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 35,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("shashwat sachdev"),
                     searchQuery = "Shashwat Sachdev songs Dhurandhar Uri",
-                    trendTag = "🎬 CINEMATIC"
+                    trendTag = "Cinematic"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_90s",
@@ -643,7 +643,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 60,
                     artworkUrl = "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&fit=crop",
                     searchQuery = "90s bollywood evergreen romantic songs",
-                    trendTag = "👑 90s NOSTALGIA"
+                    trendTag = "90s classics"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_pritam",
@@ -652,7 +652,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = ArtistPhotoProvider.getPhotoUrl("pritam"),
                     searchQuery = "Pritam bollywood hit songs",
-                    trendTag = "🎸 HITMAKER"
+                    trendTag = "Hitmaker"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_acoustic_sunset",
@@ -661,7 +661,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=600&fit=crop",
                     searchQuery = "hindi unplugged sunset songs",
-                    trendTag = "☕ CHILL"
+                    trendTag = "Chill"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_dance",
@@ -670,7 +670,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&fit=crop",
                     searchQuery = "bollywood party dance wedding songs",
-                    trendTag = "🎉 PARTY"
+                    trendTag = "Party"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_sufi",
@@ -679,7 +679,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 38,
                     artworkUrl = "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=600&fit=crop",
                     searchQuery = "sufi ghazal soul songs hindi",
-                    trendTag = "🕊️ SUFI"
+                    trendTag = "Sufi"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_lofi",
@@ -688,7 +688,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&fit=crop",
                     searchQuery = "hindi lofi chill beats",
-                    trendTag = "🌙 MIDNIGHT"
+                    trendTag = "Midnight"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_indie",
@@ -697,7 +697,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 42,
                     artworkUrl = "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&fit=crop",
                     searchQuery = "indian indie independent songs",
-                    trendTag = "✨ INDIE"
+                    trendTag = "Indie"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_heartbreak",
@@ -706,7 +706,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 45,
                     artworkUrl = "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=600&fit=crop",
                     searchQuery = "sad emotional heartbreak bollywood songs",
-                    trendTag = "💔 EMOTIONAL"
+                    trendTag = "Emotional"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_coke_studio",
@@ -715,7 +715,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 36,
                     artworkUrl = "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=600&fit=crop",
                     searchQuery = "coke studio unplugged live fusion songs",
-                    trendTag = "🎺 LIVE FUSION"
+                    trendTag = "Live fusion"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_workout",
@@ -724,7 +724,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&fit=crop",
                     searchQuery = "bollywood edm remix gym workout songs",
-                    trendTag = "⚡ WORKOUT"
+                    trendTag = "Workout"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_rain",
@@ -733,7 +733,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 40,
                     artworkUrl = "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&fit=crop",
                     searchQuery = "bollywood monsoon rain love songs",
-                    trendTag = "🌧️ MONSOON"
+                    trendTag = "Monsoon"
                 ),
                 CommunityPlaylist(
                     id = "pl_hi_retro",
@@ -742,7 +742,7 @@ object CommunityPlaylistsProvider {
                     trackCount = 50,
                     artworkUrl = "https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?w=600&fit=crop",
                     searchQuery = "Kishore Kumar RD Burman Lata golden hits",
-                    trendTag = "👑 RETRO GOLD"
+                    trendTag = "Retro classics"
                 )
             )
         }

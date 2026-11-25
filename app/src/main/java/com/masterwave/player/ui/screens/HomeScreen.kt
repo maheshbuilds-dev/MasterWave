@@ -67,6 +67,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -95,6 +98,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import com.masterwave.player.data.cloud.CloudAccountManager
 import com.masterwave.player.data.cloud.UserProfile
 import com.masterwave.player.data.download.MusicDownloadManager
@@ -143,6 +148,12 @@ import kotlin.math.absoluteValue
 import com.masterwave.player.data.recommendation.CommunityPlaylist
 import com.masterwave.player.data.recommendation.CommunityPlaylistsProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal object HomeFeedCache {
     var activeLanguage: String = "Trending"
@@ -465,7 +476,7 @@ fun HomeScreen(
         }
     }
 
-    val continueListeningList = remember(recentTracks, madeForYouTracks, dailyMixTracks) {
+    val baseContinueListening = remember(recentTracks, madeForYouTracks, dailyMixTracks) {
         if (recentTracks.size >= 4) {
             recentTracks.take(20)
         } else {
@@ -475,6 +486,210 @@ fun HomeScreen(
             (recentTracks + additional).take(20)
         }
     }
+
+    val pullToRefreshState = rememberPullToRefreshState()
+    var isPullRefreshing by remember { mutableStateOf(false) }
+    var refreshNonce by remember { mutableIntStateOf(0) }
+
+    val refreshRecommendations: () -> Unit = {
+        if (!isPullRefreshing) {
+            scope.launch {
+                isPullRefreshing = true
+                val startedAt = System.currentTimeMillis()
+                try {
+                    val seed = currentTrack ?: favorites.firstOrNull() ?: repository.recentTracks.value.firstOrNull()
+
+                    // Run all recommendation refreshes concurrently within a strict <= 800ms budget
+                    // so pull-to-refresh never stalls past 1 second.
+                    withTimeoutOrNull(800L) {
+                        coroutineScope {
+                            val langJob = async(Dispatchers.IO) {
+                                runCatching {
+                                    com.masterwave.player.data.recommendation.LanguageMusicRecommender
+                                        .getLanguageViralTracks(repository, currentTrack)
+                                }.getOrNull()
+                            }
+                            val madeJob = async(Dispatchers.IO) {
+                                runCatching { repository.recommendationManager.getMadeForYou(limit = 48) }.getOrNull()
+                            }
+                            val dailyJob = async(Dispatchers.IO) {
+                                runCatching { repository.recommendationManager.getDailyMix(limit = 24) }.getOrNull()
+                            }
+                            val becauseJob = async(Dispatchers.IO) {
+                                seed?.let {
+                                    runCatching { repository.recommendationManager.getBecauseYouListenedTo(it, limit = 24) }.getOrNull()
+                                }
+                            }
+                            val redisJob = async(Dispatchers.IO) {
+                                runCatching { repository.recommendationManager.getRediscoverTracks(limit = 20) }.getOrNull()
+                            }
+
+                            langJob.await()?.let { (lang, res) ->
+                                if (res.isNotEmpty()) {
+                                    activeLanguage = lang
+                                    trendingTracks = res.shuffled()
+                                    HomeFeedCache.activeLanguage = lang
+                                    HomeFeedCache.trendingTracks = res
+                                }
+                            }
+                            madeJob.await()?.takeIf { it.isNotEmpty() }?.let { made ->
+                                madeForYouTracks = made.shuffled()
+                                HomeFeedCache.madeForYouTracks = made
+                            }
+                            dailyJob.await()?.takeIf { it.isNotEmpty() }?.let { daily ->
+                                dailyMixTracks = daily.shuffled()
+                                HomeFeedCache.dailyMixTracks = daily
+                            }
+                            becauseJob.await()?.let { (header, recs) ->
+                                if (recs.isNotEmpty()) {
+                                    val rotated = recs.shuffled()
+                                    becauseYouListenedHeader = header
+                                    becauseYouListenedTracks = rotated
+                                    flowTracks = rotated
+                                    HomeFeedCache.becauseYouListenedHeader = header
+                                    HomeFeedCache.becauseYouListenedTracks = rotated
+                                    HomeFeedCache.flowTracks = rotated
+                                }
+                            }
+                            redisJob.await()?.takeIf { it.isNotEmpty() }?.let { redis ->
+                                rediscoverTracks = redis.shuffled()
+                                HomeFeedCache.rediscoverTracks = redis
+                            }
+                        }
+                    }
+
+                    // Ensure visible section refresh even if remote network timed out past 800ms
+                    refreshNonce += 1
+                    val elapsed = System.currentTimeMillis() - startedAt
+                    if (elapsed < 300L) {
+                        delay(300L - elapsed)
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.e("HomeScreen", "Error during pull-to-refresh", e)
+                } finally {
+                    isPullRefreshing = false
+                }
+            }
+        }
+    }
+
+    // --- Strict Cross-Section Track De-duplication Engine ---
+    // Computed atomically per state snapshot + refreshNonce so every section gets fresh, non-overlapping best picks
+    val sectionFeed = remember(
+        trendingTracks,
+        heroTracks,
+        madeForYouTracks,
+        dailyMixTracks,
+        becauseYouListenedTracks,
+        rediscoverTracks,
+        flowTracks,
+        baseContinueListening,
+        similarTracks,
+        refreshNonce
+    ) {
+        fun rotateList(tracks: List<Track>, offsetMultiplier: Int): List<Track> {
+            if (tracks.size <= 1 || refreshNonce == 0) return tracks
+            val shift = (refreshNonce * offsetMultiplier) % tracks.size
+            return tracks.drop(shift) + tracks.take(shift)
+        }
+
+        val seenIds = mutableSetOf<String>()
+        fun takeDistinct(pool: List<Track>, limit: Int, fallback: List<Track>): List<Track> {
+            val out = mutableListOf<Track>()
+            for (track in pool) {
+                if (seenIds.add(track.id)) {
+                    out.add(track)
+                    if (out.size == limit) break
+                }
+            }
+            return out.ifEmpty { fallback.take(limit) }
+        }
+
+        val activeFlow = rotateList(if (flowTracks.isNotEmpty()) flowTracks else heroTracks, 3)
+        val hero = activeFlow.firstOrNull()
+        hero?.id?.let { seenIds.add(it) }
+
+        val flowCarousel = takeDistinct(
+            pool = activeFlow.drop(1) + rotateList(madeForYouTracks, 5) + rotateList(trendingTracks, 2) + dailyMixTracks,
+            limit = 7,
+            fallback = activeFlow.drop(1)
+        )
+        val discover = takeDistinct(
+            pool = rotateList(trendingTracks + heroTracks, 4),
+            limit = 10,
+            fallback = trendingTracks + heroTracks
+        )
+        val continueListening = takeDistinct(
+            pool = rotateList(baseContinueListening, 2),
+            limit = 16,
+            fallback = baseContinueListening
+        )
+        val madeForYou = takeDistinct(
+            pool = rotateList(madeForYouTracks, 7),
+            limit = 20,
+            fallback = madeForYouTracks
+        )
+        val dailyMix = takeDistinct(
+            pool = rotateList(dailyMixTracks, 5),
+            limit = 20,
+            fallback = dailyMixTracks
+        )
+        val becauseYouListened = takeDistinct(
+            pool = rotateList(becauseYouListenedTracks, 3),
+            limit = 16,
+            fallback = becauseYouListenedTracks
+        )
+        val rediscover = takeDistinct(
+            pool = rotateList(rediscoverTracks, 3),
+            limit = 16,
+            fallback = rediscoverTracks
+        )
+        val newReleases = takeDistinct(
+            pool = rotateList(trendingTracks, 6),
+            limit = 8,
+            fallback = trendingTracks
+        )
+        val explore = takeDistinct(
+            pool = rotateList(trendingTracks.asReversed(), 3),
+            limit = 8,
+            fallback = trendingTracks.asReversed()
+        )
+        val similar = takeDistinct(
+            pool = rotateList(similarTracks + trendingTracks.drop(5), 2),
+            limit = 6,
+            fallback = similarTracks + trendingTracks.drop(5)
+        )
+
+        listOf(
+            listOfNotNull(hero),
+            flowCarousel,
+            discover,
+            continueListening,
+            madeForYou,
+            dailyMix,
+            becauseYouListened,
+            rediscover,
+            newReleases,
+            explore,
+            similar
+        )
+    }
+
+    val heroTrack = sectionFeed[0].firstOrNull()
+    val deduplicatedFlowCarousel = sectionFeed[1]
+    val completeFlowTracks = remember(heroTrack, deduplicatedFlowCarousel) {
+        listOfNotNull(heroTrack) + deduplicatedFlowCarousel
+    }
+    val deduplicatedDiscoverTracks = sectionFeed[2]
+    val deduplicatedContinueListening = sectionFeed[3]
+    val deduplicatedMadeForYou = sectionFeed[4]
+    val deduplicatedDailyMix = sectionFeed[5]
+    val deduplicatedBecauseYouListened = sectionFeed[6]
+    val deduplicatedRediscover = sectionFeed[7]
+    val deduplicatedNewReleases = sectionFeed[8]
+    val deduplicatedExploreTracks = sectionFeed[9]
+    val deduplicatedSimilarTracks = sectionFeed[10]
 
     var headerHeightPx by remember { mutableIntStateOf(HomeFeedCache.headerHeightPx) }
     val density = LocalDensity.current
@@ -507,11 +722,28 @@ fun HomeScreen(
             .fillMaxSize()
             .background(bgColor)
     ) {
-        LazyColumn(
-            state = homeListState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = headerHeight + 8.dp, bottom = 220.dp)
+        PullToRefreshBox(
+            isRefreshing = isPullRefreshing,
+            onRefresh = refreshRecommendations,
+            state = pullToRefreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullToRefreshState,
+                    isRefreshing = isPullRefreshing,
+                    containerColor = if (isAmoled) Color(0xFF1B1E29) else Color.White,
+                    color = accentColor,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = headerHeight + 8.dp)
+                )
+            },
+            modifier = Modifier.fillMaxSize()
         ) {
+            LazyColumn(
+                state = homeListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = headerHeight + 8.dp, bottom = 220.dp)
+            ) {
             // Feature 23: Smart Offline Mode Indicator
             if (!isOnline) {
                 item {
@@ -560,30 +792,30 @@ fun HomeScreen(
                     val formattedDate = remember {
                         java.time.LocalDate.now().format(
                             java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d").withLocale(java.util.Locale.ENGLISH)
-                        ).uppercase()
+                        )
                     }
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp)
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
                     ) {
                         Text(
                             text = formattedDate,
                             style = SwissMono.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                letterSpacing = 1.2.sp
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.sp,
+                                letterSpacing = 0.sp
                             ),
-                            color = textSecondary.copy(alpha = 0.8f)
+                            color = textSecondary
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = greeting,
                             style = SwissDisplayMedium.copy(
                                 fontSize = 32.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = (-0.6).sp
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = (-0.5).sp
                             ),
                             color = textPrimary
                         )
@@ -593,51 +825,7 @@ fun HomeScreen(
                 // Smart Sonic Flow (Dynamic User Taste Radio - Updates on song change)
                 // --- Smart Sonic Flow (Big Style Featured Showcase) ---
                 item {
-                    val activeFlowTracks = if (flowTracks.isNotEmpty()) flowTracks else heroTracks
-                    val heroTrack = activeFlowTracks.firstOrNull()
-
-                    // Ensure Smart Sonic Flow recommendations accurately contain EXACTLY 7 tracks every time
-                    val flowCarousel = remember(activeFlowTracks, madeForYouTracks, trendingTracks, dailyMixTracks) {
-                        val initial = activeFlowTracks.drop(1).toMutableList()
-                        val heroId = activeFlowTracks.firstOrNull()?.id
-                        val seenIds = mutableSetOf<String>().apply {
-                            heroId?.let { add(it) }
-                            initial.forEach { add(it.id) }
-                        }
-
-                        if (initial.size < 7) {
-                            for (track in madeForYouTracks) {
-                                if (track.id !in seenIds) {
-                                    seenIds.add(track.id)
-                                    initial.add(track)
-                                    if (initial.size == 7) break
-                                }
-                            }
-                        }
-                        if (initial.size < 7) {
-                            for (track in trendingTracks) {
-                                if (track.id !in seenIds) {
-                                    seenIds.add(track.id)
-                                    initial.add(track)
-                                    if (initial.size == 7) break
-                                }
-                            }
-                        }
-                        if (initial.size < 7) {
-                            for (track in dailyMixTracks) {
-                                if (track.id !in seenIds) {
-                                    seenIds.add(track.id)
-                                    initial.add(track)
-                                    if (initial.size == 7) break
-                                }
-                            }
-                        }
-                        initial.take(7)
-                    }
-
-                    val completeFlowTracks = remember(heroTrack, flowCarousel) {
-                        listOfNotNull(heroTrack) + flowCarousel
-                    }
+                    val flowCarousel = deduplicatedFlowCarousel
 
                     Column(
                         modifier = Modifier
@@ -656,8 +844,8 @@ fun HomeScreen(
                                 text = "Smart Sonic Flow",
                                 style = SwissDisplayMedium.copy(
                                     fontSize = 24.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    letterSpacing = (-0.5).sp
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = (-0.4).sp
                                 ),
                                 color = textPrimary
                             )
@@ -787,14 +975,14 @@ fun HomeScreen(
 
                                         Spacer(modifier = Modifier.width(16.dp))
 
-                                        // Big Radiant Play Jewel
+                                        // Quiet tactile Play action
                                         Box(
                                             modifier = Modifier
-                                                .size(58.dp)
-                                                .shadow(10.dp, CircleShape, spotColor = accentColor.copy(alpha = 0.6f))
+                                                .size(56.dp)
+                                                .shadow(6.dp, CircleShape, spotColor = Color.Black.copy(alpha = 0.25f))
                                                 .clip(CircleShape)
                                                 .background(accentColor)
-                                                .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                                                .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape)
                                                 .bouncyClickable(scaleDown = 0.90f) {
                                                     player.playPlaylist(completeFlowTracks, 0)
                                                 },
@@ -840,8 +1028,8 @@ fun HomeScreen(
                                                 .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF1F3F5))
                                                 .border(
                                                     BorderStroke(
-                                                        1.dp,
-                                                        if (isAmoled) Color(0x28FFFFFF) else Color(0xFF101828)
+                                                        0.5.dp,
+                                                        subtleBorder
                                                     ),
                                                     RoundedCornerShape(18.dp)
                                                 )
@@ -891,7 +1079,7 @@ fun HomeScreen(
 
                 // Discover New Music Shelf
                 item {
-                    val discoverTracks = if (trendingTracks.isNotEmpty()) trendingTracks else heroTracks
+                    val discoverTracks = deduplicatedDiscoverTracks
                     if (discoverTracks.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(22.dp))
                         Row(
@@ -911,9 +1099,9 @@ fun HomeScreen(
                             )
 
                             Text(
-                                text = "> See all",
+                                text = "See all",
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.Medium,
                                     fontSize = 13.5.sp
                                 ),
                                 color = accentColor,
@@ -937,8 +1125,8 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(135.dp)
                                             .clip(RoundedCornerShape(14.dp))
-                                            .background(if (isAmoled) Color(0xFF1B1E29) else Color(0xFFF1F3F5))
-                                            .border(BorderStroke(1.dp, if (isAmoled) Color(0x25FFFFFF) else Color(0xFF101828)), RoundedCornerShape(14.dp))
+                                            .background(chipInactiveBg)
+                                            .border(BorderStroke(0.5.dp, subtleBorder), RoundedCornerShape(14.dp))
                                     ) {
                                         if (!track.artworkUrl.isNullOrBlank()) {
                                             AsyncImage(
@@ -1096,76 +1284,76 @@ fun HomeScreen(
             }
 
             // --- 2.1 Continue Listening (Recent History & Multi-Track Jump Back In) ---
-            if (continueListeningList.isNotEmpty()) {
+            if (deduplicatedContinueListening.isNotEmpty()) {
                 item {
                     RecommendationShelf(
                         title = "Continue Listening",
-                        tracks = continueListeningList,
+                        tracks = deduplicatedContinueListening,
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
                         accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
-                        onTrackClick = { player.playTrack(it, continueListeningList) }
+                        onTrackClick = { player.playTrack(it, deduplicatedContinueListening) }
                     )
                 }
             }
 
             // --- 2.2 Made For You (Local Hybrid Recommendation Engine) ---
-            if (madeForYouTracks.isNotEmpty()) {
+            if (deduplicatedMadeForYou.isNotEmpty()) {
                 item {
                     RecommendationShelf(
                         title = "Made For You",
-                        tracks = madeForYouTracks,
+                        tracks = deduplicatedMadeForYou,
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
                         accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
-                        onTrackClick = { player.playTrack(it, madeForYouTracks) }
+                        onTrackClick = { player.playTrack(it, deduplicatedMadeForYou) }
                     )
                 }
             }
 
             // --- 2.3 Daily Mix ---
-            if (dailyMixTracks.isNotEmpty()) {
+            if (deduplicatedDailyMix.isNotEmpty()) {
                 item {
                     RecommendationShelf(
                         title = "Daily Mix",
-                        tracks = dailyMixTracks,
+                        tracks = deduplicatedDailyMix,
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
                         accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
-                        onTrackClick = { player.playTrack(it, dailyMixTracks) }
+                        onTrackClick = { player.playTrack(it, deduplicatedDailyMix) }
                     )
                 }
             }
 
             // --- 2.4 Because You Listened To ---
-            if (becauseYouListenedTracks.isNotEmpty()) {
+            if (deduplicatedBecauseYouListened.isNotEmpty()) {
                 item {
                     RecommendationShelf(
                         title = becauseYouListenedHeader,
-                        tracks = becauseYouListenedTracks,
+                        tracks = deduplicatedBecauseYouListened,
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
                         accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
-                        onTrackClick = { player.playTrack(it, becauseYouListenedTracks) }
+                        onTrackClick = { player.playTrack(it, deduplicatedBecauseYouListened) }
                     )
                 }
             }
 
             // --- 2.5 Rediscover ---
-            if (rediscoverTracks.isNotEmpty()) {
+            if (deduplicatedRediscover.isNotEmpty()) {
                 item {
                     RecommendationShelf(
                         title = "Rediscover",
-                        tracks = rediscoverTracks,
+                        tracks = deduplicatedRediscover,
                         textPrimary = textPrimary,
                         textSecondary = textSecondary,
                         accentColor = accentColor,
                         chipInactiveBg = chipInactiveBg,
-                        onTrackClick = { player.playTrack(it, rediscoverTracks) }
+                        onTrackClick = { player.playTrack(it, deduplicatedRediscover) }
                     )
                 }
             }
@@ -1307,22 +1495,17 @@ fun HomeScreen(
                         color = textPrimary
                     )
 
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = accentColor.copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
-                        modifier = Modifier.clickable(onClick = onNavigateToSearch)
-                    ) {
-                        Text(
-                            text = "SEE ALL",
-                            fontFamily = DisplayFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            letterSpacing = 0.6.sp,
-                            color = accentColor,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
+                    Text(
+                        text = "See all",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 13.5.sp
+                        ),
+                        color = accentColor,
+                        modifier = Modifier
+                            .clickable(onClick = onNavigateToSearch)
+                            .padding(vertical = 4.dp, horizontal = 4.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1331,11 +1514,11 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(trendingTracks.take(8)) { track ->
+                    items(deduplicatedNewReleases) { track ->
                         Column(
                             modifier = Modifier
                                 .width(135.dp)
-                                .clickable { player.playTrack(track, trendingTracks) }
+                                .clickable { player.playTrack(track, deduplicatedNewReleases) }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -1353,13 +1536,13 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(7.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = track.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp,
-                                    letterSpacing = (-0.2).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textPrimary,
                                 maxLines = 1,
@@ -1369,7 +1552,7 @@ fun HomeScreen(
                                 text = track.artist,
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontSize = 11.5.sp,
-                                    letterSpacing = (-0.1).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textSecondary,
                                 maxLines = 1,
@@ -1463,7 +1646,7 @@ fun HomeScreen(
                                     text = "${trendingTracks.size} songs • Tap to explore",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontSize = 12.sp,
-                                        letterSpacing = (-0.1).sp
+                                        letterSpacing = 0.sp
                                     ),
                                     color = textSecondary
                                 )
@@ -1488,11 +1671,11 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
-                                        text = "VIEW",
+                                        text = "View",
                                         fontFamily = DisplayFontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        letterSpacing = 0.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp,
+                                        letterSpacing = 0.sp,
                                         color = Color.White
                                     )
                                 }
@@ -1545,7 +1728,7 @@ fun HomeScreen(
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.5.sp,
-                                                letterSpacing = (-0.2).sp
+                                                letterSpacing = 0.sp
                                             ),
                                             color = textPrimary,
                                             maxLines = 1,
@@ -1555,7 +1738,7 @@ fun HomeScreen(
                                             text = track.artist,
                                             style = MaterialTheme.typography.bodySmall.copy(
                                                 fontSize = 11.5.sp,
-                                                letterSpacing = (-0.1).sp
+                                                letterSpacing = 0.sp
                                             ),
                                             color = textSecondary,
                                             maxLines = 1,
@@ -1630,11 +1813,11 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(trendingTracks.asReversed().take(8)) { track ->
+                    items(deduplicatedExploreTracks) { track ->
                         Column(
                             modifier = Modifier
                                 .width(135.dp)
-                                .clickable { player.playTrack(track, trendingTracks.asReversed()) }
+                                .clickable { player.playTrack(track, deduplicatedExploreTracks) }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -1652,13 +1835,13 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(7.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = track.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp,
-                                    letterSpacing = (-0.2).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textPrimary,
                                 maxLines = 1,
@@ -1668,7 +1851,7 @@ fun HomeScreen(
                                 text = track.artist,
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontSize = 11.5.sp,
-                                    letterSpacing = (-0.1).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textSecondary,
                                 maxLines = 1,
@@ -1704,9 +1887,9 @@ fun HomeScreen(
                     )
 
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = accentColor.copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(10.dp),
+                        color = cardBg,
+                        border = BorderStroke(0.5.dp, subtleBorder),
                         modifier = Modifier.clickable { isArtistPickerOpen = true }
                     ) {
                         Row(
@@ -1717,16 +1900,16 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Add Artist",
-                                tint = accentColor,
-                                modifier = Modifier.size(14.dp)
+                                tint = textPrimary,
+                                modifier = Modifier.size(15.dp)
                             )
                             Text(
-                                text = "ADD",
+                                text = "Add",
                                 fontFamily = DisplayFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                letterSpacing = 0.5.sp,
-                                color = accentColor
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.sp,
+                                letterSpacing = 0.sp,
+                                color = textPrimary
                             )
                         }
                     }
@@ -1838,11 +2021,11 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    items(similarTracks) { track ->
+                    items(deduplicatedSimilarTracks) { track ->
                         Column(
                             modifier = Modifier
                                 .width(135.dp)
-                                .clickable { player.playTrack(track, similarTracks) }
+                                .clickable { player.playTrack(track, deduplicatedSimilarTracks) }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -1860,13 +2043,13 @@ fun HomeScreen(
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(7.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = track.title,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp,
-                                    letterSpacing = (-0.2).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textPrimary,
                                 maxLines = 1,
@@ -1876,7 +2059,7 @@ fun HomeScreen(
                                 text = track.artist,
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontSize = 11.5.sp,
-                                    letterSpacing = (-0.1).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textSecondary,
                                 maxLines = 1,
@@ -1929,28 +2112,79 @@ fun HomeScreen(
                                     .background(chipInactiveBg)
                                     .border(1.dp, if (isAmoled) Color(0x28FFFFFF) else cardBorder, RoundedCornerShape(16.dp))
                             ) {
-                                AsyncImage(
+                                // Single-hue neutral tonal shifts (quiet surface craft)
+                                val fallbackGradients = remember {
+                                    listOf(
+                                        listOf(Color(0xFF282A33), Color(0xFF181A20)),
+                                        listOf(Color(0xFF232730), Color(0xFF16181F)),
+                                        listOf(Color(0xFF2A2A2E), Color(0xFF1A1A1E)),
+                                        listOf(Color(0xFF22252A), Color(0xFF15171B)),
+                                        listOf(Color(0xFF292B32), Color(0xFF191B21)),
+                                        listOf(Color(0xFF24262B), Color(0xFF17181C)),
+                                        listOf(Color(0xFF272A31), Color(0xFF181A20)),
+                                        listOf(Color(0xFF25282E), Color(0xFF16181D))
+                                    )
+                                }
+                                val playlistGradient = remember(playlist.id) {
+                                    val idx = kotlin.math.abs(playlist.id.hashCode()) % fallbackGradients.size
+                                    fallbackGradients[idx]
+                                }
+
+                                SubcomposeAsyncImage(
                                     model = playlist.artworkUrl,
                                     contentDescription = playlist.title,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize(),
+                                    loading = {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Brush.linearGradient(playlistGradient)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.QueueMusic,
+                                                contentDescription = null,
+                                                tint = Color.White.copy(alpha = 0.5f),
+                                                modifier = Modifier.size(38.dp)
+                                            )
+                                        }
+                                    },
+                                    error = {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Brush.linearGradient(playlistGradient)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.QueueMusic,
+                                                contentDescription = null,
+                                                tint = Color.White.copy(alpha = 0.85f),
+                                                modifier = Modifier.size(44.dp)
+                                            )
+                                        }
+                                    },
+                                    success = {
+                                        SubcomposeAsyncImageContent()
+                                    }
                                 )
 
-                                // Top Trend Badge Pill
+                                // Top Category Tag
                                 Surface(
-                                    shape = RoundedCornerShape(999.dp),
-                                    color = Color.Black.copy(alpha = 0.65f),
-                                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.25f)),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.Black.copy(alpha = 0.56f),
+                                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.16f)),
                                     modifier = Modifier
                                         .align(Alignment.TopStart)
                                         .padding(8.dp)
                                 ) {
                                     Text(
-                                        text = playlist.trendTag.uppercase(),
+                                        text = playlist.trendTag,
                                         fontFamily = DisplayFontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 9.sp,
-                                        letterSpacing = 0.6.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 10.sp,
+                                        letterSpacing = 0.sp,
                                         color = Color.White,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                     )
@@ -1971,13 +2205,13 @@ fun HomeScreen(
 
                                 // Bottom Track Count Meta
                                 Text(
-                                    text = "${playlist.trackCount} TRACKS",
+                                    text = "${playlist.trackCount} tracks",
                                     style = SwissMono.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
-                                        letterSpacing = 0.5.sp
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.sp,
+                                        letterSpacing = 0.sp
                                     ),
-                                    color = Color.White.copy(alpha = 0.9f),
+                                    color = Color.White.copy(alpha = 0.88f),
                                     modifier = Modifier
                                         .align(Alignment.BottomStart)
                                         .padding(horizontal = 10.dp, vertical = 10.dp)
@@ -2011,7 +2245,7 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.5.sp,
-                                    letterSpacing = (-0.2).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textPrimary,
                                 maxLines = 1,
@@ -2022,7 +2256,7 @@ fun HomeScreen(
                                 text = playlist.description,
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontSize = 11.5.sp,
-                                    letterSpacing = (-0.1).sp
+                                    letterSpacing = 0.sp
                                 ),
                                 color = textSecondary,
                                 maxLines = 2,
@@ -2036,6 +2270,7 @@ fun HomeScreen(
             item {
                 Spacer(modifier = Modifier.height(30.dp))
             }
+        }
         }
 
         HomeScreenHeader(
@@ -2150,8 +2385,8 @@ private fun HomeScreenHeader(
                         text = "Home",
                         style = SwissDisplayMedium.copy(
                             fontSize = 32.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.6).sp
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = (-0.5).sp
                         ),
                         color = textPrimary,
                         maxLines = 1
@@ -2369,7 +2604,7 @@ private fun QuickPicksSection(
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.5.sp,
-                                        letterSpacing = (-0.2).sp
+                                        letterSpacing = 0.sp
                                     ),
                                     color = textPrimary,
                                     maxLines = 1,
@@ -2380,7 +2615,7 @@ private fun QuickPicksSection(
                                     text = track.artist,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontSize = 12.sp,
-                                        letterSpacing = (-0.1).sp
+                                        letterSpacing = 0.sp
                                     ),
                                     color = textSecondary,
                                     maxLines = 1,
@@ -2472,13 +2707,13 @@ private fun RecommendationShelf(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(7.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = track.title,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.5.sp,
-                            letterSpacing = (-0.2).sp
+                            letterSpacing = 0.sp
                         ),
                         color = textPrimary,
                         maxLines = 1,
@@ -2488,7 +2723,7 @@ private fun RecommendationShelf(
                         text = track.artist,
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontSize = 11.5.sp,
-                            letterSpacing = (-0.1).sp
+                            letterSpacing = 0.sp
                         ),
                         color = textSecondary,
                         maxLines = 1,

@@ -390,8 +390,8 @@ fun MiniPlayerDock(
                         AnimatedContent(
                             targetState = Pair(isLoading, isPlaying),
                             transitionSpec = {
-                                (scaleIn(spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(130)))
-                                    .togetherWith(scaleOut(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(90)))
+                                (scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(130)))
+                                    .togetherWith(scaleOut(targetScale = 0.85f, animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)) + fadeOut(tween(90)))
                             },
                             label = "mini_play_pause_state"
                         ) { (loading, playing) ->
